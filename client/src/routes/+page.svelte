@@ -1,156 +1,119 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { onMount } from 'svelte';
 
-  let name = $state("");
-  let greetMsg = $state("");
-
-  async function greet(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
+  interface Plugin {
+    id: string;
+    name: string;
+    developer: string;
+    license_model: string;
+    created_at: string;
   }
+
+  let plugins: Plugin[] = [];
+  let error = '';
+  let loading = true;
+
+  onMount(async () => {
+    try {
+      const res = await fetch('http://localhost:3000/plugins');
+      if (!res.ok) throw new Error('Failed to fetch plugins');
+      plugins = await res.json();
+    } catch (err: any) {
+      error = err.message;
+    } finally {
+      loading = false;
+    }
+  });
 </script>
 
 <main class="container">
-  <h1>Welcome to Tauri + Svelte</h1>
+  <h1>VST Monster - Registry</h1>
 
-  <div class="row">
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank">
-      <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-    </a>
-  </div>
-  <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
-
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p>
+  {#if loading}
+    <p>Loading plugins...</p>
+  {:else if error}
+    <p class="error">Error: {error}</p>
+  {:else if plugins.length === 0}
+    <p>No plugins found in the registry.</p>
+  {:else}
+    <div class="plugin-grid">
+      {#each plugins as plugin}
+        <div class="plugin-card">
+          <h2>{plugin.name}</h2>
+          <p><strong>Developer:</strong> {plugin.developer}</p>
+          <p><strong>License:</strong> {plugin.license_model}</p>
+        </div>
+      {/each}
+    </div>
+  {/if}
 </main>
 
 <style>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.svelte-kit:hover {
-  filter: drop-shadow(0 0 2em #ff3e00);
-}
-
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
   :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+    color: #0f0f0f;
+    background-color: #f6f6f6;
   }
 
-  a:hover {
-    color: #24c8db;
+  .container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
   }
 
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
+  h1 {
+    text-align: center;
+    margin-bottom: 2rem;
   }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
 
+  .error {
+    color: red;
+    text-align: center;
+  }
+
+  .plugin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .plugin-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+  }
+
+  .plugin-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .plugin-card h2 {
+    margin: 0 0 1rem 0;
+    font-size: 1.25rem;
+    color: #2c3e50;
+  }
+
+  .plugin-card p {
+    margin: 0.5rem 0;
+    color: #666;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color: #f6f6f6;
+      background-color: #2f2f2f;
+    }
+    .plugin-card {
+      background: #3f3f3f;
+    }
+    .plugin-card h2 {
+      color: #fff;
+    }
+    .plugin-card p {
+      color: #ccc;
+    }
+  }
 </style>
