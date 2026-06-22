@@ -2,7 +2,7 @@
 
 ## Phase 1: Foundation & Crawling
 - [ ] Initialize project structure and documentation.
-- [ ] Implement the Go Crawler Engine for KVR, GitHub, and major hubs.
+- [x] Implement the Go Crawler Engine for KVR, GitHub, and major hubs.
 - [x] Establish the centralized Registry API and Database schema.
 
 ## Phase 2: Desktop Client Development
