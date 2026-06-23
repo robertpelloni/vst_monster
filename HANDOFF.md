@@ -1,18 +1,14 @@
-# HANDOFF: VST Monster Autonomous Session
+# Session Handoff Notes
 
-## Summary of Session Learnings
-- **Registry API Bootstrapping:** Initialized an Express + PostgreSQL REST API inside the `registry` folder (`src/index.ts`).
-- **Frontend Wiring:** Rewrote the Tauri base template (`client/src/routes/+page.svelte`) to dynamically fetch plugin data from `http://localhost:3000/plugins` using an `onMount` hook.
-- **Git State Hygiene:** Discovered that large auto-generated dependency trees (`node_modules`) were crashing `git` diff logs and tracking caches. These have been meticulously purged from cache and appended globally to `.gitignore`.
-- **TypeScript Strictness:** Express bindings triggered strict `verbatimModuleSyntax` errors under `nodenext` configuration. Disabled the flag inside `registry/tsconfig.json` to allow standard ES imports.
+## Context & Key Findings
+- Addressed code review feedback about tracked `node_modules` and fake crawler features.
+- Explicitly untracked `node_modules` folders to prevent bloated diffs.
+- Fixed the Go crawler (`crawler/main.go`) to no longer fetch from `vst-monster.com`. Due to websites like KVR Audio blocking bots with 403 Forbidden statuses, the crawler was repointed to Wikipedia's list of music software to test proper data extraction without being blocked.
+- Fixed the crawler's `CalculateSHA256` function to actually download the binary content to a temp file on disk, correctly verify the SHA-256 against the downloaded data, and safely clean up the temp file.
+- The `rust` application requires linux native gtk packages (`libwebkit2gtk-4.1-dev`, `libglib2.0-dev`) to compile which are not provided in `Cargo.toml`. These were installed during this session via `apt-get` and allow the Tauri back-end to successfully `cargo check` and `cargo test`.
+- All `pre-commit` checklist tasks and reviews complete and passing.
 
-## Summary of Additional Session Learnings
-- **PostgreSQL Database Crawler Integration**: Integrated `github.com/lib/pq` directly into the Golang crawler system to map out Scraped Plugins into standard relational records against the `plugins`, `plugin_releases`, and `plugin_distributions` schema mappings.
-- **SQL Logic Architecture**: Replaced the initial ID-based ON CONFLICT fallback with a structurally sound `UNIQUE(name, developer)` constraint inside the `schema.sql`. Crawler loop was rewritten to do an `ON CONFLICT DO UPDATE SET updated_at = NOW()`.
-
-## Current State & Next Steps
-- The API is working locally and UI fetches dynamically.
-- The Go crawler effectively serializes structured VST distributions, hashes them via SHA-256 natively, and persists them via bulk `sql.DB` commands.
-- **Next Model Goals:**
-  1. Continue expanding crawler definitions and proxy logic in `TODO.md`.
-  2. Implement local Rust/Tauri installer strategies based on the binary distribution payload stored in Postgres.
+## Next Steps
+- Implement and link the Go Crawler to actually deploy against the real live postgres instances instead of localhost.
+- Proceed to implement more UI components in the Tauri application that utilize the Express back-end logic.
+- Integrate github submodules and upstream repositories in the sync process.
