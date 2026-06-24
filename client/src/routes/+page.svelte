@@ -9,9 +9,9 @@
     created_at: string;
   }
 
-  let plugins: Plugin[] = [];
-  let error = '';
-  let loading = true;
+  let plugins = $state<Plugin[]>([]);
+  let error = $state('');
+  let loading = $state(true);
 
   onMount(async () => {
     try {
