@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
 
   interface Plugin {
     id: string;
@@ -13,7 +12,6 @@
   let plugins = $state<Plugin[]>([]);
   let error = $state('');
   let loading = $state(true);
-  let installStatus = $state<{ [key: string]: string }>({});
 
   onMount(async () => {
     try {
@@ -26,17 +24,6 @@
       loading = false;
     }
   });
-
-  async function installPlugin(plugin: Plugin) {
-    try {
-      installStatus[plugin.id] = 'Installing...';
-      const dummyUrl = 'https://example.com/dummy.vst'; // In a real scenario, this would come from the registry DB plugin_distributions
-      const response = await invoke('install_plugin', { url: dummyUrl, name: plugin.name });
-      installStatus[plugin.id] = response as string;
-    } catch (err: any) {
-      installStatus[plugin.id] = `Error: ${err}`;
-    }
-  }
 </script>
 
 <main class="container">
@@ -55,10 +42,6 @@
           <h2>{plugin.name}</h2>
           <p><strong>Developer:</strong> {plugin.developer}</p>
           <p><strong>License:</strong> {plugin.license_model}</p>
-          <button onclick={() => installPlugin(plugin)}>Install</button>
-          {#if installStatus[plugin.id]}
-            <p class="status">{installStatus[plugin.id]}</p>
-          {/if}
         </div>
       {/each}
     </div>
@@ -118,27 +101,6 @@
     color: #666;
   }
 
-  .plugin-card button {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-  }
-
-  .plugin-card button:hover {
-    background-color: #0056b3;
-  }
-
-  .status {
-    font-size: 0.8rem;
-    margin-top: 0.5rem;
-    color: #0056b3;
-  }
-
   @media (prefers-color-scheme: dark) {
     :root {
       color: #f6f6f6;
@@ -152,9 +114,6 @@
     }
     .plugin-card p {
       color: #ccc;
-    }
-    .status {
-        color: #4da3ff;
     }
   }
 </style>

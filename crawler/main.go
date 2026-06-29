@@ -120,9 +120,7 @@ func InitCrawler() *colly.Collector {
 // calculates its SHA256 hash, and cleans up the temporary file.
 func CalculateSHA256(url string) (string, error) {
 	// Add user agent to bypass some simple blocks
-	client := &http.Client{
-		Timeout: 30 * time.Second, // Configure strict timeout to prevent hung threads
-	}
+	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
