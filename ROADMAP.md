@@ -1,7 +1,7 @@
 # ROADMAP: VST Monster
 
 ## Phase 1: Foundation & Crawling
-- [x] Initialize project structure and documentation.
+- [ ] Initialize project structure and documentation.
 - [x] Implement the Go Crawler Engine for KVR, GitHub, and major hubs.
 - [x] Establish the centralized Registry API and Database schema.
 

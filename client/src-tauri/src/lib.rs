@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use tauri::AppHandle;
+use futures_util::StreamExt;
 
 #[tauri::command]
 async fn install_plugin(url: String, name: String, _app: AppHandle) -> Result<String, String> {
@@ -25,9 +26,13 @@ async fn download_file(url: &str, path: &PathBuf) -> Result<(), Box<dyn std::err
         return Err(format!("Server returned error: {}", response.status()).into());
     }
 
-    let bytes = response.bytes().await?;
     let mut file = File::create(path)?;
-    file.write_all(&bytes)?;
+    let mut stream = response.bytes_stream();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        file.write_all(&chunk)?;
+    }
 
     Ok(())
 }

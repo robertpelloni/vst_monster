@@ -1,10 +1,5 @@
 # CHANGELOG: VST Monster
 
-## [0.1.3] - Intelligent Merge and Submodule Sync
-- Executed continuous autonomous execution protocol.
-- Performed intelligent upstream branch reconciliation.
-- Merged feature branches for Crawler and Registry UI.
-
 ## [0.1.2] - Crawler PostgreSQL Integration
 - Wired the Go Colly crawler to directly ingest and populate the PostgreSQL `plugins` and `plugin_releases` schema tables.
 - Included struct mapping definitions inside Go wrapper for standard extraction rules.
