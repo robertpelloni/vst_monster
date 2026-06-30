@@ -1,14 +1,14 @@
 # ROADMAP: VST Monster
 
 ## Phase 1: Foundation & Crawling
-- [ ] Initialize project structure and documentation.
-- [ ] Implement the Go Crawler Engine for KVR, GitHub, and major hubs.
-- [ ] Establish the centralized Registry API and Database schema.
+- [x] Initialize project structure and documentation.
+- [x] Implement the Go Crawler Engine for KVR, GitHub, and major hubs.
+- [x] Establish the centralized Registry API and Database schema.
 
 ## Phase 2: Desktop Client Development
-- [ ] Build the Tauri base application.
-- [ ] Implement the native Rust installation engine.
-- [ ] Design the Svelte-based UI for browsing and managing plugins.
+- [x] Build the Tauri base application.
+- [x] Implement the native Rust installation engine.
+- [x] Design the Svelte-based UI for browsing and managing plugins.
 
 ## Phase 3: Advanced Installation Strategies
 - [ ] Implement silent installers for MSI, EXE, PKG.

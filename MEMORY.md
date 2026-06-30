@@ -2,8 +2,8 @@
 
 ## Codebase Traits
 - **Crawler**: Built in Go for high concurrency and performance. Target sources: KVR, GitHub, developer sites.
-- **Registry**: Node.js/TypeScript backend with PostgreSQL and Redis.
-- **Client**: Tauri/Rust for native OS access and minimal footprint.
+- **Registry**: Express Node.js/TypeScript backend with PostgreSQL (pg) and Redis.
+- **Client**: Tauri/Rust for native OS access and minimal footprint, paired with a SvelteKit UI.
 
 ## Design Preferences
 - De-coupled microservices architecture.
