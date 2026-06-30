@@ -63,10 +63,13 @@ func ScrapeKVR(onPluginFound func(PluginData), proxyFunc colly.ProxyFunc) {
 			})
 		}
 
+		downloadURL := e.Request.URL.String() // fallback to the product page
+
 		if name != "" && developer != "" {
 			onPluginFound(PluginData{
-				Name:      name,
-				Developer: developer,
+				Name:        name,
+				Developer:   developer,
+				DownloadURL: downloadURL,
 			})
 		}
 	})
