@@ -11,8 +11,8 @@
 - [x] Design the Svelte-based UI for browsing and managing plugins.
 
 ## Phase 3: Advanced Installation Strategies
-- [ ] Implement silent installers for MSI, EXE, PKG.
-- [ ] Implement DMG extraction and binary relocation for macOS.
+- [x] Implement silent installers for MSI, EXE, PKG.
+- [x] Implement DMG extraction and binary relocation for macOS.
 - [ ] Handle UAC/Sudo privilege elevation gracefully.
 
 ## Phase 4: Scaling & Community

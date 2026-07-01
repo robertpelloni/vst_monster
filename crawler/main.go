@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/robertpelloni/vst_monster/crawler/scrapers"
@@ -35,7 +36,7 @@ func main() {
 		if plugin.DownloadURL != "" {
 			// Basic check to avoid hashing HTML pages
 			isLikelyArchive := false
-			lowerURL := plugin.DownloadURL
+			lowerURL := strings.ToLower(plugin.DownloadURL)
 			if len(lowerURL) > 4 {
 				if lowerURL[len(lowerURL)-4:] == ".zip" || lowerURL[len(lowerURL)-4:] == ".exe" || lowerURL[len(lowerURL)-4:] == ".dmg" || lowerURL[len(lowerURL)-4:] == ".pkg" || lowerURL[len(lowerURL)-4:] == ".msi" || (len(lowerURL) > 7 && lowerURL[len(lowerURL)-7:] == ".tar.gz") {
 					isLikelyArchive = true
