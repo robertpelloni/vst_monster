@@ -8,10 +8,7 @@ import (
 )
 
 func TestCalculateSHA256(t *testing.T) {
-	// Create a mock HTTP server
 	mockData := "test data for hashing"
-	// The sha256 for "test data for hashing" is:
-	// f7eb7961d8a233e6256d3a6257548bbb9293c3a08fb3574c88c7d6b429dbb9f5
 	expectedHash := "f7eb7961d8a233e6256d3a6257548bbb9293c3a08fb3574c88c7d6b429dbb9f5"
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

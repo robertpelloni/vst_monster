@@ -13,9 +13,8 @@ import (
 // or let the caller pass a callback.
 
 type PluginData struct {
-	Name        string
-	Developer   string
-	DownloadURL string
+	Name      string
+	Developer string
 }
 
 func ScrapeBPB(onPluginFound func(PluginData), proxyFunc colly.ProxyFunc) {

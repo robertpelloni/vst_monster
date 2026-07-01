@@ -1,37 +1,32 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
-	"sync"
 
-	"github.com/robertpelloni/vst_monster/crawler/scrapers"
+	"github.com/gocolly/colly/v2"
+	"github.com/gocolly/colly/v2/proxy"
+
+	"github.com/robertpelloni/vst_monster/crawler/config"
+	"github.com/robertpelloni/vst_monster/crawler/parser"
+	"github.com/robertpelloni/vst_monster/crawler/queue"
+	"github.com/robertpelloni/vst_monster/crawler/scraper"
 )
 
 func main() {
-	log.Println("VST Monster Crawler starting...")
+	log.Println("Starting VST Monster Crawler Pipeline...")
+	cfg := config.LoadConfig()
 
 	db := InitDB()
 	if db != nil {
 		defer db.Close()
 	}
 
-	plugins := NewPluginCollection()
+	pipeline := queue.NewPipeline(db)
 
-	// Create a callback that scrapers use to send data back
-	onPluginFound := func(data scrapers.PluginData) {
-		plugin := ScrapedPlugin{
-			Name:        data.Name,
-			Developer:   data.Developer,
-			DownloadURL: data.DownloadURL,
-		}
-
-		plugins.Add(plugin)
+	pipeline.SetCallback(func(plugin parser.StandardPlugin) {
 		log.Printf("Found plugin: %s by %s\n", plugin.Name, plugin.Developer)
 
-		// Compute hash if there's a download URL that points directly to a file
 		hash := ""
 		if plugin.DownloadURL != "" {
 			// Basic check to avoid hashing HTML pages
@@ -53,49 +48,54 @@ func main() {
 			}
 		}
 
-		// Attempt upsert immediately if db is available
 		if db != nil {
 			err := UpsertPlugin(db, plugin, hash)
 			if err != nil {
 				log.Printf("Error upserting %s: %v\n", plugin.Name, err)
 			}
 		}
+	})
+
+	pipeline.StartConsumers()
+
+	c := colly.NewCollector(
+		colly.Async(true),
+		colly.UserAgent(cfg.UserAgent),
+	)
+
+	c.SetRequestTimeout(cfg.Timeout)
+	c.Limit(&colly.LimitRule{
+		DomainGlob:  "*",
+		Parallelism: cfg.Concurrency,
+	})
+
+	if cfg.ProxyURL != "" {
+		rp, err := proxy.RoundRobinProxySwitcher(cfg.ProxyURL)
+		if err != nil {
+			log.Fatalf("Failed to configure proxy: %v", err)
+		}
+		c.SetProxyFunc(rp)
+		log.Println("Proxy rotation configured.")
 	}
 
-	proxyFunc := GetProxySwitcher()
+	// Create targeted scrapers
+	kvrCollector := c.Clone()
+	scraper.BuildKVRScraper(kvrCollector, pipeline.Results)
 
-	// Run scrapers concurrently
-	var wg sync.WaitGroup
+	githubCollector := c.Clone()
+	scraper.BuildGithubScraper(githubCollector, pipeline.Results)
 
-	log.Println("Starting BedroomProducersBlog Scraper...")
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		scrapers.ScrapeBPB(onPluginFound, proxyFunc)
-	}()
+	// Start crawls
+	log.Println("Crawling KVR Audio...")
+	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/newest")
 
-	log.Println("Starting KVR Scraper...")
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		scrapers.ScrapeKVR(onPluginFound, proxyFunc)
-	}()
+	log.Println("Crawling GitHub VST topics...")
+	githubCollector.Visit("https://github.com/topics/vst-plugin")
 
-	log.Println("Starting GitHub Scraper...")
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		scrapers.ScrapeGitHub(onPluginFound, proxyFunc)
-	}()
+	// Wait for completion
+	kvrCollector.Wait()
+	githubCollector.Wait()
 
-	// Wait for all scrapers to finish
-	wg.Wait()
-
-	finalPlugins := plugins.GetAll()
-	log.Printf("Finished all scraping tasks. Found %d plugins total.\n", len(finalPlugins))
-
-	if len(finalPlugins) > 0 {
-		jsonData, _ := json.MarshalIndent(finalPlugins, "", "  ")
-		fmt.Println(string(jsonData))
-	}
+	pipeline.Close()
+	log.Println("Crawling session complete.")
 }

@@ -1,62 +1,12 @@
 package scrapers
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
-	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/gocolly/colly/v2"
 )
-
-// GitHubRelease represents the subset of fields we need from the API response
-type GitHubRelease struct {
-	Assets []struct {
-		BrowserDownloadURL string `json:"browser_download_url"`
-	} `json:"assets"`
-}
-
-func fetchGitHubReleaseDownloadURL(owner, repo string) string {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return ""
-	}
-
-	req.Header.Set("User-Agent", "VST-Monster-Bot/1.0 (+https://vstmonster.com)")
-
-	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
-		req.Header.Set("Authorization", "token "+token)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		if resp != nil {
-			resp.Body.Close()
-		}
-		return ""
-	}
-	defer resp.Body.Close()
-
-	var release GitHubRelease
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return ""
-	}
-
-	for _, asset := range release.Assets {
-		lowerURL := strings.ToLower(asset.BrowserDownloadURL)
-		if strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".tar.gz") {
-			return asset.BrowserDownloadURL
-		}
-	}
-
-	return ""
-}
 
 func ScrapeGitHub(onPluginFound func(PluginData), proxyFunc colly.ProxyFunc) {
 	c := colly.NewCollector(
@@ -101,11 +51,9 @@ func ScrapeGitHub(onPluginFound func(PluginData), proxyFunc colly.ProxyFunc) {
 			repo = strings.TrimSpace(repo)
 
 			if owner != "" && repo != "" {
-				downloadURL := fetchGitHubReleaseDownloadURL(owner, repo)
 				onPluginFound(PluginData{
-					Name:        repo,
-					Developer:   owner,
-					DownloadURL: downloadURL,
+					Name:      repo,
+					Developer: owner,
 				})
 			}
 		}

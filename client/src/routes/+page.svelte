@@ -17,6 +17,8 @@
     sha256_hash: string | null;
     strategy: string | null;
     extraction_rules: any | null;
+    metadata: any | null;
+    formats: string[] | null;
   }
 
   let plugins = $state<Plugin[]>([]);
@@ -130,8 +132,16 @@
             {#if plugin.platform}
                <p><strong>Platform:</strong> <span class="platform-badge" use:tooltip={`Supported on ${plugin.platform} (${plugin.architecture})`}>{plugin.platform}</span></p>
             {/if}
+            {#if plugin.formats && plugin.formats.length > 0}
+               <p><strong>Formats:</strong> <span class="platform-badge" use:tooltip={`Available formats: ${plugin.formats.join(', ')}`}>{plugin.formats.join(', ')}</span></p>
+            {/if}
             {#if plugin.sha256_hash}
                <p class="hash" use:tooltip={`SHA-256 Hash for verification: ${plugin.sha256_hash}`}><strong>Hash:</strong> {plugin.sha256_hash.substring(0, 12)}...</p>
+            {/if}
+            {#if plugin.metadata?.description}
+               <p class="metadata-desc" use:tooltip={plugin.metadata.description}>
+                  <strong>Info:</strong> {plugin.metadata.description.length > 60 ? plugin.metadata.description.substring(0, 60) + '...' : plugin.metadata.description}
+               </p>
             {/if}
           </div>
 
@@ -317,6 +327,14 @@
     font-size: 0.8rem;
     color: #888 !important;
     cursor: help;
+  }
+
+  .metadata-desc {
+    font-size: 0.85rem;
+    color: #666 !important;
+    cursor: help;
+    display: block;
+    line-height: 1.4;
   }
 
   .plugin-actions {

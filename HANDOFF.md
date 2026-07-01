@@ -32,7 +32,6 @@
   - Added a polite scraper targeting GitHub topics for "vst-plugin" (`github.go`).
   - Added a polite scraper targeting KVR Audio's newest free plugins page (`kvr.go`).
 - Modified the main execution thread to initialize the PostgreSQL DB, orchestrate the scrapers concurrently utilizing goroutines and a WaitGroup, and safely collect plugins.
-- Added local Rust/Tauri installer strategies for MSI, EXE, PKG, and DMG to `client/src-tauri/src/installer.rs` and exposed an `install_plugin` command to the Tauri frontend.
 
 ## Next Steps
 - Write tests for the crawler.
