@@ -56,7 +56,7 @@ func main() {
 		}
 	})
 
-	pipeline.StartConsumers()
+	pipeline.StartConsumers(10) // 10 concurrent database/hashing workers
 
 	c := colly.NewCollector(
 		colly.Async(true),

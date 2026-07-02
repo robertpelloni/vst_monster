@@ -28,21 +28,23 @@ func (p *Pipeline) SetCallback(cb func(plugin parser.StandardPlugin)) {
 	p.onPluginFound = cb
 }
 
-func (p *Pipeline) StartConsumers() {
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
-		for plugin := range p.Results {
-			if p.onPluginFound != nil {
-				p.onPluginFound(plugin)
-			} else {
-				jsonStr, err := parser.ToJSON(plugin)
-				if err == nil {
-					log.Printf("Ingested: %s", jsonStr)
+func (p *Pipeline) StartConsumers(numConsumers int) {
+	for i := 0; i < numConsumers; i++ {
+		p.wg.Add(1)
+		go func() {
+			defer p.wg.Done()
+			for plugin := range p.Results {
+				if p.onPluginFound != nil {
+					p.onPluginFound(plugin)
+				} else {
+					jsonStr, err := parser.ToJSON(plugin)
+					if err == nil {
+						log.Printf("Ingested: %s", jsonStr)
+					}
 				}
 			}
-		}
-	}()
+		}()
+	}
 }
 
 func (p *Pipeline) Close() {
