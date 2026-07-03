@@ -2,28 +2,25 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
 
-  interface Plugin {
+  type Plugin = {
     id: string;
     name: string;
     developer: string;
     license_model: string;
-    created_at: string;
-    updated_at: string;
-    version: string | null;
-    release_date: string | null;
-    platform: string | null;
-    architecture: string | null;
-    download_url: string | null;
-    sha256_hash: string | null;
-    strategy: string | null;
-    extraction_rules: any | null;
-    metadata: any | null;
-    formats: string[] | null;
-  }
+    version?: string;
+    platform?: string;
+    architecture?: string;
+    download_url?: string;
+    sha256_hash?: string;
+    formats?: string[];
+    metadata?: {
+        description?: string;
+    };
+  };
 
   let plugins = $state<Plugin[]>([]);
-  let error = $state('');
   let loading = $state(true);
+  let error = $state<string | null>(null);
   let installStatus = $state<Record<string, string>>({});
 
   onMount(async () => {
