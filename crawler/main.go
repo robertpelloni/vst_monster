@@ -1,110 +1,101 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gocolly/colly/v2"
+	"github.com/gocolly/colly/v2/proxy"
+
+	"github.com/robertpelloni/vst_monster/crawler/config"
+	"github.com/robertpelloni/vst_monster/crawler/parser"
+	"github.com/robertpelloni/vst_monster/crawler/queue"
+	"github.com/robertpelloni/vst_monster/crawler/scraper"
 )
 
-type ScrapedPlugin struct {
-	Name        string   `json:"name"`
-	Developer   string   `json:"developer"`
-	DownloadURL string   `json:"download_url"`
-	Version     string   `json:"version"`
-	Platform    string   `json:"platform"` // windows, macos, linux
-}
-
-// InitCrawler initializes the colly collector with standard settings.
-func InitCrawler() *colly.Collector {
-	c := colly.NewCollector(
-		colly.Async(true),
-		colly.UserAgent("VST-Monster-Bot/1.0 (+https://vstmonster.com)"),
-	)
-
-	c.SetRequestTimeout(60 * time.Second)
-
-	c.OnRequest(func(r *colly.Request) {
-		log.Println("Visiting", r.URL.String())
-	})
-
-	c.OnError(func(_ *colly.Response, err error) {
-		log.Println("Something went wrong:", err)
-	})
-
-	return c
-}
-
-// CalculateSHA256 downloads the file from the given URL and calculates its SHA256 hash.
-func CalculateSHA256(url string) (string, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("bad status: %s", resp.Status)
-	}
-
-	hasher := sha256.New()
-	if _, err := io.Copy(hasher, resp.Body); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hasher.Sum(nil)), nil
-}
-
 func main() {
-	log.Println("VST Monster Crawler starting...")
+	log.Println("Starting VST Monster Crawler Pipeline...")
+	cfg := config.LoadConfig()
 
-	c := InitCrawler()
+	db := InitDB()
+	if db != nil {
+		defer db.Close()
+	}
 
-	plugins := make([]ScrapedPlugin, 0)
+	pipeline := queue.NewPipeline(db)
 
-	c.OnHTML("h1, h2, h3", func(e *colly.HTMLElement) {
-		text := e.Text
-		if strings.Contains(text, " by ") {
-			parts := strings.Split(text, " by ")
-			if len(parts) >= 2 {
-				nameAndNum := strings.TrimSpace(parts[0])
-				developer := strings.TrimSpace(parts[1])
+	pipeline.SetCallback(func(plugin parser.StandardPlugin) {
+		log.Printf("Found plugin: %s by %s\n", plugin.Name, plugin.Developer)
 
-				name := nameAndNum
-				dotIndex := strings.Index(nameAndNum, ". ")
-				if dotIndex != -1 && dotIndex < 5 {
-					name = strings.TrimSpace(nameAndNum[dotIndex+2:])
+		hash := ""
+		if plugin.DownloadURL != "" {
+			// Basic check to avoid hashing HTML pages
+			isLikelyArchive := false
+			lowerURL := strings.ToLower(plugin.DownloadURL)
+			if len(lowerURL) > 4 {
+				if lowerURL[len(lowerURL)-4:] == ".zip" || lowerURL[len(lowerURL)-4:] == ".exe" || lowerURL[len(lowerURL)-4:] == ".dmg" || lowerURL[len(lowerURL)-4:] == ".pkg" || lowerURL[len(lowerURL)-4:] == ".msi" || (len(lowerURL) > 7 && lowerURL[len(lowerURL)-7:] == ".tar.gz") {
+					isLikelyArchive = true
 				}
+			}
 
-				plugin := ScrapedPlugin{
-					Name:      name,
-					Developer: developer,
+			if isLikelyArchive {
+				computed, err := CalculateSHA256(plugin.DownloadURL)
+				if err != nil {
+					log.Printf("Failed to compute hash for %s: %v", plugin.DownloadURL, err)
+				} else {
+					hash = computed
 				}
+			}
+		}
 
-				plugins = append(plugins, plugin)
-				log.Printf("Found plugin: %s by %s\n", name, developer)
+		if db != nil {
+			err := UpsertPlugin(db, plugin, hash)
+			if err != nil {
+				log.Printf("Error upserting %s: %v\n", plugin.Name, err)
 			}
 		}
 	})
 
-	c.OnScraped(func(r *colly.Response) {
-		log.Printf("Finished scraping %s. Found %d plugins.\n", r.Request.URL, len(plugins))
-		if len(plugins) > 0 {
-			jsonData, _ := json.MarshalIndent(plugins, "", "  ")
-			fmt.Println(string(jsonData))
-		}
+	pipeline.StartConsumers(10) // 10 concurrent database/hashing workers
+
+	c := colly.NewCollector(
+		colly.Async(true),
+		colly.UserAgent(cfg.UserAgent),
+	)
+
+	c.SetRequestTimeout(cfg.Timeout)
+	c.Limit(&colly.LimitRule{
+		DomainGlob:  "*",
+		Parallelism: cfg.Concurrency,
 	})
 
-	err := c.Visit("https://bedroomproducersblog.com/free-vst-plugins/")
-	if err != nil {
-		log.Fatal(err)
+	if cfg.ProxyURL != "" {
+		rp, err := proxy.RoundRobinProxySwitcher(cfg.ProxyURL)
+		if err != nil {
+			log.Fatalf("Failed to configure proxy: %v", err)
+		}
+		c.SetProxyFunc(rp)
+		log.Println("Proxy rotation configured.")
 	}
 
-	c.Wait()
+	// Create targeted scrapers
+	kvrCollector := c.Clone()
+	scraper.BuildKVRScraper(kvrCollector, pipeline.Results)
+
+	githubCollector := c.Clone()
+	scraper.BuildGithubScraper(githubCollector, pipeline.Results)
+
+	// Start crawls
+	log.Println("Crawling KVR Audio...")
+	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/newest")
+
+	log.Println("Crawling GitHub VST topics...")
+	githubCollector.Visit("https://github.com/topics/vst-plugin")
+
+	// Wait for completion
+	kvrCollector.Wait()
+	githubCollector.Wait()
+
+	pipeline.Close()
+	log.Println("Crawling session complete.")
 }
