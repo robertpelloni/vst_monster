@@ -1,5 +1,22 @@
 # CHANGELOG: VST Monster
 
+## [0.2.2] - Native Zip Extraction & Consolidated Dashboard Registration
+- Added native ZIP archive decompression engine in `client/src-tauri/src/installer.rs` targeting Linux standard VST paths (`~/.vst3`).
+- Connected crawler with standard modern browser User-Agent headers and introduced seed fallback cataloging in `crawler/main.go` for seamless catalog availability.
+- Consolidated Single-Page Dashboard in `client/src/routes/+page.svelte` with live metrics, quick search, crawler execution with live streaming terminal logs, and manual plugin registration modal form.
+- Added direct plugin registration API `POST /plugins` in `registry/src/index.ts`.
+- Modernized startup orchestration in `start.sh` with automated service checks, non-destructively backing up earlier versions to `scripts/archive/`.
+
+## [0.2.1] - Scraper Refinement & Ecosystem Tray Integration
+- Refined GitHub scraper in `crawler/scraper/github.go` to accurately extract author/developer from repository topic links.
+- Expanded asset filtering to capture `.exe`, `.msi`, `.dmg`, `.pkg`, `.zip`, and `.tar.gz` releases.
+- Connected Bedroom Producers Blog scraper directly into the concurrent crawler pipeline with `sync.WaitGroup` management.
+- Wired Tauri system tray quit command to trigger graceful server shutdown before exiting.
+
+## [0.2.0] - Central Command Dashboard
+- Redesigned UI into single comprehensive dashboard with tooltips and stats.
+- Wired live crawler trigger and logs endpoint into Registry API and UI.
+
 ## [0.1.2] - Crawler PostgreSQL Integration
 - Wired the Go Colly crawler to directly ingest and populate the PostgreSQL `plugins` and `plugin_releases` schema tables.
 - Included struct mapping definitions inside Go wrapper for standard extraction rules.

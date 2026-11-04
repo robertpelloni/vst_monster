@@ -1,10 +1,13 @@
 use futures_util::StreamExt;
 use reqwest::Client;
 use std::env;
-use std::path::PathBuf;
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use zip::ZipArchive;
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use tokio::process::Command;
@@ -55,6 +58,12 @@ pub async fn install_plugin(_app: AppHandle, url: String, name: String) -> Resul
     }
 
     println!("Downloaded to {:?}", file_path);
+
+    // If file is a zip archive, extract audio plugin binaries to platform standard paths
+    if ext.eq_ignore_ascii_case("zip") {
+        extract_zip_archive(&file_path, &safe_name).map_err(|e| format!("Failed to extract ZIP: {}", e))?;
+        return Ok(format!("Successfully unpacked and installed {}", name));
+    }
 
     // Platform-specific installation logic using tokio::process::Command to avoid blocking the thread
     #[cfg(target_os = "windows")]
@@ -120,4 +129,51 @@ pub async fn install_plugin(_app: AppHandle, url: String, name: String) -> Resul
     }
 
     Ok(format!("Successfully installed {}", name))
+}
+
+fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Error> {
+    let file = fs::File::open(zip_path)?;
+    let mut archive = ZipArchive::new(file)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
+    // Determine target plugin directory based on current OS
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    #[cfg(target_os = "linux")]
+    let target_dir = home_path.join(".vst3").join(plugin_name);
+
+    #[cfg(target_os = "macos")]
+    let target_dir = home_path.join("Library/Audio/Plug-Ins/VST3").join(plugin_name);
+
+    #[cfg(target_os = "windows")]
+    let target_dir = home_path.join("Documents/VST3").join(plugin_name);
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let target_dir = env::temp_dir().join("vst_monster_plugins").join(plugin_name);
+
+    fs::create_dir_all(&target_dir)?;
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+        let outpath = match file.enclosed_name() {
+            Some(path) => target_dir.join(path),
+            None => continue,
+        };
+
+        if file.name().ends_with('/') {
+            fs::create_dir_all(&outpath)?;
+        } else {
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    fs::create_dir_all(p)?;
+                }
+            }
+            let mut outfile = fs::File::create(&outpath)?;
+            io::copy(&mut file, &mut outfile)?;
+        }
+    }
+
+    Ok(())
 }

@@ -1,21 +1,26 @@
-# ROADMAP: VST Monster
+# ROADMAP: VST Monster Milestones
 
-## Phase 1: Foundation & Crawling
-- [x] Initialize project structure and documentation.
-- [x] Implement the Go Crawler Engine for KVR, GitHub, and major hubs.
-- [x] Establish the centralized Registry API and Database schema.
+## Milestone 1: Core Catalog Pipeline & Silent Engine (Completed)
+- [x] Concurrent Colly Go scraper pipeline with proxy support.
+- [x] PostgreSQL database persistence with unique constraints and relationships.
+- [x] Tauri v2 desktop application running Svelte 5 Single-Page App.
+- [x] Direct-to-disk streaming downloads preventing OOM with SHA-256 verification.
 
-## Phase 2: Desktop Client Development
-- [x] Build the Tauri base application.
-- [x] Implement the native Rust installation engine.
-- [x] Design the Svelte-based UI for browsing and managing plugins.
+## Milestone 2: Central Command Dashboard & Process Orchestration (Completed v0.2.2)
+- [x] Consolidated single-page dashboard with zero page fragmentation.
+- [x] Real-time crawler process execution and live console log viewer.
+- [x] Tauri System Tray icon with Hide/Show and Quit App & Servers capabilities.
+- [x] High-value UI organization: Quick Search & Filter, Crawler Operations Hub, Real-time Metrics.
+- [x] Manual plugin registration modal and REST API endpoints.
+- [x] Automated ecosystem bootstrapper (`start.sh`) with dependency healthchecks.
+- [x] Native cross-platform ZIP extraction to user audio directories (`~/.vst3`).
 
-## Phase 3: Advanced Installation Strategies
-- [ ] Implement silent installers for MSI, EXE, PKG.
-- [ ] Implement DMG extraction and binary relocation for macOS.
-- [ ] Handle UAC/Sudo privilege elevation gracefully.
+## Milestone 3: Advanced Installation Engines & Package Extraction
+- [ ] Implement complete macOS `.dmg` automated extraction and `.vst3` / `.component` placement to `~/Library/Audio/Plug-Ins/`.
+- [ ] Implement Linux `.so` / `.vst3` / `.clap` archive extraction and installation to `~/.vst3` and `~/.clap`.
+- [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
+- [ ] Add sandbox malware scanning integration (VirusTotal API / ClamAV) prior to installation.
 
-## Phase 4: Scaling & Community
-- [ ] Add proxy rotation and distributed crawling.
-- [ ] Implement community PRs for fixing broken manifests.
-- [ ] Launch global VST registry.
+## Milestone 4: Distributed Community Sync & P2P Cache
+- [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.
+- [ ] Community rating, compatibility tags (DAW support, OS versions), and user preset sharing.

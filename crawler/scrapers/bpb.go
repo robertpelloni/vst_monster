@@ -20,7 +20,7 @@ type PluginData struct {
 func ScrapeBPB(onPluginFound func(PluginData), proxyFunc colly.ProxyFunc) {
 	c := colly.NewCollector(
 		colly.Async(true),
-		colly.UserAgent("VST-Monster-Bot/1.0 (+https://vstmonster.com)"),
+		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"),
 	)
 
 	c.SetRequestTimeout(60 * time.Second)
