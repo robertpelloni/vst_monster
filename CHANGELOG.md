@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [0.2.1] - 2026-11-03
+### Added
+- Refined GitHub Scraper: Implemented author/developer extraction directly from GitHub topic articles and repository path attributes, replacing generic fallback values.
+- Extended GitHub Release Assets: Added extraction for `.exe`, `.msi`, `.dmg`, `.pkg` in addition to `.zip` and `.tar.gz`.
+- Pipeline Integration for BPB: Connected Bedroom Producers Blog (BPB) scraper into the crawler queue consumer pipeline in `crawler/main.go`.
+
 ## [0.2.0] - 2026-11-03
 ### Added
 - System Tray Integration: Added native desktop tray icon with context menu actions (Show Dashboard, Hide Dashboard, Quit VST Monster & Servers) in `client/src-tauri/src/lib.rs`.

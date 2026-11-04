@@ -13,12 +13,20 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn stop_servers() -> Result<String, String> {
+    tauri::async_runtime::spawn(async {
+        let client = reqwest::Client::new();
+        let _ = client.post("http://localhost:3000/system/shutdown").send().await;
+    });
     Ok("Servers stopping signal sent".to_string())
 }
 
 #[tauri::command]
 fn quit_app(app: AppHandle) {
-    app.exit(0);
+    tauri::async_runtime::spawn(async move {
+        let client = reqwest::Client::new();
+        let _ = client.post("http://localhost:3000/system/shutdown").send().await;
+        app.exit(0);
+    });
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,7 +46,12 @@ pub fn run() {
                 .tooltip("VST Monster Desktop")
                 .on_menu_event(|app: &AppHandle, event| match event.id.as_ref() {
                     "quit" => {
-                        app.exit(0);
+                        let app_clone = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let client = reqwest::Client::new();
+                            let _ = client.post("http://localhost:3000/system/shutdown").send().await;
+                            app_clone.exit(0);
+                        });
                     }
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {

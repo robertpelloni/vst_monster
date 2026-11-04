@@ -51,7 +51,9 @@ func fetchGitHubReleaseDownloadURL(owner, repo string) string {
 
 	for _, asset := range release.Assets {
 		lowerURL := strings.ToLower(asset.BrowserDownloadURL)
-		if strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".tar.gz") {
+		if strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".tar.gz") ||
+			strings.HasSuffix(lowerURL, ".exe") || strings.HasSuffix(lowerURL, ".dmg") ||
+			strings.HasSuffix(lowerURL, ".msi") || strings.HasSuffix(lowerURL, ".pkg") {
 			return asset.BrowserDownloadURL
 		}
 	}
@@ -66,18 +68,39 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 		Delay:       3 * time.Second,
 	})
 
-	// Example targeted scrape of github topics
+	// Targeted scrape of GitHub topic articles
 	c.OnHTML("article.border", func(e *colly.HTMLElement) {
-		repo := e.ChildText("h3 a.text-bold")
-		desc := e.ChildText("p.color-text-secondary")
+		var dev, name, repoPath string
 
-		if repo != "" {
-			parts := strings.Split(repo, "/")
-			dev := "Unknown"
-			name := repo
+		// Look for standard link pattern /owner/repo in the article header
+		e.ForEach("h3 a", func(_ int, a *colly.HTMLElement) {
+			href := a.Attr("href")
+			trimmed := strings.Trim(href, "/")
+			parts := strings.Split(trimmed, "/")
+			if len(parts) == 2 && parts[0] != "topics" && parts[0] != "sponsors" {
+				dev = parts[0]
+				name = parts[1]
+				repoPath = trimmed
+			}
+		})
+
+		// Fallback to text parsing if needed
+		if dev == "" {
+			headerText := e.ChildText("h3")
+			cleaned := strings.ReplaceAll(headerText, "\n", "")
+			cleaned = strings.ReplaceAll(cleaned, " ", "")
+			parts := strings.Split(cleaned, "/")
 			if len(parts) == 2 {
 				dev = parts[0]
 				name = parts[1]
+				repoPath = dev + "/" + name
+			}
+		}
+
+		if dev != "" && name != "" {
+			desc := e.ChildText("p.color-text-secondary")
+			if desc == "" {
+				desc = e.ChildText("p")
 			}
 
 			downloadURL := fetchGitHubReleaseDownloadURL(dev, name)
@@ -90,7 +113,7 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 				DownloadURL: downloadURL,
 				License:     "opensource",
 				Source:      "GitHub",
-				Metadata:    map[string]interface{}{"source": "github"},
+				Metadata:    map[string]interface{}{"source": "github", "repo": repoPath, "description": desc},
 			}
 			log.Printf("Extracted from GitHub: %s/%s", dev, name)
 		}

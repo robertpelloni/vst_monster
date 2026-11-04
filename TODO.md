@@ -10,5 +10,7 @@
 - [x] Implement Tauri v2 system tray icon with Show/Hide and Quit Servers support.
 - [x] Wire live crawler trigger and logs endpoint into Registry API and UI.
 - [x] Nondestructively archive old startup scripts and modernize `start.sh`.
+- [x] Refine GitHub scraper developer extraction and multi-format release asset parsing.
+- [x] Connect Bedroom Producers Blog scraper into concurrent crawler queue pipeline.
 - [ ] Add support for unzipping `.zip` archives containing Linux `.so` or `.vst3` bundles in `client/src-tauri/src/installer.rs`.
 - [ ] Add direct download link extraction parser for Bedroom Producers Blog articles.

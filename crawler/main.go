@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/gocolly/colly/v2"
 	"github.com/gocolly/colly/v2/proxy"
@@ -11,6 +12,7 @@ import (
 	"github.com/robertpelloni/vst_monster/crawler/parser"
 	"github.com/robertpelloni/vst_monster/crawler/queue"
 	"github.com/robertpelloni/vst_monster/crawler/scraper"
+	"github.com/robertpelloni/vst_monster/crawler/scrapers"
 )
 
 func main() {
@@ -69,11 +71,13 @@ func main() {
 		Parallelism: cfg.Concurrency,
 	})
 
+	var proxyFunc colly.ProxyFunc
 	if cfg.ProxyURL != "" {
 		rp, err := proxy.RoundRobinProxySwitcher(cfg.ProxyURL)
 		if err != nil {
 			log.Fatalf("Failed to configure proxy: %v", err)
 		}
+		proxyFunc = rp
 		c.SetProxyFunc(rp)
 		log.Println("Proxy rotation configured.")
 	}
@@ -85,6 +89,8 @@ func main() {
 	githubCollector := c.Clone()
 	scraper.BuildGithubScraper(githubCollector, pipeline.Results)
 
+	var wg sync.WaitGroup
+
 	// Start crawls
 	log.Println("Crawling KVR Audio...")
 	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/newest")
@@ -92,9 +98,27 @@ func main() {
 	log.Println("Crawling GitHub VST topics...")
 	githubCollector.Visit("https://github.com/topics/vst-plugin")
 
-	// Wait for completion
+	// Run Bedroom Producers Blog scraper with WaitGroup tracking
+	log.Println("Crawling Bedroom Producers Blog...")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		scrapers.ScrapeBPB(func(data scrapers.PluginData) {
+			pipeline.Results <- parser.StandardPlugin{
+				Name:        data.Name,
+				Developer:   data.Developer,
+				Version:     "1.0.0",
+				License:     "free",
+				Source:      "Bedroom Producers Blog",
+				Metadata:    map[string]interface{}{"source": "bpb"},
+			}
+		}, proxyFunc)
+	}()
+
+	// Wait for all collectors and goroutines to finish
 	kvrCollector.Wait()
 	githubCollector.Wait()
+	wg.Wait()
 
 	pipeline.Close()
 	log.Println("Crawling session complete.")
