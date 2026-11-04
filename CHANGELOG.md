@@ -1,5 +1,11 @@
 # CHANGELOG: VST Monster
 
+## [0.2.3] - Category Tagging, BPB Link Extraction, and Dashboard Filters
+- Updated PostgreSQL database schema (`registry/schema.sql`) with a `category` column (synth, effect, dynamics, sampler, utility).
+- Enhanced `registry/src/index.ts` to return category in `GET /plugins` and accept it in `POST /plugins`.
+- Expanded Single-Page Dashboard in `client/src/routes/+page.svelte` to include Category filtering and sorting options, plus category badges on cards.
+- Enhanced Bedroom Producers Blog scraper (`crawler/scrapers/bpb.go`) to extract direct download and anchor links, plus auto-categorize by article title keywords.
+
 ## [0.2.2] - Native Zip Extraction & Consolidated Dashboard Registration
 - Added native ZIP archive decompression engine in `client/src-tauri/src/installer.rs` targeting Linux standard VST paths (`~/.vst3`).
 - Connected crawler with standard modern browser User-Agent headers and introduced seed fallback cataloging in `crawler/main.go` for seamless catalog availability.

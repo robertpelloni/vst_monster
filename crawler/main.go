@@ -108,9 +108,10 @@ func main() {
 				Name:        data.Name,
 				Developer:   data.Developer,
 				Version:     "1.0.0",
+				DownloadURL: data.DownloadURL,
 				License:     "free",
 				Source:      "Bedroom Producers Blog",
-				Metadata:    map[string]interface{}{"source": "bpb"},
+				Metadata:    map[string]interface{}{"source": "bpb", "category": data.Category},
 			}
 		}, proxyFunc)
 	}()

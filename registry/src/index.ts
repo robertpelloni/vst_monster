@@ -49,6 +49,7 @@ app.get('/plugins', async (req: Request, res: Response) => {
         p.name,
         p.developer,
         p.license_model,
+        COALESCE(p.category, 'synth') as category,
         p.created_at,
         p.updated_at,
         r.version,
@@ -85,7 +86,7 @@ app.get('/plugins', async (req: Request, res: Response) => {
 
 // Manual plugin registration endpoint
 app.post('/plugins', async (req: Request, res: Response) => {
-  const { name, developer, license_model, version, platform, architecture, download_url, sha256_hash, description } = req.body;
+  const { name, developer, license_model, category, version, platform, architecture, download_url, sha256_hash, description } = req.body;
 
   if (!name || !developer) {
     return res.status(400).json({ error: 'Name and developer are required fields.' });
@@ -93,13 +94,14 @@ app.post('/plugins', async (req: Request, res: Response) => {
 
   try {
     const pluginRes = await pool.query(`
-      INSERT INTO plugins (name, developer, license_model, updated_at)
-      VALUES ($1, $2, $3, NOW())
+      INSERT INTO plugins (name, developer, license_model, category, updated_at)
+      VALUES ($1, $2, $3, $4, NOW())
       ON CONFLICT (name, developer) DO UPDATE SET
         license_model = EXCLUDED.license_model,
+        category = EXCLUDED.category,
         updated_at = NOW()
       RETURNING id;
-    `, [name, developer, license_model || 'free']);
+    `, [name, developer, license_model || 'free', category || 'synth']);
 
     const pluginId = pluginRes.rows[0].id;
     const relVersion = version || '1.0.0';

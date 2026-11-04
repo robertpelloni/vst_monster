@@ -13,8 +13,10 @@ import (
 // or let the caller pass a callback.
 
 type PluginData struct {
-	Name      string
-	Developer string
+	Name        string
+	Developer   string
+	DownloadURL string
+	Category    string
 }
 
 func ScrapeBPB(onPluginFound func(PluginData), proxyFunc colly.ProxyFunc) {
@@ -51,9 +53,24 @@ func ScrapeBPB(onPluginFound func(PluginData), proxyFunc colly.ProxyFunc) {
 					name = strings.TrimSpace(nameAndNum[dotIndex+2:])
 				}
 
+				// Look for immediate download or outbound link in nearest anchor tags
+				downloadURL := ""
+				category := "synth"
+				if strings.Contains(strings.ToLower(text), "reverb") || strings.Contains(strings.ToLower(text), "delay") || strings.Contains(strings.ToLower(text), "chorus") {
+					category = "effect"
+				} else if strings.Contains(strings.ToLower(text), "compressor") || strings.Contains(strings.ToLower(text), "limiter") {
+					category = "dynamics"
+				}
+
+				if href := e.ChildAttr("a", "href"); href != "" {
+					downloadURL = href
+				}
+
 				onPluginFound(PluginData{
-					Name:      name,
-					Developer: developer,
+					Name:        name,
+					Developer:   developer,
+					DownloadURL: downloadURL,
+					Category:    category,
 				})
 			}
 		}

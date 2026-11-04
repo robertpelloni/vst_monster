@@ -7,6 +7,7 @@
     name: string;
     developer: string;
     license_model: string;
+    category?: string;
     version?: string;
     platform?: string;
     architecture?: string;
@@ -47,8 +48,9 @@
   // Controls & Filters
   let searchQuery = $state('');
   let selectedLicense = $state('all');
+  let selectedCategory = $state('all');
   let selectedPlatform = $state('all');
-  let sortBy = $state<'name' | 'developer' | 'license'>('name');
+  let sortBy = $state<'name' | 'developer' | 'license' | 'category'>('name');
   let crawlerRunning = $state(false);
   let actionMessage = $state<string | null>(null);
   let isLogsCollapsed = $state(true);
@@ -59,6 +61,7 @@
     name: '',
     developer: '',
     license_model: 'opensource',
+    category: 'synth',
     version: '1.0.0',
     platform: 'linux',
     download_url: '',
@@ -160,6 +163,7 @@
         name: '',
         developer: '',
         license_model: 'opensource',
+        category: 'synth',
         version: '1.0.0',
         platform: 'linux',
         download_url: '',
@@ -235,15 +239,18 @@
       .filter((p) => {
         const matchesSearch =
           p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.developer.toLowerCase().includes(searchQuery.toLowerCase());
+          p.developer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
         const matchesLicense = selectedLicense === 'all' || p.license_model === selectedLicense;
+        const matchesCategory = selectedCategory === 'all' || (p.category || 'synth') === selectedCategory;
         const matchesPlatform = selectedPlatform === 'all' || (p.platform && p.platform === selectedPlatform);
-        return matchesSearch && matchesLicense && matchesPlatform;
+        return matchesSearch && matchesLicense && matchesCategory && matchesPlatform;
       })
       .sort((a, b) => {
         if (sortBy === 'name') return a.name.localeCompare(b.name);
         if (sortBy === 'developer') return a.developer.localeCompare(b.developer);
         if (sortBy === 'license') return a.license_model.localeCompare(b.license_model);
+        if (sortBy === 'category') return (a.category || 'synth').localeCompare(b.category || 'synth');
         return 0;
       })
   );
@@ -393,6 +400,15 @@
             class="search-input"
           />
           <div class="dropdown-row">
+            <select bind:value={selectedCategory} class="select-input" use:tooltip={"Filter by plugin instrument/audio category"}>
+              <option value="all">All Categories</option>
+              <option value="synth">Synthesizers</option>
+              <option value="effect">Audio Effects</option>
+              <option value="dynamics">Dynamics / Compressors</option>
+              <option value="sampler">Samplers & Drums</option>
+              <option value="utility">Utilities & Tools</option>
+            </select>
+
             <select bind:value={selectedLicense} class="select-input" use:tooltip={"Filter by license type"}>
               <option value="all">All Licenses</option>
               <option value="opensource">Open Source</option>
@@ -411,6 +427,7 @@
             <select bind:value={sortBy} class="select-input" use:tooltip={"Sort order for the catalog"}>
               <option value="name">Sort: Name</option>
               <option value="developer">Sort: Developer</option>
+              <option value="category">Sort: Category</option>
               <option value="license">Sort: License</option>
             </select>
           </div>
@@ -534,8 +551,10 @@
               <!-- Metadata Specs -->
               <div class="specs-grid">
                 <div class="spec-item">
-                  <span class="spec-label">Version</span>
-                  <span class="spec-val">{plugin.version || 'Latest'}</span>
+                  <span class="spec-label">Category</span>
+                  <span class="spec-val category-badge" use:tooltip={`Plugin type: ${plugin.category || 'synth'}`}>
+                    {plugin.category || 'synth'}
+                  </span>
                 </div>
                 <div class="spec-item">
                   <span class="spec-label">Target OS</span>

@@ -14,5 +14,6 @@
 - [x] Connect Bedroom Producers Blog scraper into concurrent crawler queue pipeline.
 - [x] Add support for unzipping `.zip` archives containing Linux `.so` or `.vst3` bundles in `client/src-tauri/src/installer.rs`.
 - [x] Add manual plugin submission modal in UI and REST endpoint `POST /plugins` in registry API.
-- [ ] Add direct download link extraction parser for Bedroom Producers Blog articles.
+- [x] Add direct download link extraction parser for Bedroom Producers Blog articles.
+- [x] Add category categorization (synth, effect, dynamics, sampler, utility) to database and UI.
 - [ ] Implement macOS DMG volume mount and `.component` extraction.
