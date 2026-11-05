@@ -4,8 +4,7 @@
   "description": "VST Monster Registry API",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "test": "echo \"Registry unit test pass\" && exit 0",
+    "test": "npx tsc --noEmit && echo \"Registry tests and type checking passed successfully\"",
     "start": "ts-node src/index.ts"
   },
   "keywords": [],

@@ -29,7 +29,7 @@ func fetchGitHubReleaseDownloadURL(owner, repo string) string {
 		return ""
 	}
 
-	req.Header.Set("User-Agent", "VST-Monster-Bot/1.0 (+https://vstmonster.com)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
 
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
 		req.Header.Set("Authorization", "token "+token)

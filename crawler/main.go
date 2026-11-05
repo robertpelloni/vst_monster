@@ -98,6 +98,8 @@ func main() {
 	log.Println("Crawling GitHub VST topics...")
 	githubCollector.Visit("https://github.com/topics/vst-plugin")
 
+	var wg sync.WaitGroup
+
 	// Run Bedroom Producers Blog scraper with WaitGroup tracking
 	log.Println("Crawling Bedroom Producers Blog...")
 	wg.Add(1)
@@ -108,9 +110,10 @@ func main() {
 				Name:        data.Name,
 				Developer:   data.Developer,
 				Version:     "1.0.0",
+				DownloadURL: data.DownloadURL,
 				License:     "free",
 				Source:      "Bedroom Producers Blog",
-				Metadata:    map[string]interface{}{"source": "bpb"},
+				Metadata:    map[string]interface{}{"source": "bpb", "category": data.Category},
 			}
 		}, proxyFunc)
 	}()
@@ -120,6 +123,58 @@ func main() {
 	githubCollector.Wait()
 	wg.Wait()
 
+	// Seed Ingestion: Ensure popular open-source and free plugins exist in database
+	seedStaplePlugins(pipeline)
+
 	pipeline.Close()
 	log.Println("Crawling session complete.")
+}
+
+func seedStaplePlugins(pipeline *queue.Pipeline) {
+	staples := []parser.StandardPlugin{
+		{
+			Name:        "Vital Audio Synthesizer",
+			Developer:   "Matt Tytel",
+			Version:     "1.5.5",
+			Formats:     []string{"VST3", "CLAP", "AU"},
+			DownloadURL: "https://vital-audio.s3.dualstack.us-east-1.amazonaws.com/VitalInstaller.zip",
+			License:     "opensource",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "Spectral warping wavetable synthesizer with modern modulation workflow.", "source": "official"},
+		},
+		{
+			Name:        "Surge XT",
+			Developer:   "Surge Synth Team",
+			Version:     "1.3.4",
+			Formats:     []string{"VST3", "CLAP", "AU"},
+			DownloadURL: "https://github.com/surge-synthesizer/releases-xt/releases/download/1.3.4/surge-xt-linux-x64-1.3.4.deb",
+			License:     "opensource",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "Free and open-source hybrid synthesizer with deep routing and MPE support.", "source": "github"},
+		},
+		{
+			Name:        "Dexed FM Plugin Synth",
+			Developer:   "Digital Suburban",
+			Version:     "0.9.7",
+			Formats:     []string{"VST3", "AU", "CLAP"},
+			DownloadURL: "https://github.com/asb2m10/dexed/releases/download/v0.9.7/Dexed_Linux.zip",
+			License:     "opensource",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "Multi-platform, multi-format plugin synth modeled on Yamaha DX7 sound engine.", "source": "github"},
+		},
+		{
+			Name:        "Odin 2 Synthesizer",
+			Developer:   "The Wave Warden",
+			Version:     "2.3.4",
+			Formats:     []string{"VST3", "CLAP", "AU"},
+			DownloadURL: "https://thewavewarden.com/assets/Odin2Linux.zip",
+			License:     "free",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "24-voice polyphonic powerhouse with analog-modeled filters and distortion modules.", "source": "official"},
+		},
+	}
+
+	for _, p := range staples {
+		pipeline.Results <- p
+	}
 }

@@ -84,6 +84,52 @@ app.get('/plugins', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+// Manual plugin registration endpoint
+app.post('/plugins', async (req, res) => {
+    const { name, developer, license_model, version, platform, architecture, download_url, sha256_hash, description } = req.body;
+    if (!name || !developer) {
+        return res.status(400).json({ error: 'Name and developer are required fields.' });
+    }
+    try {
+        const pluginRes = await pool.query(`
+      INSERT INTO plugins (name, developer, license_model, updated_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (name, developer) DO UPDATE SET
+        license_model = EXCLUDED.license_model,
+        updated_at = NOW()
+      RETURNING id;
+    `, [name, developer, license_model || 'free']);
+        const pluginId = pluginRes.rows[0].id;
+        const relVersion = version || '1.0.0';
+        const relRes = await pool.query(`
+      INSERT INTO plugin_releases (plugin_id, version, release_date)
+      VALUES ($1, $2, NOW())
+      ON CONFLICT (plugin_id, version) DO UPDATE SET
+        release_date = EXCLUDED.release_date
+      RETURNING id;
+    `, [pluginId, relVersion]);
+        const releaseId = relRes.rows[0].id;
+        if (download_url) {
+            await pool.query(`
+        INSERT INTO plugin_distributions (release_id, platform, architecture, download_url, sha256_hash, strategy, extraction_rules)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
+                releaseId,
+                platform || 'linux',
+                architecture || 'x86_64',
+                download_url,
+                sha256_hash || '',
+                'extract_binaries',
+                JSON.stringify({ description: description || '', source: 'manual' })
+            ]);
+        }
+        return res.status(201).json({ message: 'Plugin registered successfully', id: pluginId });
+    }
+    catch (err) {
+        console.error('Error inserting plugin', err);
+        return res.status(500).json({ error: err.message || 'Failed to insert plugin' });
+    }
+});
 // Statistics endpoint for the high-value dashboard metrics
 app.get('/stats', async (_req, res) => {
     try {

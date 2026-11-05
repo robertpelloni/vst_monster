@@ -1,16 +1,12 @@
 # MEMORY: VST Monster Architectural Observations
 
 ## Codebase Traits
-- **Crawler**: Built in Go for high concurrency and performance. Target sources: KVR, GitHub, developer sites.
-- **Registry**: Express Node.js/TypeScript backend with PostgreSQL (pg) and Redis.
-- **Client**: Tauri/Rust for native OS access and minimal footprint, paired with a SvelteKit UI.
+- **Crawler**: Built in Go for high concurrency and performance. Scrapers: KVR Audio, GitHub topics, Bedroom Producers Blog. Employs modern browser user agents and fallback seed mechanisms for resilience.
+- **Registry**: Express Node.js/TypeScript backend with PostgreSQL (pg) and Redis. Exposes plugin search, health checks, real-time stats, crawler triggering, log streaming, and manual plugin entry.
+- **Client**: Tauri v2 / Rust for native OS integration and minimal footprint, paired with a SvelteKit UI in Single-Page Application (SPA) mode using Svelte 5 runes.
 
 ## Design Preferences
-- De-coupled microservices architecture.
-- JSONB in PostgreSQL for flexible metadata.
-- SHA-256 hashing for all binaries.
-- Strategy-based installation engine.
-
-## Discovered Optimizations
-- Using Go's Colly for efficient scraping.
-- Using Tauri to avoid heavy Electron overhead and gain native file system access.
+- Single-page consolidated dashboard layout without subpage fragmentation.
+- High-value features displayed first (Quick Search, Crawler Controls, Live Metrics).
+- Strategy-based installation engine handling MSI, EXE, PKG, and direct ZIP archive decompression to audio directories (`~/.vst3`).
+- Contextual tooltips providing detailed explanation across all interactive controls.

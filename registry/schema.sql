@@ -6,6 +6,7 @@ CREATE TABLE plugins (
     name VARCHAR(255) NOT NULL,
     developer VARCHAR(255) NOT NULL,
     license_model license_type NOT NULL,
+    category VARCHAR(50) DEFAULT 'synth', -- 'synth', 'effect', 'dynamics', 'utility', 'sampler'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(name, developer)

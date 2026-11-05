@@ -7,6 +7,7 @@
     name: string;
     developer: string;
     license_model: string;
+    category?: string;
     version?: string;
     platform?: string;
     architecture?: string;
@@ -43,15 +44,31 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let installStatus = $state<Record<string, string>>({});
+  let installedPlugins = $state<string[]>([]);
 
   // Controls & Filters
   let searchQuery = $state('');
   let selectedLicense = $state('all');
+  let selectedCategory = $state('all');
   let selectedPlatform = $state('all');
-  let sortBy = $state<'name' | 'developer' | 'license'>('name');
+  let showInstalledOnly = $state(false);
+  let sortBy = $state<'name' | 'developer' | 'license' | 'category'>('name');
   let crawlerRunning = $state(false);
   let actionMessage = $state<string | null>(null);
   let isLogsCollapsed = $state(true);
+  let showAddPluginModal = $state(false);
+
+  // New plugin form state
+  let newPlugin = $state({
+    name: '',
+    developer: '',
+    license_model: 'opensource',
+    category: 'synth',
+    version: '1.0.0',
+    platform: 'linux',
+    download_url: '',
+    description: ''
+  });
 
   // Tooltip Directive
   function tooltip(element: HTMLElement, text: string) {
@@ -99,6 +116,16 @@
     };
   }
 
+  async function scanLocalPlugins() {
+    try {
+      const detected: string[] = await invoke('scan_installed_plugins');
+      installedPlugins = detected || [];
+    } catch (err) {
+      // In web browser preview mode, invoke may fail silently
+      console.log('Installed plugin scan skipped or not in Tauri:', err);
+    }
+  }
+
   async function fetchDashboardData() {
     try {
       const [pluginsRes, statsRes, healthRes] = await Promise.all([
@@ -119,6 +146,45 @@
       error = 'Registry API offline or unreachable (port 3000)';
     } finally {
       loading = false;
+    }
+    await scanLocalPlugins();
+  }
+
+  async function submitNewPlugin(e: Event) {
+    e.preventDefault();
+    if (!newPlugin.name || !newPlugin.developer) {
+      actionMessage = 'Plugin Name and Developer are required.';
+      return;
+    }
+
+    try {
+      actionMessage = 'Submitting plugin to registry...';
+      const res = await fetch('http://localhost:3000/plugins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPlugin)
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to submit plugin');
+      }
+
+      actionMessage = `Successfully added ${newPlugin.name} to the registry!`;
+      showAddPluginModal = false;
+      newPlugin = {
+        name: '',
+        developer: '',
+        license_model: 'opensource',
+        category: 'synth',
+        version: '1.0.0',
+        platform: 'linux',
+        download_url: '',
+        description: ''
+      };
+      await fetchDashboardData();
+    } catch (err: any) {
+      actionMessage = `Registration error: ${err.message}`;
     }
   }
 
@@ -164,8 +230,29 @@
     try {
       const response = await invoke('install_plugin', { url: plugin.download_url, name: plugin.name });
       installStatus[plugin.id] = `Success: ${response}`;
+      await scanLocalPlugins();
     } catch (err: any) {
       installStatus[plugin.id] = `Error: ${err}`;
+    }
+  }
+
+  async function handleRemove(plugin: Plugin) {
+    installStatus[plugin.id] = "Removing plugin files...";
+    try {
+      const response = await invoke('remove_plugin', { name: plugin.name });
+      installStatus[plugin.id] = `Removed: ${response}`;
+      await scanLocalPlugins();
+    } catch (err: any) {
+      installStatus[plugin.id] = `Error: ${err}`;
+    }
+  }
+
+  async function handleOpenDirectory(pluginName?: string) {
+    try {
+      await invoke('open_plugin_directory', { name: pluginName });
+      actionMessage = pluginName ? `Opened directory for ${pluginName}` : 'Opened plugins directory';
+    } catch (err: any) {
+      actionMessage = `Error opening folder: ${err}`;
     }
   }
 
@@ -180,21 +267,33 @@
     }
   }
 
+  function isPluginInstalled(name: string): boolean {
+    const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return installedPlugins.some(p => {
+      const cleanP = p.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return cleanP.includes(safeName) || safeName.includes(cleanP);
+    });
+  }
+
   // Filtered and Sorted Plugins
   let filteredPlugins = $derived(
     plugins
       .filter((p) => {
         const matchesSearch =
           p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.developer.toLowerCase().includes(searchQuery.toLowerCase());
+          p.developer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
         const matchesLicense = selectedLicense === 'all' || p.license_model === selectedLicense;
+        const matchesCategory = selectedCategory === 'all' || (p.category || 'synth') === selectedCategory;
         const matchesPlatform = selectedPlatform === 'all' || (p.platform && p.platform === selectedPlatform);
-        return matchesSearch && matchesLicense && matchesPlatform;
+        const matchesInstalled = !showInstalledOnly || isPluginInstalled(p.name);
+        return matchesSearch && matchesLicense && matchesCategory && matchesPlatform && matchesInstalled;
       })
       .sort((a, b) => {
         if (sortBy === 'name') return a.name.localeCompare(b.name);
         if (sortBy === 'developer') return a.developer.localeCompare(b.developer);
         if (sortBy === 'license') return a.license_model.localeCompare(b.license_model);
+        if (sortBy === 'category') return (a.category || 'synth').localeCompare(b.category || 'synth');
         return 0;
       })
   );
@@ -237,8 +336,12 @@
       </div>
 
       <div class="status-item" use:tooltip={"Global Ecosystem Version String"}>
-        <span class="version-tag">v{health?.version || '0.2.0'}</span>
+        <span class="version-tag">v{health?.version || '0.2.2'}</span>
       </div>
+
+      <button class="btn-success-outline" onclick={() => (showAddPluginModal = !showAddPluginModal)} use:tooltip={"Register a plugin manifest directly into PostgreSQL"}>
+        + Register Plugin
+      </button>
 
       <button class="btn-danger-outline" onclick={handleQuit} use:tooltip={"Gracefully shut down registry servers and close client"}>
         Quit App
@@ -262,6 +365,65 @@
     </div>
   {/if}
 
+  <!-- Manual Plugin Registration Modal Form -->
+  {#if showAddPluginModal}
+    <div class="modal-backdrop">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Register New Plugin</h3>
+          <button class="modal-close" onclick={() => (showAddPluginModal = false)}>✕</button>
+        </div>
+        <form onsubmit={submitNewPlugin} class="modal-form">
+          <div class="form-row">
+            <label>
+              Plugin Name *
+              <input type="text" required bind:value={newPlugin.name} placeholder="e.g. Tyrell N6" class="search-input" />
+            </label>
+            <label>
+              Developer / Author *
+              <input type="text" required bind:value={newPlugin.developer} placeholder="e.g. U-He" class="search-input" />
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              License Model
+              <select bind:value={newPlugin.license_model} class="select-input">
+                <option value="opensource">Open Source</option>
+                <option value="free">Free / Freeware</option>
+                <option value="commercial">Commercial</option>
+                <option value="donationware">Donationware</option>
+              </select>
+            </label>
+            <label>
+              Version
+              <input type="text" bind:value={newPlugin.version} placeholder="1.0.0" class="search-input" />
+            </label>
+            <label>
+              Platform
+              <select bind:value={newPlugin.platform} class="select-input">
+                <option value="linux">Linux</option>
+                <option value="windows">Windows</option>
+                <option value="macos">macOS</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            Direct Binary / Zip Download URL
+            <input type="url" bind:value={newPlugin.download_url} placeholder="https://example.com/download.zip" class="search-input" />
+          </label>
+          <label>
+            Description & Sound Characteristics
+            <textarea bind:value={newPlugin.description} placeholder="Analog-modeled polyphonic synthesizer..." class="textarea-input"></textarea>
+          </label>
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick={() => (showAddPluginModal = false)}>Cancel</button>
+            <button type="submit" class="btn-primary">Save to Registry</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {/if}
+
   <!-- Main Unified Workspace (Single Page) -->
   <main class="dashboard-body">
     <!-- Row 1: High-Priority Operations & Metrics Hub -->
@@ -281,6 +443,15 @@
             class="search-input"
           />
           <div class="dropdown-row">
+            <select bind:value={selectedCategory} class="select-input" use:tooltip={"Filter by plugin instrument/audio category"}>
+              <option value="all">All Categories</option>
+              <option value="synth">Synthesizers</option>
+              <option value="effect">Audio Effects</option>
+              <option value="dynamics">Dynamics / Compressors</option>
+              <option value="sampler">Samplers & Drums</option>
+              <option value="utility">Utilities & Tools</option>
+            </select>
+
             <select bind:value={selectedLicense} class="select-input" use:tooltip={"Filter by license type"}>
               <option value="all">All Licenses</option>
               <option value="opensource">Open Source</option>
@@ -299,8 +470,36 @@
             <select bind:value={sortBy} class="select-input" use:tooltip={"Sort order for the catalog"}>
               <option value="name">Sort: Name</option>
               <option value="developer">Sort: Developer</option>
+              <option value="category">Sort: Category</option>
               <option value="license">Sort: License</option>
             </select>
+
+            <button
+              type="button"
+              class="filter-toggle-btn {showInstalledOnly ? 'active' : ''}"
+              onclick={() => (showInstalledOnly = !showInstalledOnly)}
+              use:tooltip={"Toggle showing only plugins verified to be locally installed on your machine"}
+            >
+              {showInstalledOnly ? '✓ Installed Only' : 'Show All'}
+            </button>
+
+            <button
+              type="button"
+              class="btn-folder-action"
+              onclick={() => handleOpenDirectory()}
+              use:tooltip={"Open system audio plugin directory in file explorer"}
+            >
+              📁 VST3 Folder
+            </button>
+
+            <button
+              type="button"
+              class="btn-rescan-action"
+              onclick={scanLocalPlugins}
+              use:tooltip={"Re-scan local audio directories for installed VSTs"}
+            >
+              🔄 Rescan
+            </button>
           </div>
         </div>
       </div>
@@ -406,7 +605,12 @@
               <!-- Header -->
               <div class="card-top">
                 <div class="title-group">
-                  <h3 class="plugin-title" title={plugin.name}>{plugin.name}</h3>
+                  <div class="title-badge-row">
+                    <h3 class="plugin-title" title={plugin.name}>{plugin.name}</h3>
+                    {#if isPluginInstalled(plugin.name)}
+                      <span class="installed-badge" use:tooltip={"Verified installed in your local system audio plugin directories"}>INSTALLED</span>
+                    {/if}
+                  </div>
                   <span class="developer-tag" use:tooltip={`Created by developer ${plugin.developer}`}>
                     by {plugin.developer}
                   </span>
@@ -422,8 +626,10 @@
               <!-- Metadata Specs -->
               <div class="specs-grid">
                 <div class="spec-item">
-                  <span class="spec-label">Version</span>
-                  <span class="spec-val">{plugin.version || 'Latest'}</span>
+                  <span class="spec-label">Category</span>
+                  <span class="spec-val category-badge" use:tooltip={`Plugin type: ${plugin.category || 'synth'}`}>
+                    {plugin.category || 'synth'}
+                  </span>
                 </div>
                 <div class="spec-item">
                   <span class="spec-label">Target OS</span>
@@ -459,18 +665,38 @@
               <!-- Action Bar -->
               <div class="install-bar">
                 {#if plugin.download_url}
-                  <button
-                    class="btn-install"
-                    disabled={installStatus[plugin.id] === 'Downloading & Installing...'}
-                    onclick={() => handleInstall(plugin)}
-                    use:tooltip={`Stream download and install ${plugin.name} via native silent installer`}
-                  >
-                    {installStatus[plugin.id] === 'Downloading & Installing...' ? 'Installing...' : 'Install Plugin'}
-                  </button>
+                  <div class="action-button-group">
+                    <button
+                      class="btn-install"
+                      disabled={installStatus[plugin.id] === 'Downloading & Installing...'}
+                      onclick={() => handleInstall(plugin)}
+                      use:tooltip={`Stream download and install ${plugin.name} via native silent installer`}
+                    >
+                      {installStatus[plugin.id] === 'Downloading & Installing...' ? 'Installing...' : 'Install Plugin'}
+                    </button>
+                    <button
+                      class="btn-remove"
+                      disabled={installStatus[plugin.id] === 'Removing plugin files...'}
+                      onclick={() => handleRemove(plugin)}
+                      use:tooltip={`Safely uninstall ${plugin.name} from OS audio plugin directories`}
+                    >
+                      Uninstall
+                    </button>
+                  </div>
                 {:else}
-                  <button class="btn-install btn-disabled" disabled use:tooltip={"No direct download distribution payload URL"}>
-                    Direct Link Unavailable
-                  </button>
+                  <div class="action-button-group">
+                    <button class="btn-install btn-disabled" disabled use:tooltip={"No direct download distribution payload URL"}>
+                      Direct Link Unavailable
+                    </button>
+                    <button
+                      class="btn-remove"
+                      disabled={installStatus[plugin.id] === 'Removing plugin files...'}
+                      onclick={() => handleRemove(plugin)}
+                      use:tooltip={`Clean uninstall if previously installed locally`}
+                    >
+                      Uninstall
+                    </button>
+                  </div>
                 {/if}
               </div>
 
@@ -628,6 +854,101 @@
     color: white;
   }
 
+  .btn-success-outline {
+    background: transparent;
+    color: #10b981;
+    border: 1px solid #10b981;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .btn-success-outline:hover {
+    background: #10b981;
+    color: white;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal-card {
+    background: #161b26;
+    border: 1px solid #2d374e;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    border-bottom: 1px solid #232d42;
+    padding-bottom: 0.8rem;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+
+  .modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .form-row label, .modal-form label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: #cbd5e1;
+  }
+
+  .textarea-input {
+    background: #0f1117;
+    border: 1px solid #2d374e;
+    border-radius: 6px;
+    color: white;
+    padding: 0.6rem;
+    font-size: 0.85rem;
+    resize: vertical;
+    min-height: 70px;
+    font-family: inherit;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.8rem;
+    margin-top: 0.5rem;
+  }
+
   /* Alerts */
   .action-alert {
     background: #1e3a8a;
@@ -750,6 +1071,60 @@
     border-radius: 6px;
     color: #cbd5e1;
     font-size: 0.8rem;
+  }
+
+  .filter-toggle-btn {
+    padding: 0.5rem 0.8rem;
+    background: #0f1117;
+    border: 1px solid #2d374e;
+    border-radius: 6px;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+
+  .filter-toggle-btn.active {
+    background: #064e3b;
+    border-color: #10b981;
+    color: #34d399;
+    font-weight: 700;
+  }
+
+  .btn-folder-action, .btn-rescan-action {
+    padding: 0.5rem 0.8rem;
+    background: #0f1117;
+    border: 1px solid #2d374e;
+    border-radius: 6px;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-folder-action:hover, .btn-rescan-action:hover {
+    background: #1e293b;
+    color: #f1f5f9;
+    border-color: #3b82f6;
+  }
+
+  .title-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .installed-badge {
+    background: #064e3b;
+    color: #34d399;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #059669;
+    letter-spacing: 0.5px;
   }
 
   .crawler-action-bar {
@@ -988,8 +1363,13 @@
     margin-top: auto;
   }
 
+  .action-button-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+
   .btn-install {
-    width: 100%;
+    flex: 2;
     background: #2563eb;
     color: white;
     border: none;
@@ -1003,6 +1383,23 @@
 
   .btn-install:hover:not(:disabled) {
     background: #1d4ed8;
+  }
+
+  .btn-remove {
+    flex: 1;
+    background: #1e293b;
+    color: #f87171;
+    border: 1px solid #7f1d1d;
+    padding: 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .btn-remove:hover:not(:disabled) {
+    background: #7f1d1d;
+    color: white;
   }
 
   .btn-disabled {

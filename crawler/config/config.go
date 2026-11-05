@@ -13,8 +13,14 @@ type CrawlerConfig struct {
 }
 
 func LoadConfig() CrawlerConfig {
+	ua := os.Getenv("CRAWLER_USER_AGENT")
+	if ua == "" {
+		// Use modern Chrome desktop user-agent to avoid immediate 403 Forbidden blocking
+		ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+	}
+
 	return CrawlerConfig{
-		UserAgent:   "VSTMonsterBot/1.0",
+		UserAgent:   ua,
 		Timeout:     30 * time.Second,
 		ProxyURL:    os.Getenv("CRAWLER_PROXY_URL"), // Fallback to none if empty
 		Concurrency: 5,

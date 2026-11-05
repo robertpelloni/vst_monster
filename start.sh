@@ -25,7 +25,7 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM EXIT
 
-# Check services
+# Ensure PostgreSQL service is active
 if command -v service >/dev/null 2>&1; then
     sudo service postgresql status >/dev/null 2>&1 || sudo service postgresql start >/dev/null 2>&1 || true
     sudo service redis-server status >/dev/null 2>&1 || sudo service redis-server start >/dev/null 2>&1 || true
