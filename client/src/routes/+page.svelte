@@ -247,6 +247,15 @@
     }
   }
 
+  async function handleOpenDirectory(pluginName?: string) {
+    try {
+      await invoke('open_plugin_directory', { name: pluginName });
+      actionMessage = pluginName ? `Opened directory for ${pluginName}` : 'Opened plugins directory';
+    } catch (err: any) {
+      actionMessage = `Error opening folder: ${err}`;
+    }
+  }
+
   async function handleQuit() {
     if (confirm('Quit VST Monster desktop app and stop local services?')) {
       try {
@@ -472,6 +481,24 @@
               use:tooltip={"Toggle showing only plugins verified to be locally installed on your machine"}
             >
               {showInstalledOnly ? '✓ Installed Only' : 'Show All'}
+            </button>
+
+            <button
+              type="button"
+              class="btn-folder-action"
+              onclick={() => handleOpenDirectory()}
+              use:tooltip={"Open system audio plugin directory in file explorer"}
+            >
+              📁 VST3 Folder
+            </button>
+
+            <button
+              type="button"
+              class="btn-rescan-action"
+              onclick={scanLocalPlugins}
+              use:tooltip={"Re-scan local audio directories for installed VSTs"}
+            >
+              🔄 Rescan
             </button>
           </div>
         </div>
@@ -1063,6 +1090,24 @@
     border-color: #10b981;
     color: #34d399;
     font-weight: 700;
+  }
+
+  .btn-folder-action, .btn-rescan-action {
+    padding: 0.5rem 0.8rem;
+    background: #0f1117;
+    border: 1px solid #2d374e;
+    border-radius: 6px;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-folder-action:hover, .btn-rescan-action:hover {
+    background: #1e293b;
+    color: #f1f5f9;
+    border-color: #3b82f6;
   }
 
   .title-badge-row {

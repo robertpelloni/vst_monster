@@ -1,5 +1,10 @@
 # CHANGELOG: VST Monster
 
+## [0.2.6] - Plugin Directory Explorer & Rescan Integration
+- Implemented `open_plugin_directory` Tauri command in `client/src-tauri/src/installer.rs` to open system audio plugin folders in the native file manager (`xdg-open`, `open`, `explorer`).
+- Registered `open_plugin_directory` in `client/src-tauri/src/lib.rs`.
+- Added "VST3 Folder" opener and "Rescan" controls in `client/src/routes/+page.svelte` for instant directory navigation and catalog refresh.
+
 ## [0.2.5] - Local Installed Plugin Scanner & Dynamic Badging
 - Added `scan_installed_plugins` Tauri command in `client/src-tauri/src/installer.rs` to detect installed plugins across OS audio paths (`~/.vst3`, `/Library/Audio/Plug-Ins/VST3`, etc.).
 - Registered `scan_installed_plugins` in `client/src-tauri/src/lib.rs`.

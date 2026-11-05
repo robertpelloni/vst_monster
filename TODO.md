@@ -19,4 +19,5 @@
 - [x] Add plugin uninstall / directory removal feature in native Tauri installer engine (`remove_plugin`) and expose on dashboard cards.
 - [x] Implement VST3 directory scanner command in Tauri to detect and list locally installed plugins (`scan_installed_plugins`).
 - [x] Add dynamic "INSTALLED" badges and "Installed Only" filter toggle to dashboard.
+- [x] Implement native plugin directory explorer command (`open_plugin_directory`) and dashboard buttons (VST3 Folder, Rescan).
 - [ ] Implement macOS DMG volume mount and `.component` extraction.

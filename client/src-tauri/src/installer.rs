@@ -222,6 +222,69 @@ pub async fn scan_installed_plugins(_app: AppHandle) -> Result<Vec<String>, Stri
     Ok(discovered)
 }
 
+#[tauri::command]
+pub async fn open_plugin_directory(_app: AppHandle, name: Option<String>) -> Result<String, String> {
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    #[cfg(target_os = "linux")]
+    let base_dir = home_path.join(".vst3");
+
+    #[cfg(target_os = "macos")]
+    let base_dir = home_path.join("Library/Audio/Plug-Ins/VST3");
+
+    #[cfg(target_os = "windows")]
+    let base_dir = home_path.join("Documents/VST3");
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let base_dir = env::temp_dir().join("vst_monster_plugins");
+
+    let target = if let Some(n) = name {
+        let safe_name = n
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect::<String>();
+        let specific_dir = base_dir.join(&safe_name);
+        if specific_dir.exists() {
+            specific_dir
+        } else {
+            base_dir
+        }
+    } else {
+        base_dir
+    };
+
+    if !target.exists() {
+        let _ = fs::create_dir_all(&target);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        tokio::process::Command::new("xdg-open")
+            .arg(target.to_str().unwrap_or("."))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        tokio::process::Command::new("open")
+            .arg(target.to_str().unwrap_or("."))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        tokio::process::Command::new("explorer")
+            .arg(target.to_str().unwrap_or("."))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(format!("Opened {:?}", target))
+}
+
 fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Error> {
     let file = fs::File::open(zip_path)?;
     let mut archive = ZipArchive::new(file)
