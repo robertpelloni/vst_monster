@@ -161,6 +161,67 @@ pub async fn remove_plugin(_app: AppHandle, name: String) -> Result<String, Stri
     }
 }
 
+#[tauri::command]
+pub async fn scan_installed_plugins(_app: AppHandle) -> Result<Vec<String>, String> {
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    let mut plugin_dirs = Vec::new();
+
+    #[cfg(target_os = "linux")]
+    {
+        plugin_dirs.push(home_path.join(".vst3"));
+        plugin_dirs.push(home_path.join(".vst"));
+        plugin_dirs.push(home_path.join(".clap"));
+        plugin_dirs.push(PathBuf::from("/usr/lib/vst3"));
+        plugin_dirs.push(PathBuf::from("/usr/local/lib/vst3"));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/VST3"));
+        plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/Components"));
+        plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/CLAP"));
+        plugin_dirs.push(PathBuf::from("/Library/Audio/Plug-Ins/VST3"));
+        plugin_dirs.push(PathBuf::from("/Library/Audio/Plug-Ins/Components"));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        plugin_dirs.push(home_path.join("Documents/VST3"));
+        if let Ok(prog_files) = env::var("CommonProgramFiles") {
+            plugin_dirs.push(PathBuf::from(prog_files).join("VST3"));
+        }
+    }
+
+    let mut discovered: Vec<String> = Vec::new();
+
+    for dir in plugin_dirs {
+        if dir.exists() && dir.is_dir() {
+            if let Ok(entries) = fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if path.is_dir() || name.ends_with(".vst3") || name.ends_with(".so") || name.ends_with(".component") || name.ends_with(".clap") || name.ends_with(".dll") {
+                        let clean_name = name
+                            .trim_end_matches(".vst3")
+                            .trim_end_matches(".so")
+                            .trim_end_matches(".component")
+                            .trim_end_matches(".clap")
+                            .trim_end_matches(".dll")
+                            .to_string();
+                        if !clean_name.is_empty() && !discovered.contains(&clean_name) {
+                            discovered.push(clean_name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(discovered)
+}
+
 fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Error> {
     let file = fs::File::open(zip_path)?;
     let mut archive = ZipArchive::new(file)

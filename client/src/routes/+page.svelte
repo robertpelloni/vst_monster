@@ -44,12 +44,14 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let installStatus = $state<Record<string, string>>({});
+  let installedPlugins = $state<string[]>([]);
 
   // Controls & Filters
   let searchQuery = $state('');
   let selectedLicense = $state('all');
   let selectedCategory = $state('all');
   let selectedPlatform = $state('all');
+  let showInstalledOnly = $state(false);
   let sortBy = $state<'name' | 'developer' | 'license' | 'category'>('name');
   let crawlerRunning = $state(false);
   let actionMessage = $state<string | null>(null);
@@ -114,6 +116,16 @@
     };
   }
 
+  async function scanLocalPlugins() {
+    try {
+      const detected: string[] = await invoke('scan_installed_plugins');
+      installedPlugins = detected || [];
+    } catch (err) {
+      // In web browser preview mode, invoke may fail silently
+      console.log('Installed plugin scan skipped or not in Tauri:', err);
+    }
+  }
+
   async function fetchDashboardData() {
     try {
       const [pluginsRes, statsRes, healthRes] = await Promise.all([
@@ -135,6 +147,7 @@
     } finally {
       loading = false;
     }
+    await scanLocalPlugins();
   }
 
   async function submitNewPlugin(e: Event) {
@@ -217,6 +230,7 @@
     try {
       const response = await invoke('install_plugin', { url: plugin.download_url, name: plugin.name });
       installStatus[plugin.id] = `Success: ${response}`;
+      await scanLocalPlugins();
     } catch (err: any) {
       installStatus[plugin.id] = `Error: ${err}`;
     }
@@ -227,6 +241,7 @@
     try {
       const response = await invoke('remove_plugin', { name: plugin.name });
       installStatus[plugin.id] = `Removed: ${response}`;
+      await scanLocalPlugins();
     } catch (err: any) {
       installStatus[plugin.id] = `Error: ${err}`;
     }
@@ -243,6 +258,14 @@
     }
   }
 
+  function isPluginInstalled(name: string): boolean {
+    const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return installedPlugins.some(p => {
+      const cleanP = p.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return cleanP.includes(safeName) || safeName.includes(cleanP);
+    });
+  }
+
   // Filtered and Sorted Plugins
   let filteredPlugins = $derived(
     plugins
@@ -254,7 +277,8 @@
         const matchesLicense = selectedLicense === 'all' || p.license_model === selectedLicense;
         const matchesCategory = selectedCategory === 'all' || (p.category || 'synth') === selectedCategory;
         const matchesPlatform = selectedPlatform === 'all' || (p.platform && p.platform === selectedPlatform);
-        return matchesSearch && matchesLicense && matchesCategory && matchesPlatform;
+        const matchesInstalled = !showInstalledOnly || isPluginInstalled(p.name);
+        return matchesSearch && matchesLicense && matchesCategory && matchesPlatform && matchesInstalled;
       })
       .sort((a, b) => {
         if (sortBy === 'name') return a.name.localeCompare(b.name);
@@ -440,6 +464,15 @@
               <option value="category">Sort: Category</option>
               <option value="license">Sort: License</option>
             </select>
+
+            <button
+              type="button"
+              class="filter-toggle-btn {showInstalledOnly ? 'active' : ''}"
+              onclick={() => (showInstalledOnly = !showInstalledOnly)}
+              use:tooltip={"Toggle showing only plugins verified to be locally installed on your machine"}
+            >
+              {showInstalledOnly ? '✓ Installed Only' : 'Show All'}
+            </button>
           </div>
         </div>
       </div>
@@ -545,7 +578,12 @@
               <!-- Header -->
               <div class="card-top">
                 <div class="title-group">
-                  <h3 class="plugin-title" title={plugin.name}>{plugin.name}</h3>
+                  <div class="title-badge-row">
+                    <h3 class="plugin-title" title={plugin.name}>{plugin.name}</h3>
+                    {#if isPluginInstalled(plugin.name)}
+                      <span class="installed-badge" use:tooltip={"Verified installed in your local system audio plugin directories"}>INSTALLED</span>
+                    {/if}
+                  </div>
                   <span class="developer-tag" use:tooltip={`Created by developer ${plugin.developer}`}>
                     by {plugin.developer}
                   </span>
@@ -1006,6 +1044,42 @@
     border-radius: 6px;
     color: #cbd5e1;
     font-size: 0.8rem;
+  }
+
+  .filter-toggle-btn {
+    padding: 0.5rem 0.8rem;
+    background: #0f1117;
+    border: 1px solid #2d374e;
+    border-radius: 6px;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+
+  .filter-toggle-btn.active {
+    background: #064e3b;
+    border-color: #10b981;
+    color: #34d399;
+    font-weight: 700;
+  }
+
+  .title-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .installed-badge {
+    background: #064e3b;
+    color: #34d399;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #059669;
+    letter-spacing: 0.5px;
   }
 
   .crawler-action-bar {

@@ -83,6 +83,7 @@ pub fn run() {
             greet,
             installer::install_plugin,
             installer::remove_plugin,
+            installer::scan_installed_plugins,
             stop_servers,
             quit_app
         ])

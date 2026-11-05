@@ -1,5 +1,10 @@
 # CHANGELOG: VST Monster
 
+## [0.2.5] - Local Installed Plugin Scanner & Dynamic Badging
+- Added `scan_installed_plugins` Tauri command in `client/src-tauri/src/installer.rs` to detect installed plugins across OS audio paths (`~/.vst3`, `/Library/Audio/Plug-Ins/VST3`, etc.).
+- Registered `scan_installed_plugins` in `client/src-tauri/src/lib.rs`.
+- Added dynamic "INSTALLED" badges on library cards and an "Installed Only" filter toggle on the single-page dashboard (`client/src/routes/+page.svelte`).
+
 ## [0.2.4] - Clean Uninstall Engine & Dashboard Integration
 - Implemented `remove_plugin` native command in `client/src-tauri/src/installer.rs` to safely remove plugin directories across Linux (`~/.vst3/`), macOS (`~/Library/Audio/Plug-Ins/VST3/`), and Windows (`Documents/VST3/`).
 - Added interactive "Uninstall" button alongside "Install Plugin" on every plugin card in `client/src/routes/+page.svelte` with status tracking and tooltips.

@@ -17,5 +17,6 @@
 - [x] Add direct download link extraction parser for Bedroom Producers Blog articles.
 - [x] Add category categorization (synth, effect, dynamics, sampler, utility) to database and UI.
 - [x] Add plugin uninstall / directory removal feature in native Tauri installer engine (`remove_plugin`) and expose on dashboard cards.
-- [ ] Implement VST3 directory scanner command in Tauri to detect and list locally installed plugins (`~/.vst3`, `/Library/Audio/Plug-Ins/VST3`).
+- [x] Implement VST3 directory scanner command in Tauri to detect and list locally installed plugins (`scan_installed_plugins`).
+- [x] Add dynamic "INSTALLED" badges and "Installed Only" filter toggle to dashboard.
 - [ ] Implement macOS DMG volume mount and `.component` extraction.
