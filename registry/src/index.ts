@@ -3,6 +3,7 @@ import cors from 'cors';
 import { Pool } from 'pg';
 import { spawn } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -22,6 +23,21 @@ const pool = new Pool({
 let isCrawling = false;
 let crawlerLogs: string[] = [];
 
+/**
+ * Dynamically read the ecosystem version from VERSION.md at root
+ */
+function getEcosystemVersion(): string {
+  try {
+    const versionPath = path.resolve(__dirname, '../../VERSION.md');
+    if (fs.existsSync(versionPath)) {
+      return fs.readFileSync(versionPath, 'utf8').trim();
+    }
+  } catch (err) {
+    // fallback
+  }
+  return '0.2.7';
+}
+
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response) => {
   let dbOk = false;
@@ -36,7 +52,7 @@ app.get('/health', async (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     database: dbOk ? 'connected' : 'disconnected',
     crawlerRunning: isCrawling,
-    version: '0.2.0'
+    version: getEcosystemVersion()
   });
 });
 

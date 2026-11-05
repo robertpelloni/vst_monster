@@ -20,4 +20,6 @@
 - [x] Implement VST3 directory scanner command in Tauri to detect and list locally installed plugins (`scan_installed_plugins`).
 - [x] Add dynamic "INSTALLED" badges and "Installed Only" filter toggle to dashboard.
 - [x] Implement native plugin directory explorer command (`open_plugin_directory`) and dashboard buttons (VST3 Folder, Rescan).
+- [x] Implement dynamic versioning in Registry API reading from `VERSION.md`.
+- [x] Implement SHA-256 binary integrity enforcement in native Tauri installer.
 - [ ] Implement macOS DMG volume mount and `.component` extraction.

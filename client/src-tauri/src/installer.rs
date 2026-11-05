@@ -1,5 +1,6 @@
 use futures_util::StreamExt;
 use reqwest::Client;
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
 use std::io;
@@ -13,7 +14,12 @@ use zip::ZipArchive;
 use tokio::process::Command;
 
 #[tauri::command]
-pub async fn install_plugin(_app: AppHandle, url: String, name: String) -> Result<String, String> {
+pub async fn install_plugin(
+    _app: AppHandle,
+    url: String,
+    name: String,
+    expected_hash: Option<String>,
+) -> Result<String, String> {
     let client = Client::new();
     let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
 
@@ -51,10 +57,28 @@ pub async fn install_plugin(_app: AppHandle, url: String, name: String) -> Resul
 
     let mut file = File::create(&file_path).await.map_err(|e| e.to_string())?;
     let mut stream = res.bytes_stream();
+    let mut hasher = Sha256::new();
 
     while let Some(item) = stream.next().await {
         let chunk = item.map_err(|e| e.to_string())?;
+        hasher.update(&chunk);
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+    }
+
+    // Flush and verify integrity if an expected hash was supplied
+    file.flush().await.map_err(|e| e.to_string())?;
+    let calculated_hash = hex::encode(hasher.finalize());
+
+    if let Some(target_hash) = expected_hash {
+        let trimmed = target_hash.trim().to_lowercase();
+        if !trimmed.is_empty() && trimmed != calculated_hash.to_lowercase() {
+            // Remove corrupted or compromised file
+            let _ = tokio::fs::remove_file(&file_path).await;
+            return Err(format!(
+                "Integrity check failed: expected sha256 {}, got {}",
+                trimmed, calculated_hash
+            ));
+        }
     }
 
     println!("Downloaded to {:?}", file_path);

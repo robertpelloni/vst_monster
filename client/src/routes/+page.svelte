@@ -228,7 +228,11 @@
     installStatus[plugin.id] = "Downloading & Installing...";
 
     try {
-      const response = await invoke('install_plugin', { url: plugin.download_url, name: plugin.name });
+      const response = await invoke('install_plugin', {
+        url: plugin.download_url,
+        name: plugin.name,
+        expectedHash: plugin.sha256_hash || null
+      });
       installStatus[plugin.id] = `Success: ${response}`;
       await scanLocalPlugins();
     } catch (err: any) {

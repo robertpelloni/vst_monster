@@ -17,6 +17,8 @@
 - [x] Native clean plugin uninstall and folder removal (`remove_plugin`).
 - [x] Native installed plugin filesystem scanner (`scan_installed_plugins`) & dynamic UI badging.
 - [x] Native plugin directory explorer (`open_plugin_directory`) with dashboard integration.
+- [x] Native cryptographic SHA-256 binary integrity enforcement during silent installs.
+- [x] Unified dynamic version string delivery across Registry API and dashboard UI.
 
 ## Milestone 3: Advanced Installation Engines & Package Extraction
 - [ ] Implement complete macOS `.dmg` automated extraction and `.vst3` / `.component` placement to `~/Library/Audio/Plug-Ins/`.

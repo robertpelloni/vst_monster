@@ -1,5 +1,10 @@
 # CHANGELOG: VST Monster
 
+## [0.2.7] - Dynamic Registry Versioning & Cryptographic Integrity Verification
+- Updated `/health` endpoint in `registry/src/index.ts` to dynamically read `VERSION.md` from the project root rather than returning a static string.
+- Integrated `sha2` and `hex` into `client/src-tauri/src/installer.rs` to compute stream SHA-256 hashes during plugin binary downloads and enforce cryptographic integrity checks against expected hashes.
+- Passed `expectedHash` from `client/src/routes/+page.svelte` when invoking `install_plugin`.
+
 ## [0.2.6] - Plugin Directory Explorer & Rescan Integration
 - Implemented `open_plugin_directory` Tauri command in `client/src-tauri/src/installer.rs` to open system audio plugin folders in the native file manager (`xdg-open`, `open`, `explorer`).
 - Registered `open_plugin_directory` in `client/src-tauri/src/lib.rs`.
