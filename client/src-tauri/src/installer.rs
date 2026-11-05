@@ -131,6 +131,36 @@ pub async fn install_plugin(_app: AppHandle, url: String, name: String) -> Resul
     Ok(format!("Successfully installed {}", name))
 }
 
+#[tauri::command]
+pub async fn remove_plugin(_app: AppHandle, name: String) -> Result<String, String> {
+    let safe_name = name
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect::<String>();
+
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    #[cfg(target_os = "linux")]
+    let target_dir = home_path.join(".vst3").join(&safe_name);
+
+    #[cfg(target_os = "macos")]
+    let target_dir = home_path.join("Library/Audio/Plug-Ins/VST3").join(&safe_name);
+
+    #[cfg(target_os = "windows")]
+    let target_dir = home_path.join("Documents/VST3").join(&safe_name);
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let target_dir = env::temp_dir().join("vst_monster_plugins").join(&safe_name);
+
+    if target_dir.exists() {
+        fs::remove_dir_all(&target_dir).map_err(|e| format!("Failed to remove directory: {}", e))?;
+        Ok(format!("Plugin {} removed from {:?}", name, target_dir))
+    } else {
+        Ok(format!("Plugin files not found at expected directory"))
+    }
+}
+
 fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Error> {
     let file = fs::File::open(zip_path)?;
     let mut archive = ZipArchive::new(file)

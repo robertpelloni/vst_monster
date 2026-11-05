@@ -222,6 +222,16 @@
     }
   }
 
+  async function handleRemove(plugin: Plugin) {
+    installStatus[plugin.id] = "Removing plugin files...";
+    try {
+      const response = await invoke('remove_plugin', { name: plugin.name });
+      installStatus[plugin.id] = `Removed: ${response}`;
+    } catch (err: any) {
+      installStatus[plugin.id] = `Error: ${err}`;
+    }
+  }
+
   async function handleQuit() {
     if (confirm('Quit VST Monster desktop app and stop local services?')) {
       try {
@@ -590,18 +600,38 @@
               <!-- Action Bar -->
               <div class="install-bar">
                 {#if plugin.download_url}
-                  <button
-                    class="btn-install"
-                    disabled={installStatus[plugin.id] === 'Downloading & Installing...'}
-                    onclick={() => handleInstall(plugin)}
-                    use:tooltip={`Stream download and install ${plugin.name} via native silent installer`}
-                  >
-                    {installStatus[plugin.id] === 'Downloading & Installing...' ? 'Installing...' : 'Install Plugin'}
-                  </button>
+                  <div class="action-button-group">
+                    <button
+                      class="btn-install"
+                      disabled={installStatus[plugin.id] === 'Downloading & Installing...'}
+                      onclick={() => handleInstall(plugin)}
+                      use:tooltip={`Stream download and install ${plugin.name} via native silent installer`}
+                    >
+                      {installStatus[plugin.id] === 'Downloading & Installing...' ? 'Installing...' : 'Install Plugin'}
+                    </button>
+                    <button
+                      class="btn-remove"
+                      disabled={installStatus[plugin.id] === 'Removing plugin files...'}
+                      onclick={() => handleRemove(plugin)}
+                      use:tooltip={`Safely uninstall ${plugin.name} from OS audio plugin directories`}
+                    >
+                      Uninstall
+                    </button>
+                  </div>
                 {:else}
-                  <button class="btn-install btn-disabled" disabled use:tooltip={"No direct download distribution payload URL"}>
-                    Direct Link Unavailable
-                  </button>
+                  <div class="action-button-group">
+                    <button class="btn-install btn-disabled" disabled use:tooltip={"No direct download distribution payload URL"}>
+                      Direct Link Unavailable
+                    </button>
+                    <button
+                      class="btn-remove"
+                      disabled={installStatus[plugin.id] === 'Removing plugin files...'}
+                      onclick={() => handleRemove(plugin)}
+                      use:tooltip={`Clean uninstall if previously installed locally`}
+                    >
+                      Uninstall
+                    </button>
+                  </div>
                 {/if}
               </div>
 
@@ -1214,8 +1244,13 @@
     margin-top: auto;
   }
 
+  .action-button-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+
   .btn-install {
-    width: 100%;
+    flex: 2;
     background: #2563eb;
     color: white;
     border: none;
@@ -1229,6 +1264,23 @@
 
   .btn-install:hover:not(:disabled) {
     background: #1d4ed8;
+  }
+
+  .btn-remove {
+    flex: 1;
+    background: #1e293b;
+    color: #f87171;
+    border: 1px solid #7f1d1d;
+    padding: 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .btn-remove:hover:not(:disabled) {
+    background: #7f1d1d;
+    color: white;
   }
 
   .btn-disabled {

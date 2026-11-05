@@ -1,5 +1,10 @@
 # CHANGELOG: VST Monster
 
+## [0.2.4] - Clean Uninstall Engine & Dashboard Integration
+- Implemented `remove_plugin` native command in `client/src-tauri/src/installer.rs` to safely remove plugin directories across Linux (`~/.vst3/`), macOS (`~/Library/Audio/Plug-Ins/VST3/`), and Windows (`Documents/VST3/`).
+- Added interactive "Uninstall" button alongside "Install Plugin" on every plugin card in `client/src/routes/+page.svelte` with status tracking and tooltips.
+- Enabled `"tray-icon"` feature for `tauri` dependency in `client/src-tauri/Cargo.toml` and verified clean compilation.
+
 ## [0.2.3] - Category Tagging, BPB Link Extraction, and Dashboard Filters
 - Updated PostgreSQL database schema (`registry/schema.sql`) with a `category` column (synth, effect, dynamics, sampler, utility).
 - Enhanced `registry/src/index.ts` to return category in `GET /plugins` and accept it in `POST /plugins`.

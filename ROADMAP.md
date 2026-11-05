@@ -14,6 +14,7 @@
 - [x] Manual plugin registration modal and REST API endpoints.
 - [x] Automated ecosystem bootstrapper (`start.sh`) with dependency healthchecks.
 - [x] Native cross-platform ZIP extraction to user audio directories (`~/.vst3`).
+- [x] Native clean plugin uninstall and folder removal (`remove_plugin`).
 
 ## Milestone 3: Advanced Installation Engines & Package Extraction
 - [ ] Implement complete macOS `.dmg` automated extraction and `.vst3` / `.component` placement to `~/Library/Audio/Plug-Ins/`.
