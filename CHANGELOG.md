@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [0.2.9] - Advanced Plugin Filtering, Sorting, and Detail Inspection Modal
+- Added installed status filtering in dashboard (`all`, `installed`, `update-available`, `not-installed`).
+- Added format filtering for detected plugins (`all`, `vst3`, `clap`, `au`, `vst2`).
+- Added sort by installed status (`status`) prioritizing locally installed packages.
+- Added full plugin detail inspection modal / preview drawer with complete metadata, installation status, path, SHA-256 digest, and action triggers.
+- Accessible title buttons and "👁 Details" quick-launch buttons on every catalog card.
+
+## [0.2.8] - Rich Installed Plugin Detection, Version Diffing & Explorer Actions
+- Defined `InstalledPluginInfo` in `client/src-tauri/src/installer.rs` containing `name`, `version`, `format`, and `path`.
+- Implemented deep bundle version inspection from `VERSION`, `version.txt`, and `package.json` in installed plugin directories.
+- Added dynamic format badging (`✓ VST3`, `✓ CLAP`, `✓ AU`, `✓ VST2`) and version status diffing (`v1.0.0 (Latest)` vs `Installed: v1.0.0 (Update to v1.2.0)`) on dashboard cards.
+- Integrated direct "📂 Files" quick-launch action button on installed cards to open specific plugin directories.
+
+## [0.2.7] - Dynamic Registry Versioning & Cryptographic Integrity Verification
+- Updated `/health` endpoint in `registry/src/index.ts` to dynamically read `VERSION.md` from the project root rather than returning a static string.
+- Integrated `sha2` and `hex` into `client/src-tauri/src/installer.rs` to compute stream SHA-256 hashes during plugin binary downloads and enforce cryptographic integrity checks against expected hashes.
+- Passed `expectedHash` from `client/src/routes/+page.svelte` when invoking `install_plugin`.
+
 ## [0.2.6] - Plugin Directory Explorer & Rescan Integration
 - Implemented `open_plugin_directory` Tauri command in `client/src-tauri/src/installer.rs` to open system audio plugin folders in the native file manager (`xdg-open`, `open`, `explorer`).
 - Registered `open_plugin_directory` in `client/src-tauri/src/lib.rs`.

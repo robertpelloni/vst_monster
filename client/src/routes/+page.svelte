@@ -36,6 +36,13 @@
     version: string;
   };
 
+  type InstalledPluginInfo = {
+    name: string;
+    version?: string | null;
+    format: string;
+    path: string;
+  };
+
   // State
   let plugins = $state<Plugin[]>([]);
   let stats = $state<Stats | null>(null);
@@ -44,19 +51,21 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let installStatus = $state<Record<string, string>>({});
-  let installedPlugins = $state<string[]>([]);
+  let installedPlugins = $state<InstalledPluginInfo[]>([]);
 
   // Controls & Filters
   let searchQuery = $state('');
   let selectedLicense = $state('all');
   let selectedCategory = $state('all');
   let selectedPlatform = $state('all');
-  let showInstalledOnly = $state(false);
-  let sortBy = $state<'name' | 'developer' | 'license' | 'category'>('name');
+  let selectedInstalledStatus = $state<'all' | 'installed' | 'update-available' | 'not-installed'>('all');
+  let selectedFormat = $state<'all' | 'vst3' | 'clap' | 'au' | 'vst2'>('all');
+  let sortBy = $state<'name' | 'developer' | 'license' | 'category' | 'status'>('name');
   let crawlerRunning = $state(false);
   let actionMessage = $state<string | null>(null);
   let isLogsCollapsed = $state(true);
   let showAddPluginModal = $state(false);
+  let previewPlugin = $state<Plugin | null>(null);
 
   // New plugin form state
   let newPlugin = $state({
@@ -118,12 +127,38 @@
 
   async function scanLocalPlugins() {
     try {
-      const detected: string[] = await invoke('scan_installed_plugins');
+      const detected: InstalledPluginInfo[] = await invoke('scan_installed_plugins');
       installedPlugins = detected || [];
     } catch (err) {
       // In web browser preview mode, invoke may fail silently
       console.log('Installed plugin scan skipped or not in Tauri:', err);
     }
+  }
+
+  function getInstalledInfo(pluginName: string): InstalledPluginInfo | undefined {
+    const safeName = pluginName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return installedPlugins.find(p => {
+      const cleanP = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return cleanP.includes(safeName) || safeName.includes(cleanP);
+    });
+  }
+
+  function getVersionStatus(catalogVersion?: string, localVersion?: string | null): {
+    state: 'up-to-date' | 'update-available' | 'unknown';
+    label: string;
+  } {
+    if (!localVersion) {
+      return { state: 'unknown', label: 'Installed' };
+    }
+    if (!catalogVersion) {
+      return { state: 'up-to-date', label: `v${localVersion}` };
+    }
+    const cleanCat = catalogVersion.trim().replace(/^v/i, '');
+    const cleanLoc = localVersion.trim().replace(/^v/i, '');
+    if (cleanCat === cleanLoc) {
+      return { state: 'up-to-date', label: `v${localVersion} (Latest)` };
+    }
+    return { state: 'update-available', label: `Installed: v${localVersion} (Update to v${cleanCat})` };
   }
 
   async function fetchDashboardData() {
@@ -228,7 +263,11 @@
     installStatus[plugin.id] = "Downloading & Installing...";
 
     try {
-      const response = await invoke('install_plugin', { url: plugin.download_url, name: plugin.name });
+      const response = await invoke('install_plugin', {
+        url: plugin.download_url,
+        name: plugin.name,
+        expectedHash: plugin.sha256_hash || null
+      });
       installStatus[plugin.id] = `Success: ${response}`;
       await scanLocalPlugins();
     } catch (err: any) {
@@ -268,11 +307,7 @@
   }
 
   function isPluginInstalled(name: string): boolean {
-    const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return installedPlugins.some(p => {
-      const cleanP = p.toLowerCase().replace(/[^a-z0-9]/g, '');
-      return cleanP.includes(safeName) || safeName.includes(cleanP);
-    });
+    return !!getInstalledInfo(name);
   }
 
   // Filtered and Sorted Plugins
@@ -286,14 +321,35 @@
         const matchesLicense = selectedLicense === 'all' || p.license_model === selectedLicense;
         const matchesCategory = selectedCategory === 'all' || (p.category || 'synth') === selectedCategory;
         const matchesPlatform = selectedPlatform === 'all' || (p.platform && p.platform === selectedPlatform);
-        const matchesInstalled = !showInstalledOnly || isPluginInstalled(p.name);
-        return matchesSearch && matchesLicense && matchesCategory && matchesPlatform && matchesInstalled;
+
+        const inst = getInstalledInfo(p.name);
+        let matchesStatus = true;
+        if (selectedInstalledStatus === 'installed') {
+          matchesStatus = !!inst;
+        } else if (selectedInstalledStatus === 'update-available') {
+          const vStatus = inst ? getVersionStatus(p.version, inst.version) : null;
+          matchesStatus = vStatus?.state === 'update-available';
+        } else if (selectedInstalledStatus === 'not-installed') {
+          matchesStatus = !inst;
+        }
+
+        let matchesFormat = true;
+        if (selectedFormat !== 'all') {
+          matchesFormat = inst ? inst.format.toLowerCase() === selectedFormat : false;
+        }
+
+        return matchesSearch && matchesLicense && matchesCategory && matchesPlatform && matchesStatus && matchesFormat;
       })
       .sort((a, b) => {
         if (sortBy === 'name') return a.name.localeCompare(b.name);
         if (sortBy === 'developer') return a.developer.localeCompare(b.developer);
         if (sortBy === 'license') return a.license_model.localeCompare(b.license_model);
         if (sortBy === 'category') return (a.category || 'synth').localeCompare(b.category || 'synth');
+        if (sortBy === 'status') {
+          const aInst = isPluginInstalled(a.name) ? 1 : 0;
+          const bInst = isPluginInstalled(b.name) ? 1 : 0;
+          return bInst - aInst;
+        }
         return 0;
       })
   );
@@ -424,6 +480,135 @@
     </div>
   {/if}
 
+  <!-- Plugin Details Preview Drawer / Modal -->
+  {#if previewPlugin}
+    {@const previewInstalled = getInstalledInfo(previewPlugin.name)}
+    {@const previewVersionStatus = previewInstalled ? getVersionStatus(previewPlugin.version, previewInstalled.version) : null}
+    <div class="modal-backdrop">
+      <div class="modal-card preview-card">
+        <div class="modal-header">
+          <div class="preview-header-info">
+            <span class="preview-category">{previewPlugin.category || 'synth'}</span>
+            <h2>{previewPlugin.name}</h2>
+            <span class="preview-author">by {previewPlugin.developer}</span>
+          </div>
+          <button class="modal-close" onclick={() => (previewPlugin = null)}>✕</button>
+        </div>
+
+        <div class="preview-content">
+          <!-- Status Banner -->
+          {#if previewInstalled}
+            <div class="preview-install-status {previewVersionStatus?.state === 'update-available' ? 'status-update' : 'status-installed'}">
+              <span class="icon">✓</span>
+              <div>
+                <strong>Installed in {previewInstalled.format.toUpperCase()} format</strong>
+                <p>Path: <code>{previewInstalled.path}</code></p>
+                {#if previewVersionStatus}
+                  <small>{previewVersionStatus.label}</small>
+                {/if}
+              </div>
+            </div>
+          {:else}
+            <div class="preview-install-status status-not-installed">
+              <span class="icon">📦</span>
+              <div>
+                <strong>Not locally installed</strong>
+                <p>Ready to stream and unpack via VST Monster silent engine.</p>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Metadata Specs -->
+          <div class="preview-specs-grid">
+            <div class="spec-tile">
+              <span class="label">License</span>
+              <strong class="value uppercase">{previewPlugin.license_model}</strong>
+            </div>
+            <div class="spec-tile">
+              <span class="label">Latest Release</span>
+              <strong class="value">v{previewPlugin.version || '1.0.0'}</strong>
+            </div>
+            <div class="spec-tile">
+              <span class="label">Target OS</span>
+              <strong class="value capitalize">{previewPlugin.platform || 'linux'}</strong>
+            </div>
+            <div class="spec-tile">
+              <span class="label">Strategy</span>
+              <strong class="value">{previewPlugin.strategy || 'extract_binaries'}</strong>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="preview-section">
+            <h4>Description & Synthesis Architecture</h4>
+            <p class="preview-desc-text">
+              {previewPlugin.metadata?.description || 'No extended description provided. Cataloged via VST Monster distributed crawler pipeline.'}
+            </p>
+          </div>
+
+          <!-- Cryptographic Digest -->
+          {#if previewPlugin.sha256_hash}
+            <div class="preview-section">
+              <h4>Binary SHA-256 Digest</h4>
+              <div class="preview-hash-box">
+                <code>{previewPlugin.sha256_hash}</code>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Direct Download Link -->
+          {#if previewPlugin.download_url}
+            <div class="preview-section">
+              <h4>Direct Download Source</h4>
+              <a href={previewPlugin.download_url} target="_blank" rel="noreferrer" class="preview-download-link">
+                🔗 {previewPlugin.download_url}
+              </a>
+            </div>
+          {/if}
+
+          <!-- Actions -->
+          <div class="preview-actions">
+            {#if previewPlugin.download_url}
+              <button
+                class="btn-primary"
+                onclick={() => {
+                  handleInstall(previewPlugin!);
+                  previewPlugin = null;
+                }}
+              >
+                {previewInstalled
+                  ? (previewVersionStatus?.state === 'update-available' ? 'Update Plugin' : 'Reinstall Plugin')
+                  : 'Install Plugin'}
+              </button>
+            {/if}
+
+            {#if previewInstalled}
+              <button
+                class="btn-secondary"
+                onclick={() => handleOpenDirectory(previewPlugin!.name)}
+              >
+                📂 Open Local Folder
+              </button>
+              <button
+                class="btn-danger-outline"
+                onclick={() => {
+                  handleRemove(previewPlugin!);
+                  previewPlugin = null;
+                }}
+              >
+                Uninstall
+              </button>
+            {/if}
+
+            <button class="btn-secondary" onclick={() => (previewPlugin = null)}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <!-- Main Unified Workspace (Single Page) -->
   <main class="dashboard-body">
     <!-- Row 1: High-Priority Operations & Metrics Hub -->
@@ -467,21 +652,28 @@
               <option value="linux">Linux</option>
             </select>
 
+            <select bind:value={selectedInstalledStatus} class="select-input" use:tooltip={"Filter by local installation & update state"}>
+              <option value="all">All States</option>
+              <option value="installed">✓ Installed</option>
+              <option value="update-available">⚡ Updates Available</option>
+              <option value="not-installed">Not Installed</option>
+            </select>
+
+            <select bind:value={selectedFormat} class="select-input" use:tooltip={"Filter installed plugins by audio plugin format"}>
+              <option value="all">All Formats</option>
+              <option value="vst3">VST3</option>
+              <option value="clap">CLAP</option>
+              <option value="au">AU (.component)</option>
+              <option value="vst2">VST2 (.so/.dll)</option>
+            </select>
+
             <select bind:value={sortBy} class="select-input" use:tooltip={"Sort order for the catalog"}>
               <option value="name">Sort: Name</option>
               <option value="developer">Sort: Developer</option>
               <option value="category">Sort: Category</option>
               <option value="license">Sort: License</option>
+              <option value="status">Sort: Installed First</option>
             </select>
-
-            <button
-              type="button"
-              class="filter-toggle-btn {showInstalledOnly ? 'active' : ''}"
-              onclick={() => (showInstalledOnly = !showInstalledOnly)}
-              use:tooltip={"Toggle showing only plugins verified to be locally installed on your machine"}
-            >
-              {showInstalledOnly ? '✓ Installed Only' : 'Show All'}
-            </button>
 
             <button
               type="button"
@@ -601,14 +793,36 @@
       {:else}
         <div class="plugins-grid">
           {#each filteredPlugins as plugin}
+            {@const installedInfo = getInstalledInfo(plugin.name)}
+            {@const versionStatus = installedInfo ? getVersionStatus(plugin.version, installedInfo.version) : null}
             <div class="plugin-card">
               <!-- Header -->
               <div class="card-top">
                 <div class="title-group">
                   <div class="title-badge-row">
-                    <h3 class="plugin-title" title={plugin.name}>{plugin.name}</h3>
-                    {#if isPluginInstalled(plugin.name)}
-                      <span class="installed-badge" use:tooltip={"Verified installed in your local system audio plugin directories"}>INSTALLED</span>
+                    <button
+                      type="button"
+                      class="plugin-title-btn"
+                      title="Click to preview plugin details"
+                      onclick={() => (previewPlugin = plugin)}
+                    >
+                      <h3 class="plugin-title">{plugin.name}</h3>
+                    </button>
+                    {#if installedInfo}
+                      <span
+                        class="installed-badge {versionStatus?.state === 'update-available' ? 'badge-update' : ''}"
+                        use:tooltip={`Installed: ${installedInfo.path} (${installedInfo.format.toUpperCase()})`}
+                      >
+                        ✓ {installedInfo.format.toUpperCase()}
+                      </span>
+                      {#if versionStatus}
+                        <span
+                          class="version-status-badge {versionStatus.state === 'update-available' ? 'badge-update' : 'badge-current'}"
+                          use:tooltip={`Catalog: v${plugin.version || '1.0.0'} | Local: ${installedInfo.version || 'detected'}`}
+                        >
+                          {versionStatus.label}
+                        </span>
+                      {/if}
                     {/if}
                   </div>
                   <span class="developer-tag" use:tooltip={`Created by developer ${plugin.developer}`}>
@@ -672,8 +886,28 @@
                       onclick={() => handleInstall(plugin)}
                       use:tooltip={`Stream download and install ${plugin.name} via native silent installer`}
                     >
-                      {installStatus[plugin.id] === 'Downloading & Installing...' ? 'Installing...' : 'Install Plugin'}
+                      {installStatus[plugin.id] === 'Downloading & Installing...'
+                        ? 'Installing...'
+                        : installedInfo
+                        ? (versionStatus?.state === 'update-available' ? 'Update Plugin' : 'Reinstall')
+                        : 'Install Plugin'}
                     </button>
+                    <button
+                      class="btn-inspect"
+                      onclick={() => (previewPlugin = plugin)}
+                      use:tooltip={`Open detail inspection drawer for ${plugin.name}`}
+                    >
+                      👁 Details
+                    </button>
+                    {#if installedInfo}
+                      <button
+                        class="btn-dir"
+                        onclick={() => handleOpenDirectory(plugin.name)}
+                        use:tooltip={`Open ${plugin.name} in file manager (${installedInfo.path})`}
+                      >
+                        📂 Files
+                      </button>
+                    {/if}
                     <button
                       class="btn-remove"
                       disabled={installStatus[plugin.id] === 'Removing plugin files...'}
@@ -1126,6 +1360,208 @@
     border: 1px solid #059669;
     letter-spacing: 0.5px;
   }
+
+  .installed-badge.badge-update {
+    background: #78350f;
+    color: #fcd34d;
+    border-color: #d97706;
+  }
+
+  .version-status-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .version-status-badge.badge-current {
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+  }
+
+  .version-status-badge.badge-update {
+    background: #451a03;
+    color: #fbbf24;
+    border: 1px solid #b45309;
+  }
+
+  .btn-dir {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-dir:hover {
+    background: #334155;
+    color: #f8fafc;
+    border-color: #3b82f6;
+  }
+
+  .btn-inspect {
+    background: #1e293b;
+    color: #93c5fd;
+    border: 1px solid #1e3a8a;
+    padding: 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-inspect:hover {
+    background: #1e3a8a;
+    color: white;
+  }
+
+  .plugin-title-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .plugin-title-btn:hover .plugin-title {
+    color: #60a5fa;
+    text-decoration: underline;
+  }
+
+  /* Preview Card Styles */
+  .preview-card {
+    max-width: 680px;
+  }
+
+  .preview-header-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .preview-category {
+    font-size: 0.75rem;
+    color: #38bdf8;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .preview-author {
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+
+  .preview-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .preview-install-status {
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .preview-install-status.status-installed {
+    background: #064e3b;
+    color: #a7f3d0;
+    border: 1px solid #059669;
+  }
+
+  .preview-install-status.status-update {
+    background: #451a03;
+    color: #fde68a;
+    border: 1px solid #b45309;
+  }
+
+  .preview-install-status.status-not-installed {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+  }
+
+  .preview-specs-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.8rem;
+    background: #0f1117;
+    padding: 0.8rem;
+    border-radius: 8px;
+  }
+
+  .spec-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .spec-tile .label {
+    font-size: 0.7rem;
+    color: #64748b;
+  }
+
+  .spec-tile .value {
+    font-size: 0.85rem;
+    color: #e2e8f0;
+  }
+
+  .preview-section h4 {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .preview-desc-text {
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    line-height: 1.5;
+  }
+
+  .preview-hash-box {
+    background: #0f1117;
+    padding: 0.6rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: #10b981;
+    overflow-x: auto;
+  }
+
+  .preview-download-link {
+    color: #60a5fa;
+    font-size: 0.85rem;
+    text-decoration: none;
+    word-break: break-all;
+  }
+
+  .preview-download-link:hover {
+    text-decoration: underline;
+  }
+
+  .preview-actions {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: flex-end;
+    border-top: 1px solid #232d42;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  .uppercase { text-transform: uppercase; }
+  .capitalize { text-transform: capitalize; }
 
   .crawler-action-bar {
     display: flex;

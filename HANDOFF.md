@@ -1,14 +1,17 @@
-# HANDOFF: VST Monster Autonomous Session (v0.2.6)
+# HANDOFF: VST Monster Autonomous Session (v0.2.9)
 
 ## Summary of Session Accomplishments
-1. **Plugin Directory Explorer**:
-   - Added `open_plugin_directory` Tauri command in `client/src-tauri/src/installer.rs` to reveal audio plugin directories via the native operating system file manager (`xdg-open`, `open`, `explorer`).
-   - Registered `open_plugin_directory` in `client/src-tauri/src/lib.rs`.
-2. **Dashboard Directory Actions & Rescan**:
-   - Added "📁 VST3 Folder" button to open the local audio plugin folder with one click.
-   - Added "🔄 Rescan" button to manually trigger a fresh scan of locally installed audio plugins.
-3. **Documentation & Versioning**:
-   - Sourced and bumped global version to `0.2.6` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
+1. **Advanced Installed State & Format Filtering**:
+   - Added multi-criteria state filter (`all`, `installed`, `update-available`, `not-installed`) and format filter (`all`, `vst3`, `clap`, `au`, `vst2`).
+   - Added sorting by installation status (`status`) prioritizing locally available packages.
+2. **Interactive Plugin Preview & Inspection Modal**:
+   - Built a comprehensive plugin preview modal displaying full audio specs, license models, target OS, detected installation format and path, SHA-256 hash digest, and direct link.
+   - Integrated contextual action triggers (Install / Update / Reinstall / Open Local Folder / Uninstall).
+3. **Rich Installed Plugin Metadata Detection (v0.2.8)**:
+   - Defined `InstalledPluginInfo` struct in `client/src-tauri/src/installer.rs` containing `name`, `version`, `format`, and `path`.
+   - Implemented deep bundle inspection in plugin directories looking for `VERSION`, `version.txt`, and `package.json`.
+4. **Documentation & Versioning**:
+   - Bumped global version to `0.2.9` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
 
 ## Next Actions for Incoming Sessions:
 - Implement macOS DMG volume mount and `.component` extraction.

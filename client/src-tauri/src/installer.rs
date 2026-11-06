@@ -1,5 +1,6 @@
 use futures_util::StreamExt;
 use reqwest::Client;
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
 use std::io;
@@ -13,7 +14,12 @@ use zip::ZipArchive;
 use tokio::process::Command;
 
 #[tauri::command]
-pub async fn install_plugin(_app: AppHandle, url: String, name: String) -> Result<String, String> {
+pub async fn install_plugin(
+    _app: AppHandle,
+    url: String,
+    name: String,
+    expected_hash: Option<String>,
+) -> Result<String, String> {
     let client = Client::new();
     let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
 
@@ -51,10 +57,28 @@ pub async fn install_plugin(_app: AppHandle, url: String, name: String) -> Resul
 
     let mut file = File::create(&file_path).await.map_err(|e| e.to_string())?;
     let mut stream = res.bytes_stream();
+    let mut hasher = Sha256::new();
 
     while let Some(item) = stream.next().await {
         let chunk = item.map_err(|e| e.to_string())?;
+        hasher.update(&chunk);
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+    }
+
+    // Flush and verify integrity if an expected hash was supplied
+    file.flush().await.map_err(|e| e.to_string())?;
+    let calculated_hash = hex::encode(hasher.finalize());
+
+    if let Some(target_hash) = expected_hash {
+        let trimmed = target_hash.trim().to_lowercase();
+        if !trimmed.is_empty() && trimmed != calculated_hash.to_lowercase() {
+            // Remove corrupted or compromised file
+            let _ = tokio::fs::remove_file(&file_path).await;
+            return Err(format!(
+                "Integrity check failed: expected sha256 {}, got {}",
+                trimmed, calculated_hash
+            ));
+        }
     }
 
     println!("Downloaded to {:?}", file_path);
@@ -161,8 +185,16 @@ pub async fn remove_plugin(_app: AppHandle, name: String) -> Result<String, Stri
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct InstalledPluginInfo {
+    pub name: String,
+    pub version: Option<String>,
+    pub format: String,
+    pub path: String,
+}
+
 #[tauri::command]
-pub async fn scan_installed_plugins(_app: AppHandle) -> Result<Vec<String>, String> {
+pub async fn scan_installed_plugins(_app: AppHandle) -> Result<Vec<InstalledPluginInfo>, String> {
     let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
     let home_path = PathBuf::from(home);
 
@@ -194,25 +226,75 @@ pub async fn scan_installed_plugins(_app: AppHandle) -> Result<Vec<String>, Stri
         }
     }
 
-    let mut discovered: Vec<String> = Vec::new();
+    let mut discovered: Vec<InstalledPluginInfo> = Vec::new();
 
     for dir in plugin_dirs {
         if dir.exists() && dir.is_dir() {
-            if let Ok(entries) = fs::read_dir(dir) {
+            if let Ok(entries) = fs::read_dir(&dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    if path.is_dir() || name.ends_with(".vst3") || name.ends_with(".so") || name.ends_with(".component") || name.ends_with(".clap") || name.ends_with(".dll") {
-                        let clean_name = name
-                            .trim_end_matches(".vst3")
-                            .trim_end_matches(".so")
-                            .trim_end_matches(".component")
-                            .trim_end_matches(".clap")
-                            .trim_end_matches(".dll")
-                            .to_string();
-                        if !clean_name.is_empty() && !discovered.contains(&clean_name) {
-                            discovered.push(clean_name);
+                    let file_name = entry.file_name().to_string_lossy().to_string();
+
+                    let format = if file_name.ends_with(".vst3") || path.extension().map_or(false, |ext| ext == "vst3") {
+                        "vst3".to_string()
+                    } else if file_name.ends_with(".clap") {
+                        "clap".to_string()
+                    } else if file_name.ends_with(".component") {
+                        "au".to_string()
+                    } else if file_name.ends_with(".so") || file_name.ends_with(".dll") {
+                        "vst2".to_string()
+                    } else if path.is_dir() {
+                        "vst3".to_string()
+                    } else {
+                        continue;
+                    };
+
+                    let clean_name = file_name
+                        .trim_end_matches(".vst3")
+                        .trim_end_matches(".so")
+                        .trim_end_matches(".component")
+                        .trim_end_matches(".clap")
+                        .trim_end_matches(".dll")
+                        .to_string();
+
+                    if clean_name.is_empty() {
+                        continue;
+                    }
+
+                    // Attempt to detect version from bundle if directory or metadata file exists
+                    let mut detected_version: Option<String> = None;
+                    if path.is_dir() {
+                        // Check for common version marker files or info files
+                        let version_file = path.join("VERSION");
+                        let version_txt = path.join("version.txt");
+                        let pkg_json = path.join("package.json");
+                        if version_file.exists() {
+                            if let Ok(v) = fs::read_to_string(&version_file) {
+                                detected_version = Some(v.trim().to_string());
+                            }
+                        } else if version_txt.exists() {
+                            if let Ok(v) = fs::read_to_string(&version_txt) {
+                                detected_version = Some(v.trim().to_string());
+                            }
+                        } else if pkg_json.exists() {
+                            if let Ok(v) = fs::read_to_string(&pkg_json) {
+                                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&v) {
+                                    if let Some(ver) = parsed.get("version").and_then(|val| val.as_str()) {
+                                        detected_version = Some(ver.to_string());
+                                    }
+                                }
+                            }
                         }
+                    }
+
+                    // Avoid duplicate entries
+                    if !discovered.iter().any(|item| item.name.eq_ignore_ascii_case(&clean_name)) {
+                        discovered.push(InstalledPluginInfo {
+                            name: clean_name,
+                            version: detected_version,
+                            format,
+                            path: path.to_string_lossy().to_string(),
+                        });
                     }
                 }
             }
