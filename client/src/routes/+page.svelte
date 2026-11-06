@@ -68,6 +68,10 @@
   let previewPlugin = $state<Plugin | null>(null);
   let isBatchUpdating = $state(false);
   let isScanningFolders = $state(false);
+  let showScanPathsModal = $state(false);
+  let defaultScanPaths = $state<string[]>([]);
+  let customScanPaths = $state<string[]>([]);
+  let newCustomPath = $state('');
 
   // New plugin form state
   let newPlugin = $state({
@@ -127,10 +131,50 @@
     };
   }
 
+  async function loadScanPaths() {
+    try {
+      const paths: string[] = await invoke('get_default_scan_paths');
+      defaultScanPaths = paths || [];
+    } catch (err) {
+      console.log('Failed to fetch default scan paths:', err);
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('vst_monster_custom_paths');
+      if (saved) {
+        try {
+          customScanPaths = JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+  }
+
+  function addCustomScanPath() {
+    const trimmed = newCustomPath.trim();
+    if (trimmed && !customScanPaths.includes(trimmed)) {
+      customScanPaths = [...customScanPaths, trimmed];
+      newCustomPath = '';
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('vst_monster_custom_paths', JSON.stringify(customScanPaths));
+      }
+      scanLocalPlugins();
+    }
+  }
+
+  function removeCustomScanPath(index: number) {
+    customScanPaths = customScanPaths.filter((_, i) => i !== index);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('vst_monster_custom_paths', JSON.stringify(customScanPaths));
+    }
+    scanLocalPlugins();
+  }
+
   async function scanLocalPlugins() {
     isScanningFolders = true;
     try {
-      const detected: InstalledPluginInfo[] = await invoke('scan_installed_plugins');
+      const detected: InstalledPluginInfo[] = await invoke('scan_installed_plugins', {
+        extraPaths: customScanPaths
+      });
       installedPlugins = detected || [];
     } catch (err) {
       // In web browser preview mode, invoke may fail silently
@@ -138,6 +182,32 @@
     } finally {
       isScanningFolders = false;
     }
+  }
+
+  function exportPluginManifest(plugin: Plugin) {
+    const manifestData = {
+      name: plugin.name,
+      developer: plugin.developer,
+      category: plugin.category,
+      license_model: plugin.license_model,
+      platform: plugin.platform,
+      version: plugin.version,
+      download_url: plugin.download_url,
+      sha256_hash: plugin.sha256_hash,
+      strategy: plugin.strategy,
+      metadata: plugin.metadata,
+      exported_at: new Date().toISOString(),
+      exporter: 'VST Monster Universal Client v0.3.1'
+    };
+
+    const blob = new Blob([JSON.stringify(manifestData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${plugin.name.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_manifest.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    actionMessage = `Manifest exported for ${plugin.name}!`;
   }
 
   async function updateAllOutdatedPlugins() {
@@ -408,6 +478,7 @@
   );
 
   onMount(() => {
+    loadScanPaths();
     fetchDashboardData();
     const interval = setInterval(fetchDashboardData, 10000);
     return () => clearInterval(interval);
@@ -448,6 +519,10 @@
         <span class="version-tag">v{health?.version || '0.2.2'}</span>
       </div>
 
+      <button class="btn-folder-action" onclick={() => (showScanPathsModal = true)} use:tooltip={"Configure and audit local audio plugin scan paths"}>
+        ⚙️ Paths
+      </button>
+
       <button class="btn-success-outline" onclick={() => (showAddPluginModal = !showAddPluginModal)} use:tooltip={"Register a plugin manifest directly into PostgreSQL"}>
         + Register Plugin
       </button>
@@ -463,6 +538,83 @@
     <div class="action-alert">
       <span>{actionMessage}</span>
       <button class="alert-close" onclick={() => (actionMessage = null)}>✕</button>
+    </div>
+  {/if}
+
+  <!-- Scan Paths Configuration Modal -->
+  {#if showScanPathsModal}
+    <div class="modal-backdrop">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="card-icon">⚙️</span>
+            <h2>Audio Plugin Scan Paths</h2>
+          </div>
+          <button class="modal-close" onclick={() => (showScanPathsModal = false)}>✕</button>
+        </div>
+
+        <div class="modal-body-section">
+          <p class="modal-desc">
+            VST Monster inspects these directories across your system to detect installed VST3, CLAP, AU, and legacy VST plugins.
+          </p>
+
+          <div class="paths-block">
+            <h4>Default System Directories</h4>
+            <ul class="paths-list">
+              {#if defaultScanPaths.length === 0}
+                <li class="path-empty">Standard OS audio directories (~/.vst3, Library/Audio, etc.)</li>
+              {:else}
+                {#each defaultScanPaths as p}
+                  <li class="path-item">
+                    <span class="path-type-badge">SYSTEM</span>
+                    <code>{p}</code>
+                  </li>
+                {/each}
+              {/if}
+            </ul>
+          </div>
+
+          <div class="paths-block">
+            <h4>Custom VST Search Paths</h4>
+            <div class="custom-path-input-row">
+              <input
+                type="text"
+                bind:value={newCustomPath}
+                placeholder="/custom/audio/plugins or D:\Audio\VSTs"
+                class="search-input"
+              />
+              <button class="btn-primary" onclick={addCustomScanPath}>Add Path</button>
+            </div>
+
+            <ul class="paths-list">
+              {#if customScanPaths.length === 0}
+                <li class="path-empty">No custom search directories configured.</li>
+              {:else}
+                {#each customScanPaths as cp, idx}
+                  <li class="path-item">
+                    <span class="path-type-badge custom-badge">CUSTOM</span>
+                    <code>{cp}</code>
+                    <button class="btn-path-del" onclick={() => removeCustomScanPath(idx)}>✕</button>
+                  </li>
+                {/each}
+              {/if}
+            </ul>
+          </div>
+
+          <div class="modal-actions">
+            <button
+              class="btn-primary"
+              onclick={() => {
+                scanLocalPlugins();
+                showScanPathsModal = false;
+              }}
+            >
+              Save & Rescan
+            </button>
+            <button class="btn-secondary" onclick={() => (showScanPathsModal = false)}>Close</button>
+          </div>
+        </div>
+      </div>
     </div>
   {/if}
 
@@ -652,6 +804,14 @@
                 Uninstall
               </button>
             {/if}
+
+            <button
+              class="btn-folder-action"
+              onclick={() => exportPluginManifest(previewPlugin!)}
+              use:tooltip={"Export plugin registry manifest to a standalone JSON file"}
+            >
+              📥 Export JSON
+            </button>
 
             <button class="btn-secondary" onclick={() => (previewPlugin = null)}>
               Close
@@ -2054,6 +2214,102 @@
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+  }
+
+  /* Paths Configuration Modal Styles */
+  .modal-title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .modal-body-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .modal-desc {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  .paths-block h4 {
+    font-size: 0.8rem;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+  }
+
+  .paths-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 160px;
+    overflow-y: auto;
+    background: #0f1117;
+    border: 1px solid #232d42;
+    border-radius: 6px;
+    padding: 0.5rem;
+  }
+
+  .path-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.5rem;
+    background: #161b26;
+    border-radius: 4px;
+  }
+
+  .path-item code {
+    flex: 1;
+    color: #93c5fd;
+    word-break: break-all;
+  }
+
+  .path-type-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #1e293b;
+    color: #94a3b8;
+  }
+
+  .path-type-badge.custom-badge {
+    background: #064e3b;
+    color: #6ee7b7;
+  }
+
+  .path-empty {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-style: italic;
+    padding: 0.5rem;
+  }
+
+  .custom-path-input-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .custom-path-input-row .search-input {
+    flex: 1;
+  }
+
+  .btn-path-del {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0 4px;
   }
 
   @media (max-width: 1024px) {

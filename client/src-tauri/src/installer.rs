@@ -194,11 +194,11 @@ pub struct InstalledPluginInfo {
 }
 
 #[tauri::command]
-pub async fn scan_installed_plugins(_app: AppHandle) -> Result<Vec<InstalledPluginInfo>, String> {
+pub fn get_default_scan_paths() -> Vec<String> {
     let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
     let home_path = PathBuf::from(home);
 
-    let mut plugin_dirs = Vec::new();
+    let mut plugin_dirs: Vec<PathBuf> = Vec::new();
 
     #[cfg(target_os = "linux")]
     {
@@ -223,6 +223,54 @@ pub async fn scan_installed_plugins(_app: AppHandle) -> Result<Vec<InstalledPlug
         plugin_dirs.push(home_path.join("Documents/VST3"));
         if let Ok(prog_files) = env::var("CommonProgramFiles") {
             plugin_dirs.push(PathBuf::from(prog_files).join("VST3"));
+        }
+    }
+
+    plugin_dirs
+        .into_iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect()
+}
+
+#[tauri::command]
+pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<String>>) -> Result<Vec<InstalledPluginInfo>, String> {
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    let mut plugin_dirs: Vec<PathBuf> = Vec::new();
+
+    #[cfg(target_os = "linux")]
+    {
+        plugin_dirs.push(home_path.join(".vst3"));
+        plugin_dirs.push(home_path.join(".vst"));
+        plugin_dirs.push(home_path.join(".clap"));
+        plugin_dirs.push(PathBuf::from("/usr/lib/vst3"));
+        plugin_dirs.push(PathBuf::from("/usr/local/lib/vst3"));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/VST3"));
+        plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/Components"));
+        plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/CLAP"));
+        plugin_dirs.push(PathBuf::from("/Library/Audio/Plug-Ins/VST3"));
+        plugin_dirs.push(PathBuf::from("/Library/Audio/Plug-Ins/Components"));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        plugin_dirs.push(home_path.join("Documents/VST3"));
+        if let Ok(prog_files) = env::var("CommonProgramFiles") {
+            plugin_dirs.push(PathBuf::from(prog_files).join("VST3"));
+        }
+    }
+
+    if let Some(extras) = extra_paths {
+        for ep in extras {
+            let path_buf = PathBuf::from(ep.trim());
+            if !path_buf.as_os_str().is_empty() && !plugin_dirs.contains(&path_buf) {
+                plugin_dirs.push(path_buf);
+            }
         }
     }
 

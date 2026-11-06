@@ -1,5 +1,11 @@
 # CHANGELOG: VST Monster
 
+## [0.3.1] - Custom Audio Scan Paths Configuration & Manifest JSON Exporter
+- Added `get_default_scan_paths` Tauri command returning operating-system native audio search paths.
+- Updated `scan_installed_plugins` to accept arbitrary `extra_paths: Option<Vec<String>>` to inspect user-defined audio plugin directories.
+- Implemented "⚙️ Paths" scan path manager modal in Svelte 5 dashboard with persistent `localStorage` support.
+- Added "📥 Export JSON" capability to export vetted plugin manifests for offline distribution, backups, and DAW integration.
+
 ## [0.3.0] - Batch Plugin Lifecycle Controls, Quick Filter Pills & Native Bundle Validation
 - Added `verify_installed_plugin` Tauri command to validate audio bundle binary integrity and file presence.
 - Added "Update All" batch operation in Svelte client for updating all installed plugins with newer catalog releases.
