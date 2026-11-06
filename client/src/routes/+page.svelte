@@ -66,6 +66,8 @@
   let isLogsCollapsed = $state(true);
   let showAddPluginModal = $state(false);
   let previewPlugin = $state<Plugin | null>(null);
+  let isBatchUpdating = $state(false);
+  let isScanningFolders = $state(false);
 
   // New plugin form state
   let newPlugin = $state({
@@ -126,13 +128,55 @@
   }
 
   async function scanLocalPlugins() {
+    isScanningFolders = true;
     try {
       const detected: InstalledPluginInfo[] = await invoke('scan_installed_plugins');
       installedPlugins = detected || [];
     } catch (err) {
       // In web browser preview mode, invoke may fail silently
       console.log('Installed plugin scan skipped or not in Tauri:', err);
+    } finally {
+      isScanningFolders = false;
     }
+  }
+
+  async function updateAllOutdatedPlugins() {
+    const outdated = plugins.filter(p => {
+      const inst = getInstalledInfo(p.name);
+      if (!inst) return false;
+      const vStatus = getVersionStatus(p.version, inst.version);
+      return vStatus.state === 'update-available' && !!p.download_url;
+    });
+
+    if (outdated.length === 0) {
+      actionMessage = 'All installed plugins are currently up to date!';
+      return;
+    }
+
+    if (!confirm(`Found ${outdated.length} plugin(s) with updates available. Proceed with batch update?`)) {
+      return;
+    }
+
+    isBatchUpdating = true;
+    actionMessage = `Starting batch update of ${outdated.length} plugin(s)...`;
+
+    for (const plugin of outdated) {
+      try {
+        installStatus[plugin.id] = 'Updating...';
+        await invoke('install_plugin', {
+          url: plugin.download_url,
+          name: plugin.name,
+          expectedHash: plugin.sha256_hash || null
+        });
+        installStatus[plugin.id] = 'Updated to latest release!';
+      } catch (err: any) {
+        installStatus[plugin.id] = `Update failed: ${err}`;
+      }
+    }
+
+    await scanLocalPlugins();
+    isBatchUpdating = false;
+    actionMessage = 'Batch update sequence completed!';
   }
 
   function getInstalledInfo(pluginName: string): InstalledPluginInfo | undefined {
@@ -309,6 +353,15 @@
   function isPluginInstalled(name: string): boolean {
     return !!getInstalledInfo(name);
   }
+
+  // Dynamic counts for status pills
+  let countAll = $derived(plugins.length);
+  let countInstalled = $derived(plugins.filter(p => isPluginInstalled(p.name)).length);
+  let countUpdates = $derived(plugins.filter(p => {
+    const inst = getInstalledInfo(p.name);
+    return inst ? getVersionStatus(p.version, inst.version).state === 'update-available' : false;
+  }).length);
+  let countNotInstalled = $derived(plugins.filter(p => !isPluginInstalled(p.name)).length);
 
   // Filtered and Sorted Plugins
   let filteredPlugins = $derived(
@@ -687,10 +740,21 @@
             <button
               type="button"
               class="btn-rescan-action"
+              disabled={isScanningFolders}
               onclick={scanLocalPlugins}
               use:tooltip={"Re-scan local audio directories for installed VSTs"}
             >
-              🔄 Rescan
+              {isScanningFolders ? '⏳ Scanning...' : '🔄 Rescan'}
+            </button>
+
+            <button
+              type="button"
+              class="btn-update-all"
+              disabled={isBatchUpdating}
+              onclick={updateAllOutdatedPlugins}
+              use:tooltip={"Download and install updates for all installed plugins that are outdated"}
+            >
+              {isBatchUpdating ? '⚡ Updating...' : '⚡ Update All'}
             </button>
           </div>
         </div>
@@ -773,9 +837,48 @@
     <!-- High-Value Core: Plugin Registry Explorer & Silent Installer -->
     <section class="registry-section">
       <div class="section-header">
-        <div>
+        <div class="header-titles">
           <h2>Vetted Plugin Library</h2>
           <span class="section-subtitle">Showing {filteredPlugins.length} of {plugins.length} verified packages</span>
+        </div>
+
+        <!-- Quick Filter Count Pills -->
+        <div class="filter-pills-row">
+          <button
+            type="button"
+            class="filter-pill {selectedInstalledStatus === 'all' ? 'pill-active' : ''}"
+            onclick={() => (selectedInstalledStatus = 'all')}
+            use:tooltip={"View all plugins in database catalog"}
+          >
+            All <span class="pill-badge">{countAll}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill {selectedInstalledStatus === 'installed' ? 'pill-active' : ''}"
+            onclick={() => (selectedInstalledStatus = 'installed')}
+            use:tooltip={"View plugins currently installed on this system"}
+          >
+            ✓ Installed <span class="pill-badge">{countInstalled}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill pill-updates {selectedInstalledStatus === 'update-available' ? 'pill-active' : ''}"
+            onclick={() => (selectedInstalledStatus = 'update-available')}
+            use:tooltip={"View installed plugins with newer releases in registry"}
+          >
+            ⚡ Updates <span class="pill-badge">{countUpdates}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill {selectedInstalledStatus === 'not-installed' ? 'pill-active' : ''}"
+            onclick={() => (selectedInstalledStatus = 'not-installed')}
+            use:tooltip={"View plugins not yet installed"}
+          >
+            Not Installed <span class="pill-badge">{countNotInstalled}</span>
+          </button>
         </div>
       </div>
 
@@ -1344,6 +1447,29 @@
     border-color: #3b82f6;
   }
 
+  .btn-update-all {
+    padding: 0.5rem 0.8rem;
+    background: #78350f;
+    border: 1px solid #d97706;
+    border-radius: 6px;
+    color: #fde68a;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .btn-update-all:hover:not(:disabled) {
+    background: #b45309;
+    color: white;
+  }
+
+  .btn-update-all:disabled, .btn-rescan-action:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   .title-badge-row {
     display: flex;
     align-items: center;
@@ -1675,6 +1801,14 @@
     gap: 1rem;
   }
 
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
   .section-header h2 {
     font-size: 1.3rem;
     font-weight: 700;
@@ -1683,6 +1817,52 @@
   .section-subtitle {
     font-size: 0.8rem;
     color: #94a3b8;
+  }
+
+  .filter-pills-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .filter-pill {
+    background: #161b26;
+    border: 1px solid #232d42;
+    border-radius: 20px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: 0.2s;
+  }
+
+  .filter-pill:hover {
+    border-color: #3b82f6;
+    color: #f1f5f9;
+  }
+
+  .filter-pill.pill-active {
+    background: #1e293b;
+    border-color: #3b82f6;
+    color: #60a5fa;
+    font-weight: 600;
+  }
+
+  .filter-pill.pill-updates.pill-active {
+    background: #451a03;
+    border-color: #d97706;
+    color: #fbbf24;
+  }
+
+  .pill-badge {
+    background: #0f1117;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
   }
 
   .plugins-grid {

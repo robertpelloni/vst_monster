@@ -1,5 +1,11 @@
 # CHANGELOG: VST Monster
 
+## [0.3.0] - Batch Plugin Lifecycle Controls, Quick Filter Pills & Native Bundle Validation
+- Added `verify_installed_plugin` Tauri command to validate audio bundle binary integrity and file presence.
+- Added "Update All" batch operation in Svelte client for updating all installed plugins with newer catalog releases.
+- Added visual progress feedback and state disabled triggers for batch updating and rescan operations.
+- Added interactive filter count pills (All, Installed, Updates, Not Installed) with dynamic catalog counts.
+
 ## [0.2.9] - Advanced Plugin Filtering, Sorting, and Detail Inspection Modal
 - Added installed status filtering in dashboard (`all`, `installed`, `update-available`, `not-installed`).
 - Added format filtering for detected plugins (`all`, `vst3`, `clap`, `au`, `vst2`).

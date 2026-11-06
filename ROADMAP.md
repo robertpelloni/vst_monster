@@ -21,6 +21,7 @@
 - [x] Unified dynamic version string delivery across Registry API and dashboard UI.
 - [x] Rich installed plugin scanning (`InstalledPluginInfo`), dynamic format badging, version diffing, and folder launch integration.
 - [x] Advanced installed state filtering, audio format filtering, status sorting, and interactive plugin detail inspector drawer.
+- [x] Native plugin bundle validation (`verify_installed_plugin`), batch plugin update orchestration, and interactive filter count pills.
 
 ## Milestone 3: Advanced Installation Engines & Package Extraction
 - [ ] Implement complete macOS `.dmg` automated extraction and `.vst3` / `.component` placement to `~/Library/Audio/Plug-Ins/`.

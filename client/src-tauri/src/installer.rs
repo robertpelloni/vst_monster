@@ -305,6 +305,42 @@ pub async fn scan_installed_plugins(_app: AppHandle) -> Result<Vec<InstalledPlug
 }
 
 #[tauri::command]
+pub async fn verify_installed_plugin(_app: AppHandle, path: String) -> Result<bool, String> {
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        return Ok(false);
+    }
+
+    if p.is_file() {
+        if let Ok(meta) = fs::metadata(&p) {
+            return Ok(meta.len() > 0);
+        }
+        return Ok(false);
+    }
+
+    if p.is_dir() {
+        // Inspect if directory contains valid files or nested audio bundle structure
+        if let Ok(entries) = fs::read_dir(&p) {
+            let mut count = 0;
+            for entry in entries.flatten() {
+                count += 1;
+                let subpath = entry.path();
+                if subpath.is_file() {
+                    return Ok(true);
+                }
+                // Check standard VST3 bundle structure: Contents/
+                if subpath.is_dir() && entry.file_name().to_string_lossy().eq_ignore_ascii_case("contents") {
+                    return Ok(true);
+                }
+            }
+            return Ok(count > 0);
+        }
+    }
+
+    Ok(false)
+}
+
+#[tauri::command]
 pub async fn open_plugin_directory(_app: AppHandle, name: Option<String>) -> Result<String, String> {
     let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
     let home_path = PathBuf::from(home);
