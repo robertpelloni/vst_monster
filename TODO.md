@@ -22,4 +22,5 @@
 - [x] Implement native plugin directory explorer command (`open_plugin_directory`) and dashboard buttons (VST3 Folder, Rescan).
 - [x] Implement dynamic versioning in Registry API reading from `VERSION.md`.
 - [x] Implement SHA-256 binary integrity enforcement in native Tauri installer.
+- [x] Implement rich installed plugin metadata detection (`InstalledPluginInfo`), dynamic format badging, version diffing, and per-plugin directory explorer button.
 - [ ] Implement macOS DMG volume mount and `.component` extraction.

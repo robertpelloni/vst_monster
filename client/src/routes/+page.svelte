@@ -36,6 +36,13 @@
     version: string;
   };
 
+  type InstalledPluginInfo = {
+    name: string;
+    version?: string | null;
+    format: string;
+    path: string;
+  };
+
   // State
   let plugins = $state<Plugin[]>([]);
   let stats = $state<Stats | null>(null);
@@ -44,7 +51,7 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let installStatus = $state<Record<string, string>>({});
-  let installedPlugins = $state<string[]>([]);
+  let installedPlugins = $state<InstalledPluginInfo[]>([]);
 
   // Controls & Filters
   let searchQuery = $state('');
@@ -118,12 +125,38 @@
 
   async function scanLocalPlugins() {
     try {
-      const detected: string[] = await invoke('scan_installed_plugins');
+      const detected: InstalledPluginInfo[] = await invoke('scan_installed_plugins');
       installedPlugins = detected || [];
     } catch (err) {
       // In web browser preview mode, invoke may fail silently
       console.log('Installed plugin scan skipped or not in Tauri:', err);
     }
+  }
+
+  function getInstalledInfo(pluginName: string): InstalledPluginInfo | undefined {
+    const safeName = pluginName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return installedPlugins.find(p => {
+      const cleanP = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return cleanP.includes(safeName) || safeName.includes(cleanP);
+    });
+  }
+
+  function getVersionStatus(catalogVersion?: string, localVersion?: string | null): {
+    state: 'up-to-date' | 'update-available' | 'unknown';
+    label: string;
+  } {
+    if (!localVersion) {
+      return { state: 'unknown', label: 'Installed' };
+    }
+    if (!catalogVersion) {
+      return { state: 'up-to-date', label: `v${localVersion}` };
+    }
+    const cleanCat = catalogVersion.trim().replace(/^v/i, '');
+    const cleanLoc = localVersion.trim().replace(/^v/i, '');
+    if (cleanCat === cleanLoc) {
+      return { state: 'up-to-date', label: `v${localVersion} (Latest)` };
+    }
+    return { state: 'update-available', label: `Installed: v${localVersion} (Update to v${cleanCat})` };
   }
 
   async function fetchDashboardData() {
@@ -272,11 +305,7 @@
   }
 
   function isPluginInstalled(name: string): boolean {
-    const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return installedPlugins.some(p => {
-      const cleanP = p.toLowerCase().replace(/[^a-z0-9]/g, '');
-      return cleanP.includes(safeName) || safeName.includes(cleanP);
-    });
+    return !!getInstalledInfo(name);
   }
 
   // Filtered and Sorted Plugins
@@ -605,14 +634,29 @@
       {:else}
         <div class="plugins-grid">
           {#each filteredPlugins as plugin}
+            {@const installedInfo = getInstalledInfo(plugin.name)}
+            {@const versionStatus = installedInfo ? getVersionStatus(plugin.version, installedInfo.version) : null}
             <div class="plugin-card">
               <!-- Header -->
               <div class="card-top">
                 <div class="title-group">
                   <div class="title-badge-row">
                     <h3 class="plugin-title" title={plugin.name}>{plugin.name}</h3>
-                    {#if isPluginInstalled(plugin.name)}
-                      <span class="installed-badge" use:tooltip={"Verified installed in your local system audio plugin directories"}>INSTALLED</span>
+                    {#if installedInfo}
+                      <span
+                        class="installed-badge {versionStatus?.state === 'update-available' ? 'badge-update' : ''}"
+                        use:tooltip={`Installed: ${installedInfo.path} (${installedInfo.format.toUpperCase()})`}
+                      >
+                        ✓ {installedInfo.format.toUpperCase()}
+                      </span>
+                      {#if versionStatus}
+                        <span
+                          class="version-status-badge {versionStatus.state === 'update-available' ? 'badge-update' : 'badge-current'}"
+                          use:tooltip={`Catalog: v${plugin.version || '1.0.0'} | Local: ${installedInfo.version || 'detected'}`}
+                        >
+                          {versionStatus.label}
+                        </span>
+                      {/if}
                     {/if}
                   </div>
                   <span class="developer-tag" use:tooltip={`Created by developer ${plugin.developer}`}>
@@ -676,8 +720,21 @@
                       onclick={() => handleInstall(plugin)}
                       use:tooltip={`Stream download and install ${plugin.name} via native silent installer`}
                     >
-                      {installStatus[plugin.id] === 'Downloading & Installing...' ? 'Installing...' : 'Install Plugin'}
+                      {installStatus[plugin.id] === 'Downloading & Installing...'
+                        ? 'Installing...'
+                        : installedInfo
+                        ? (versionStatus?.state === 'update-available' ? 'Update Plugin' : 'Reinstall')
+                        : 'Install Plugin'}
                     </button>
+                    {#if installedInfo}
+                      <button
+                        class="btn-dir"
+                        onclick={() => handleOpenDirectory(plugin.name)}
+                        use:tooltip={`Open ${plugin.name} in file manager (${installedInfo.path})`}
+                      >
+                        📂 Files
+                      </button>
+                    {/if}
                     <button
                       class="btn-remove"
                       disabled={installStatus[plugin.id] === 'Removing plugin files...'}
@@ -1129,6 +1186,49 @@
     border-radius: 4px;
     border: 1px solid #059669;
     letter-spacing: 0.5px;
+  }
+
+  .installed-badge.badge-update {
+    background: #78350f;
+    color: #fcd34d;
+    border-color: #d97706;
+  }
+
+  .version-status-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .version-status-badge.badge-current {
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+  }
+
+  .version-status-badge.badge-update {
+    background: #451a03;
+    color: #fbbf24;
+    border: 1px solid #b45309;
+  }
+
+  .btn-dir {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-dir:hover {
+    background: #334155;
+    color: #f8fafc;
+    border-color: #3b82f6;
   }
 
   .crawler-action-bar {

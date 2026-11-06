@@ -1,5 +1,11 @@
 # CHANGELOG: VST Monster
 
+## [0.2.8] - Rich Installed Plugin Detection, Version Diffing & Explorer Actions
+- Defined `InstalledPluginInfo` in `client/src-tauri/src/installer.rs` containing `name`, `version`, `format`, and `path`.
+- Implemented deep bundle version inspection from `VERSION`, `version.txt`, and `package.json` in installed plugin directories.
+- Added dynamic format badging (`✓ VST3`, `✓ CLAP`, `✓ AU`, `✓ VST2`) and version status diffing (`v1.0.0 (Latest)` vs `Installed: v1.0.0 (Update to v1.2.0)`) on dashboard cards.
+- Integrated direct "📂 Files" quick-launch action button on installed cards to open specific plugin directories.
+
 ## [0.2.7] - Dynamic Registry Versioning & Cryptographic Integrity Verification
 - Updated `/health` endpoint in `registry/src/index.ts` to dynamically read `VERSION.md` from the project root rather than returning a static string.
 - Integrated `sha2` and `hex` into `client/src-tauri/src/installer.rs` to compute stream SHA-256 hashes during plugin binary downloads and enforce cryptographic integrity checks against expected hashes.
