@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
 
   type Plugin = {
     id: string;
@@ -480,8 +481,28 @@
   onMount(() => {
     loadScanPaths();
     fetchDashboardData();
+    let unlistenProgress: (() => void) | null = null;
+    try {
+      listen('install_progress', (event: any) => {
+        const payload = event.payload;
+        if (payload && payload.name) {
+          const matchingPlugin = plugins.find(p => p.name.toLowerCase() === payload.name.toLowerCase());
+          if (matchingPlugin) {
+            if (payload.percentage !== null && payload.percentage !== undefined) {
+              installStatus[matchingPlugin.id] = `Downloading: ${Math.round(payload.percentage)}%`;
+            } else {
+              installStatus[matchingPlugin.id] = payload.status || 'Downloading...';
+            }
+          }
+        }
+      }).then(fn => { unlistenProgress = fn; }).catch(() => {});
+    } catch {}
+
     const interval = setInterval(fetchDashboardData, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (unlistenProgress) unlistenProgress();
+    };
   });
 </script>
 

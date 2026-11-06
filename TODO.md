@@ -27,4 +27,6 @@
 - [x] Implement native plugin bundle validation (`verify_installed_plugin`), batch updater ("Update All"), and quick filter count pills.
 - [x] Implement custom audio scan paths configuration modal (`get_default_scan_paths`, custom paths) with persistent `localStorage`.
 - [x] Implement standalone plugin manifest JSON exporter in dashboard preview drawer.
-- [ ] Implement macOS DMG volume mount and `.component` extraction.
+- [x] Implement macOS DMG volume mount, `.vst3` / `.component` / `.clap` extraction, and unmount.
+- [x] Implement real-time download progress streaming via Tauri events.
+- [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.

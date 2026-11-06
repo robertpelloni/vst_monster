@@ -23,9 +23,11 @@
 - [x] Advanced installed state filtering, audio format filtering, status sorting, and interactive plugin detail inspector drawer.
 - [x] Native plugin bundle validation (`verify_installed_plugin`), batch plugin update orchestration, and interactive filter count pills.
 - [x] Custom audio scan paths configuration modal (`get_default_scan_paths`, custom paths) with persistent `localStorage` and standalone plugin manifest JSON exporter.
+- [x] macOS `.dmg` automated mounting, bundle extraction (`.vst3`, `.component`, `.clap`), and detachment.
+- [x] Real-time download progress streaming via Tauri events (`install_progress`).
 
 ## Milestone 3: Advanced Installation Engines & Package Extraction
-- [ ] Implement complete macOS `.dmg` automated extraction and `.vst3` / `.component` placement to `~/Library/Audio/Plug-Ins/`.
+- [x] Implement complete macOS `.dmg` automated extraction and `.vst3` / `.component` placement to `~/Library/Audio/Plug-Ins/`.
 - [ ] Implement Linux `.so` / `.vst3` / `.clap` archive extraction and installation to `~/.vst3` and `~/.clap`.
 - [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
 - [ ] Add sandbox malware scanning integration (VirusTotal API / ClamAV) prior to installation.

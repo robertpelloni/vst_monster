@@ -5,7 +5,7 @@ use std::env;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use zip::ZipArchive;
@@ -13,9 +13,18 @@ use zip::ZipArchive;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use tokio::process::Command;
 
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct InstallProgressPayload {
+    pub name: String,
+    pub bytes_downloaded: u64,
+    pub total_bytes: Option<u64>,
+    pub percentage: Option<f32>,
+    pub status: String,
+}
+
 #[tauri::command]
 pub async fn install_plugin(
-    _app: AppHandle,
+    app: AppHandle,
     url: String,
     name: String,
     expected_hash: Option<String>,
@@ -27,6 +36,7 @@ pub async fn install_plugin(
         return Err(format!("Failed to download plugin: HTTP {}", res.status()));
     }
 
+    let total_bytes = res.content_length();
     let tmp_dir = env::temp_dir();
 
     // Safely extract extension, defaulting to zip and ensuring it only contains alphanumeric chars
@@ -58,11 +68,36 @@ pub async fn install_plugin(
     let mut file = File::create(&file_path).await.map_err(|e| e.to_string())?;
     let mut stream = res.bytes_stream();
     let mut hasher = Sha256::new();
+    let mut downloaded: u64 = 0;
+
+    let _ = app.emit(
+        "install_progress",
+        InstallProgressPayload {
+            name: name.clone(),
+            bytes_downloaded: 0,
+            total_bytes,
+            percentage: Some(0.0),
+            status: "Downloading...".to_string(),
+        },
+    );
 
     while let Some(item) = stream.next().await {
         let chunk = item.map_err(|e| e.to_string())?;
+        downloaded += chunk.len() as u64;
         hasher.update(&chunk);
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+
+        let percentage = total_bytes.map(|total| (downloaded as f32 / total as f32) * 100.0);
+        let _ = app.emit(
+            "install_progress",
+            InstallProgressPayload {
+                name: name.clone(),
+                bytes_downloaded: downloaded,
+                total_bytes,
+                percentage,
+                status: "Downloading...".to_string(),
+            },
+        );
     }
 
     // Flush and verify integrity if an expected hash was supplied
@@ -131,24 +166,45 @@ pub async fn install_plugin(
                 return Err(format!("PKG installation failed with status: {}", status));
             }
         } else if ext.eq_ignore_ascii_case("dmg") {
-            // DMG Extraction logic (Mount, Copy, Unmount)
-            let attach_status = Command::new("hdiutil")
-                .args(&["attach", "-plist", file_path.to_str().unwrap()])
+            // Mount the DMG disk image silently using hdiutil
+            let attach_out = Command::new("hdiutil")
+                .args(&["attach", "-nobrowse", "-readonly", file_path.to_str().unwrap()])
                 .output()
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| format!("Failed to run hdiutil attach: {}", e))?;
 
-            if !attach_status.status.success() {
-                return Err(format!("Failed to mount DMG"));
+            if !attach_out.status.success() {
+                return Err(format!("Failed to mount DMG disk image"));
             }
 
-            // In a real implementation, you'd parse the plist to find the mount point,
-            // copy the .vst3/.component files to /Library/Audio/Plug-Ins/ or ~/Library/Audio/Plug-Ins/
-            // and then detach the volume using `hdiutil detach`.
-            // This is a simplified stub.
-            return Ok(format!(
-                "Downloaded DMG. Automatic DMG extraction is a stub."
-            ));
+            let stdout_str = String::from_utf8_lossy(&attach_out.stdout);
+            // Parse mount point from hdiutil output (typically last tab-separated token on /Volumes/...)
+            let mut mount_point: Option<PathBuf> = None;
+            for line in stdout_str.lines() {
+                if let Some(pos) = line.find("/Volumes/") {
+                    mount_point = Some(PathBuf::from(line[pos..].trim()));
+                    break;
+                }
+            }
+
+            if let Some(ref mount_path) = mount_point {
+                let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                let home_path = PathBuf::from(home);
+                let audio_plugins_dir = home_path.join("Library/Audio/Plug-Ins");
+
+                // Scan mounted volume recursively for audio bundles (.vst3, .component, .clap)
+                let _ = copy_dmg_plugins_recursive(mount_path, &audio_plugins_dir, &safe_name);
+
+                // Detach volume safely
+                let _ = Command::new("hdiutil")
+                    .args(&["detach", mount_path.to_str().unwrap_or(""), "-force"])
+                    .output()
+                    .await;
+
+                return Ok(format!("Successfully extracted audio bundles from DMG for {}", name));
+            } else {
+                return Err(format!("Could not locate mount volume from hdiutil output"));
+            }
         }
     }
 
@@ -495,5 +551,48 @@ fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Err
         }
     }
 
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn copy_dmg_plugins_recursive(source: &Path, destination_plugins_root: &Path, plugin_name: &str) -> Result<(), io::Error> {
+    if !source.exists() || !source.is_dir() {
+        return Ok(());
+    }
+
+    let entries = fs::read_dir(source)?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let file_name = entry.file_name().to_string_lossy().to_string();
+
+        if file_name.ends_with(".vst3") {
+            let target_dir = destination_plugins_root.join("VST3").join(plugin_name);
+            let _ = copy_dir_all(&path, &target_dir);
+        } else if file_name.ends_with(".component") {
+            let target_dir = destination_plugins_root.join("Components").join(plugin_name);
+            let _ = copy_dir_all(&path, &target_dir);
+        } else if file_name.ends_with(".clap") {
+            let target_dir = destination_plugins_root.join("CLAP").join(plugin_name);
+            let _ = copy_dir_all(&path, &target_dir);
+        } else if path.is_dir() && !file_name.starts_with('.') {
+            let _ = copy_dmg_plugins_recursive(&path, destination_plugins_root, plugin_name);
+        }
+    }
+
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), io::Error> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(&entry.path(), &dst.join(entry.file_name()))?;
+        } else {
+            fs::copy(entry.path(), dst.join(entry.file_name()))?;
+        }
+    }
     Ok(())
 }

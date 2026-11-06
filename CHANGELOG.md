@@ -1,5 +1,10 @@
 # CHANGELOG: VST Monster
 
+## [0.3.2] - macOS DMG Extraction Engine & Real-time Download Progress Streaming
+- Implemented automated macOS DMG volume mounting (`hdiutil attach -nobrowse -readonly`), recursive audio bundle discovery (`.vst3`, `.component`, `.clap`), and clean volume detachment (`hdiutil detach -force`).
+- Implemented real-time `install_progress` event payload streaming from Tauri Rust installer engine emitting percentage and downloaded bytes.
+- Hooked `listen('install_progress')` event stream to Svelte 5 dashboard updating active install percentages in real-time.
+
 ## [0.3.1] - Custom Audio Scan Paths Configuration & Manifest JSON Exporter
 - Added `get_default_scan_paths` Tauri command returning operating-system native audio search paths.
 - Updated `scan_installed_plugins` to accept arbitrary `extra_paths: Option<Vec<String>>` to inspect user-defined audio plugin directories.
