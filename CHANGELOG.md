@@ -1,5 +1,12 @@
 # CHANGELOG: VST Monster
 
+## [0.2.9] - Advanced Plugin Filtering, Sorting, and Detail Inspection Modal
+- Added installed status filtering in dashboard (`all`, `installed`, `update-available`, `not-installed`).
+- Added format filtering for detected plugins (`all`, `vst3`, `clap`, `au`, `vst2`).
+- Added sort by installed status (`status`) prioritizing locally installed packages.
+- Added full plugin detail inspection modal / preview drawer with complete metadata, installation status, path, SHA-256 digest, and action triggers.
+- Accessible title buttons and "👁 Details" quick-launch buttons on every catalog card.
+
 ## [0.2.8] - Rich Installed Plugin Detection, Version Diffing & Explorer Actions
 - Defined `InstalledPluginInfo` in `client/src-tauri/src/installer.rs` containing `name`, `version`, `format`, and `path`.
 - Implemented deep bundle version inspection from `VERSION`, `version.txt`, and `package.json` in installed plugin directories.

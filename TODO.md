@@ -23,4 +23,5 @@
 - [x] Implement dynamic versioning in Registry API reading from `VERSION.md`.
 - [x] Implement SHA-256 binary integrity enforcement in native Tauri installer.
 - [x] Implement rich installed plugin metadata detection (`InstalledPluginInfo`), dynamic format badging, version diffing, and per-plugin directory explorer button.
+- [x] Implement advanced installed status filtering, format filtering, status-based sorting, and plugin detail preview modal in client UI.
 - [ ] Implement macOS DMG volume mount and `.component` extraction.

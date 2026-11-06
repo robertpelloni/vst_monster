@@ -1,18 +1,17 @@
-# HANDOFF: VST Monster Autonomous Session (v0.2.8)
+# HANDOFF: VST Monster Autonomous Session (v0.2.9)
 
 ## Summary of Session Accomplishments
-1. **Rich Installed Plugin Metadata Detection**:
+1. **Advanced Installed State & Format Filtering**:
+   - Added multi-criteria state filter (`all`, `installed`, `update-available`, `not-installed`) and format filter (`all`, `vst3`, `clap`, `au`, `vst2`).
+   - Added sorting by installation status (`status`) prioritizing locally available packages.
+2. **Interactive Plugin Preview & Inspection Modal**:
+   - Built a comprehensive plugin preview modal displaying full audio specs, license models, target OS, detected installation format and path, SHA-256 hash digest, and direct link.
+   - Integrated contextual action triggers (Install / Update / Reinstall / Open Local Folder / Uninstall).
+3. **Rich Installed Plugin Metadata Detection (v0.2.8)**:
    - Defined `InstalledPluginInfo` struct in `client/src-tauri/src/installer.rs` containing `name`, `version`, `format`, and `path`.
    - Implemented deep bundle inspection in plugin directories looking for `VERSION`, `version.txt`, and `package.json`.
-2. **Dynamic UI Badging & Version Diffing**:
-   - Added dynamic format badging (`✓ VST3`, `✓ CLAP`, `✓ AU`, `✓ VST2`) on dashboard plugin cards.
-   - Implemented real-time version status calculation comparing local installed version with catalog release version (`v1.0.0 (Latest)` vs `Update Available`).
-   - Added dedicated "📂 Files" quick-launch action button per card wired to `open_plugin_directory`.
-3. **Dynamic Ecosystem Version Serving & Cryptographic Integrity**:
-   - Updated `/health` in `registry/src/index.ts` to dynamically resolve `VERSION.md` from the repo root.
-   - Added streaming SHA-256 hash calculation in `client/src-tauri/src/installer.rs`.
 4. **Documentation & Versioning**:
-   - Bumped global version to `0.2.8` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
+   - Bumped global version to `0.2.9` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
 
 ## Next Actions for Incoming Sessions:
 - Implement macOS DMG volume mount and `.component` extraction.
