@@ -10,7 +10,6 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use zip::ZipArchive;
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
 use tokio::process::Command;
 
 #[derive(serde::Serialize, Clone, Debug)]
@@ -122,6 +121,20 @@ pub async fn install_plugin(
     if ext.eq_ignore_ascii_case("zip") {
         extract_zip_archive(&file_path, &safe_name).map_err(|e| format!("Failed to extract ZIP: {}", e))?;
         return Ok(format!("Successfully unpacked and installed {}", name));
+    }
+
+    // Support tarball archives (.tar.gz, .tgz)
+    let url_lower = url.to_lowercase();
+    if url_lower.ends_with(".tar.gz") || url_lower.ends_with(".tgz") || ext.eq_ignore_ascii_case("tgz") || ext.eq_ignore_ascii_case("gz") {
+        extract_targz_archive(&file_path, &safe_name).await.map_err(|e| format!("Failed to extract TAR.GZ: {}", e))?;
+        return Ok(format!("Successfully unpacked and installed {}", name));
+    }
+
+    // Support Linux Debian packages (.deb)
+    #[cfg(target_os = "linux")]
+    if ext.eq_ignore_ascii_case("deb") {
+        extract_deb_archive(&file_path, &safe_name).await.map_err(|e| format!("Failed to extract DEB package: {}", e))?;
+        return Ok(format!("Successfully extracted DEB package for {}", name));
     }
 
     // Platform-specific installation logic using tokio::process::Command to avoid blocking the thread
@@ -607,5 +620,85 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), io::Error> {
             fs::copy(entry.path(), dst.join(entry.file_name()))?;
         }
     }
+    Ok(())
+}
+
+async fn extract_targz_archive(archive_path: &Path, plugin_name: &str) -> Result<(), io::Error> {
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    #[cfg(target_os = "linux")]
+    let target_dir = home_path.join(".vst3").join(plugin_name);
+
+    #[cfg(target_os = "macos")]
+    let target_dir = home_path.join("Library/Audio/Plug-Ins/VST3").join(plugin_name);
+
+    #[cfg(target_os = "windows")]
+    let target_dir = home_path.join("Documents/VST3").join(plugin_name);
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let target_dir = env::temp_dir().join("vst_monster_plugins").join(plugin_name);
+
+    fs::create_dir_all(&target_dir)?;
+
+    let status = Command::new("tar")
+        .args(&["-xzf", archive_path.to_str().unwrap_or(""), "-C", target_dir.to_str().unwrap_or(".")])
+        .status()
+        .await
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
+    if !status.success() {
+        return Err(io::Error::new(io::ErrorKind::Other, format!("tar extraction exited with code {:?}", status.code())));
+    }
+
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+async fn extract_deb_archive(deb_path: &Path, plugin_name: &str) -> Result<(), io::Error> {
+    let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+    let target_dir = home_path.join(".vst3").join(plugin_name);
+    fs::create_dir_all(&target_dir)?;
+
+    let temp_unpack = env::temp_dir().join(format!("deb_unpack_{}", plugin_name));
+    let _ = fs::remove_dir_all(&temp_unpack);
+    fs::create_dir_all(&temp_unpack)?;
+
+    let status = Command::new("dpkg-deb")
+        .args(&["-x", deb_path.to_str().unwrap_or(""), temp_unpack.to_str().unwrap_or(".")])
+        .status()
+        .await
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
+    if !status.success() {
+        let _ = fs::remove_dir_all(&temp_unpack);
+        return Err(io::Error::new(io::ErrorKind::Other, format!("dpkg-deb extraction failed with code {:?}", status.code())));
+    }
+
+    // Inspect unpacked tree for audio plugins (usr/lib/vst3, usr/lib/vst, usr/lib/clap, usr/lib/lv2)
+    let potential_paths = [
+        temp_unpack.join("usr/lib/vst3"),
+        temp_unpack.join("usr/local/lib/vst3"),
+        temp_unpack.join("usr/lib/clap"),
+        temp_unpack.join("usr/lib/lv2"),
+        temp_unpack.join("usr/lib/lxvst"),
+        temp_unpack.join("usr/lib/vst"),
+    ];
+
+    let mut found_plugin = false;
+    for pp in &potential_paths {
+        if pp.exists() && pp.is_dir() {
+            let _ = copy_dir_all(pp, &target_dir);
+            found_plugin = true;
+        }
+    }
+
+    if !found_plugin {
+        // Fallback: copy whole unpacked usr hierarchy into target
+        let _ = copy_dir_all(&temp_unpack, &target_dir);
+    }
+
+    let _ = fs::remove_dir_all(&temp_unpack);
     Ok(())
 }

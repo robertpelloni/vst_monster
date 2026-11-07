@@ -458,6 +458,14 @@
     return inst ? getVersionStatus(p.version, inst.version).state === 'update-available' : false;
   }).length);
   let countNotInstalled = $derived(plugins.filter(p => !isPluginInstalled(p.name)).length);
+  let countVST3 = $derived(plugins.filter(p => {
+    const inst = getInstalledInfo(p.name);
+    return inst ? inst.format.toLowerCase() === 'vst3' : inferCatalogFormat(p).toLowerCase().includes('vst3');
+  }).length);
+  let countCLAP = $derived(plugins.filter(p => {
+    const inst = getInstalledInfo(p.name);
+    return inst ? inst.format.toLowerCase() === 'clap' : inferCatalogFormat(p).toLowerCase().includes('clap');
+  }).length);
 
   // Filtered and Sorted Plugins
   let filteredPlugins = $derived(
@@ -1120,18 +1128,18 @@
             type="button"
             class="filter-pill format-pill {selectedFormat === 'vst3' ? 'pill-active' : ''}"
             onclick={() => { selectedFormat = selectedFormat === 'vst3' ? 'all' : 'vst3'; }}
-            use:tooltip={"Filter directly for VST3 plugins"}
+            use:tooltip={`Filter directly for VST3 format plugins (${countVST3} available)`}
           >
-            🎚️ VST3
+            🎚️ VST3 <span class="pill-badge">{countVST3}</span>
           </button>
 
           <button
             type="button"
             class="filter-pill format-pill {selectedFormat === 'clap' ? 'pill-active' : ''}"
             onclick={() => { selectedFormat = selectedFormat === 'clap' ? 'all' : 'clap'; }}
-            use:tooltip={"Filter directly for CLAP plugins"}
+            use:tooltip={`Filter directly for modern CLAP format plugins (${countCLAP} available)`}
           >
-            ⚡ CLAP
+            ⚡ CLAP <span class="pill-badge">{countCLAP}</span>
           </button>
         </div>
       </div>

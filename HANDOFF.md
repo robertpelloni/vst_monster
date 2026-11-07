@@ -1,7 +1,11 @@
-# HANDOFF: VST Monster Autonomous Session (v0.3.7)
+# HANDOFF: VST Monster Autonomous Session (v0.3.8)
 
 ## Summary of Session Accomplishments
-1. **Crawler Ingestion Stability, Platform Detection & Curated Seed Expansion (v0.3.7)**:
+1. **Linux Archive Extraction (.deb, .tar.gz) & Format Pill Counts (v0.3.8)**:
+   - Implemented asynchronous `.tar.gz` and `.tgz` decompression engine in `client/src-tauri/src/installer.rs` unpacking directly into audio directory trees.
+   - Implemented Linux `.deb` package extraction using `dpkg-deb -x` scanning for audio bundles across standard Linux system plugin paths (`usr/lib/vst3`, `usr/lib/clap`, `usr/lib/lv2`).
+   - Added dynamic reactive count badges (`countVST3`, `countCLAP`) on dashboard format discoverability filter chips with descriptive tooltips.
+2. **Crawler Ingestion Stability, Platform Detection & Curated Seed Expansion (v0.3.7)**:
    - Enhanced `crawler/db.go` with dynamic platform detection from download URLs (`linux`, `macos`, `windows`) and automated strategy assignment (`silent_install` vs `extract_binaries`).
    - Added category column persistence in PostgreSQL `plugins` table during crawler upserts.
    - Added detailed ingestion success logging in database pipeline.
@@ -30,7 +34,7 @@
    - Implemented `install_progress` event payload streaming from Tauri installer engine with bytes downloaded, total bytes, percentage, and status.
    - Hooked Svelte 5 dashboard to listen and display dynamic progress percentages on installing plugin cards.
 6. **Documentation & Versioning**:
-   - Bumped global version to `0.3.7` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
+   - Bumped global version to `0.3.8` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
 
 ## Next Actions for Incoming Sessions:
 - Implement Linux tarball extraction (`.tar.gz`, `.tar.xz`) for standalone binaries using `tar` and `flate2`.

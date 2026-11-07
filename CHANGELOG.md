@@ -1,5 +1,12 @@
 # CHANGELOG: VST Monster
 
+## [0.3.8] - Linux Archive Extraction (.deb, .tar.gz) & Format Pill Counts
+- Implemented asynchronous `.tar.gz` and `.tgz` decompression engine in `client/src-tauri/src/installer.rs` unpacking directly into audio directory trees.
+- Implemented Linux `.deb` package extraction using `dpkg-deb -x` scanning for audio bundles across standard Linux system plugin paths (`usr/lib/vst3`, `usr/lib/clap`, `usr/lib/lv2`).
+- Added dynamic reactive count badges (`countVST3`, `countCLAP`) on dashboard format discoverability filter chips.
+- Added informative tooltips indicating available plugin numbers per audio plugin format.
+- Bumped ecosystem version to `v0.3.8`.
+
 ## [0.3.7] - Crawler Ingestion Stability, Platform Detection & Curated Seed Expansion
 - Enhanced `crawler/db.go` with dynamic platform detection from download URLs (`linux`, `macos`, `windows`) and automated strategy assignment (`silent_install` vs `extract_binaries`).
 - Added category column persistence in PostgreSQL `plugins` table during crawler upserts.
