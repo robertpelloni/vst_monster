@@ -1,5 +1,10 @@
 # CHANGELOG: VST Monster
 
+## [0.4.1] - LV2 Format Discoverability Chip & Windows VST2 Path Scanning
+- Added interactive LV2 format discoverability filter chip (`🎛️ LV2`) with reactive catalog count badge (`countLV2`) in the primary dashboard filter row.
+- Added Windows VST2 standard search locations (`%ProgramFiles%/VSTPlugins`, `%ProgramFiles%/Steinberg/VSTPlugins`, `%CommonProgramFiles%/VST2`, and `Documents/VST`) in `get_default_scan_paths` and `scan_installed_plugins`.
+- Synchronized global ecosystem version to `v0.4.1`.
+
 ## [0.4.0] - Comprehensive Plugin Inspector Drawer, Badging & Verification
 - Enhanced the plugin detail preview drawer header with inferred format badging (`inferCatalogFormat`) and installed audio format tags (`✓ VST3`, `✓ CLAP`, etc.).
 - Upgraded the preview drawer installed status banner with live verification status badges (`✓ Verified Bundle`, `⏳ Verifying...`, `⚠ Missing Binary`).

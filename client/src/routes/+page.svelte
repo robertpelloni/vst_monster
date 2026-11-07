@@ -485,6 +485,10 @@
     const inst = getInstalledInfo(p.name);
     return inst ? inst.format.toLowerCase() === 'clap' : inferCatalogFormat(p).toLowerCase().includes('clap');
   }).length);
+  let countLV2 = $derived(plugins.filter(p => {
+    const inst = getInstalledInfo(p.name);
+    return inst ? inst.format.toLowerCase() === 'lv2' : inferCatalogFormat(p).toLowerCase().includes('lv2');
+  }).length);
 
   // Filtered and Sorted Plugins
   let filteredPlugins = $derived(
@@ -1204,6 +1208,15 @@
             use:tooltip={`Filter directly for modern CLAP format plugins (${countCLAP} available)`}
           >
             ⚡ CLAP <span class="pill-badge">{countCLAP}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill format-pill {selectedFormat === 'lv2' ? 'pill-active' : ''}"
+            onclick={() => { selectedFormat = selectedFormat === 'lv2' ? 'all' : 'lv2'; }}
+            use:tooltip={`Filter directly for LV2 format plugins (${countLV2} available)`}
+          >
+            🎛️ LV2 <span class="pill-badge">{countLV2}</span>
           </button>
         </div>
       </div>

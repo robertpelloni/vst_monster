@@ -317,9 +317,15 @@ pub fn get_default_scan_paths() -> Vec<String> {
     #[cfg(target_os = "windows")]
     {
         plugin_dirs.push(home_path.join("Documents/VST3"));
+        plugin_dirs.push(home_path.join("Documents/VST"));
         if let Ok(prog_files) = env::var("CommonProgramFiles") {
             plugin_dirs.push(PathBuf::from(&prog_files).join("VST3"));
             plugin_dirs.push(PathBuf::from(&prog_files).join("CLAP"));
+            plugin_dirs.push(PathBuf::from(&prog_files).join("VST2"));
+        }
+        if let Ok(prog_files) = env::var("ProgramFiles") {
+            plugin_dirs.push(PathBuf::from(&prog_files).join("VSTPlugins"));
+            plugin_dirs.push(PathBuf::from(&prog_files).join("Steinberg/VSTPlugins"));
         }
     }
 
@@ -361,9 +367,15 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
     #[cfg(target_os = "windows")]
     {
         plugin_dirs.push(home_path.join("Documents/VST3"));
+        plugin_dirs.push(home_path.join("Documents/VST"));
         if let Ok(prog_files) = env::var("CommonProgramFiles") {
             plugin_dirs.push(PathBuf::from(&prog_files).join("VST3"));
             plugin_dirs.push(PathBuf::from(&prog_files).join("CLAP"));
+            plugin_dirs.push(PathBuf::from(&prog_files).join("VST2"));
+        }
+        if let Ok(prog_files) = env::var("ProgramFiles") {
+            plugin_dirs.push(PathBuf::from(&prog_files).join("VSTPlugins"));
+            plugin_dirs.push(PathBuf::from(&prog_files).join("Steinberg/VSTPlugins"));
         }
     }
 

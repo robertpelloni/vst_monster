@@ -1,11 +1,14 @@
-# HANDOFF: VST Monster Autonomous Session (v0.4.0)
+# HANDOFF: VST Monster Autonomous Session (v0.4.1)
 
 ## Summary of Session Accomplishments
-1. **Comprehensive Plugin Inspector Drawer, Badging & Verification (v0.4.0)**:
+1. **LV2 Format Discoverability Chip & Windows VST2 Scanning (v0.4.1)**:
+   - Added interactive LV2 format discoverability filter chip (`🎛️ LV2`) with reactive catalog count badge (`countLV2`) in the primary dashboard filter row.
+   - Expanded Windows scan path discovery in `get_default_scan_paths` and `scan_installed_plugins` with `%ProgramFiles%/VSTPlugins`, `%ProgramFiles%/Steinberg/VSTPlugins`, `%CommonProgramFiles%/VST2`, and `Documents/VST`.
+2. **Comprehensive Plugin Inspector Drawer, Badging & Verification (v0.4.0)**:
    - Enhanced the plugin detail preview drawer header with inferred format badging (`inferCatalogFormat`) and installed audio format tags (`✓ VST3`, `✓ CLAP`, etc.).
    - Upgraded the preview drawer installed status banner with live verification status badges (`✓ Verified Bundle`, `⏳ Verifying...`, `⚠ Missing Binary`).
    - Added inline quick actions in the preview drawer to trigger local bundle verification (`verify_installed_plugin`) and open enclosing folders (`open_plugin_directory`).
-2. **Standalone Binary Installation & InnoSetup Silent Fallbacks (v0.3.9)**:
+3. **Standalone Binary Installation & InnoSetup Silent Fallbacks (v0.3.9)**:
    - Added standalone audio binary installation engine (`.so`, `.dll`, `.clap`) in `client/src-tauri/src/installer.rs` with automated audio destination directory generation and `0o755` executable permissions.
    - Implemented InnoSetup and NSIS secondary silent command fallback flags (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`) for Windows `.exe` installers.
    - Enriched plugin extraction strategy spec tile and direct download source details inside dashboard inspection preview drawer (`client/src/routes/+page.svelte`) with descriptive tooltips.
