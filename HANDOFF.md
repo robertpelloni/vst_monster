@@ -1,11 +1,15 @@
-# HANDOFF: VST Monster Autonomous Session (v0.3.9)
+# HANDOFF: VST Monster Autonomous Session (v0.4.0)
 
 ## Summary of Session Accomplishments
-1. **Standalone Binary Installation & InnoSetup Silent Fallbacks (v0.3.9)**:
+1. **Comprehensive Plugin Inspector Drawer, Badging & Verification (v0.4.0)**:
+   - Enhanced the plugin detail preview drawer header with inferred format badging (`inferCatalogFormat`) and installed audio format tags (`✓ VST3`, `✓ CLAP`, etc.).
+   - Upgraded the preview drawer installed status banner with live verification status badges (`✓ Verified Bundle`, `⏳ Verifying...`, `⚠ Missing Binary`).
+   - Added inline quick actions in the preview drawer to trigger local bundle verification (`verify_installed_plugin`) and open enclosing folders (`open_plugin_directory`).
+2. **Standalone Binary Installation & InnoSetup Silent Fallbacks (v0.3.9)**:
    - Added standalone audio binary installation engine (`.so`, `.dll`, `.clap`) in `client/src-tauri/src/installer.rs` with automated audio destination directory generation and `0o755` executable permissions.
    - Implemented InnoSetup and NSIS secondary silent command fallback flags (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`) for Windows `.exe` installers.
    - Enriched plugin extraction strategy spec tile and direct download source details inside dashboard inspection preview drawer (`client/src/routes/+page.svelte`) with descriptive tooltips.
-2. **Linux Archive Extraction (.deb, .tar.gz) & Format Pill Counts (v0.3.8)**:
+3. **Linux Archive Extraction (.deb, .tar.gz) & Format Pill Counts (v0.3.8)**:
    - Implemented asynchronous `.tar.gz` and `.tgz` decompression engine in `client/src-tauri/src/installer.rs` unpacking directly into audio directory trees.
    - Implemented Linux `.deb` package extraction using `dpkg-deb -x` scanning for audio bundles across standard Linux system plugin paths (`usr/lib/vst3`, `usr/lib/clap`, `usr/lib/lv2`).
    - Added dynamic reactive count badges (`countVST3`, `countCLAP`) on dashboard format discoverability filter chips with descriptive tooltips.

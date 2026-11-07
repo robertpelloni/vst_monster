@@ -1,5 +1,11 @@
 # CHANGELOG: VST Monster
 
+## [0.4.0] - Comprehensive Plugin Inspector Drawer, Badging & Verification
+- Enhanced the plugin detail preview drawer header with inferred format badging (`inferCatalogFormat`) and installed audio format tags (`✓ VST3`, `✓ CLAP`, etc.).
+- Upgraded the preview drawer installed status banner with live verification status badges (`✓ Verified Bundle`, `⏳ Verifying...`, `⚠ Missing Binary`).
+- Added inline quick actions in the preview drawer to trigger local bundle verification (`verify_installed_plugin`) and open enclosing folders (`open_plugin_directory`).
+- Synchronized global ecosystem version to `v0.4.0`.
+
 ## [0.3.9] - Standalone Binary Installation & InnoSetup Silent Fallbacks
 - Added standalone audio binary installation engine (`.so`, `.dll`, `.clap`) in `client/src-tauri/src/installer.rs` with automated audio destination directory generation and `0o755` executable permissions.
 - Implemented InnoSetup and NSIS secondary silent command fallback flags (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`) for Windows `.exe` installers.

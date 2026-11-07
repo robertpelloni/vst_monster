@@ -67,6 +67,8 @@
   let isLogsCollapsed = $state(true);
   let showAddPluginModal = $state(false);
   let previewPlugin = $state<Plugin | null>(null);
+  let isVerifyingPlugin = $state(false);
+  let verificationStatus = $state<{ [key: string]: 'valid' | 'invalid' | 'verifying' }>({});
   let isBatchUpdating = $state(false);
   let isScanningFolders = $state(false);
   let showScanPathsModal = $state(false);
@@ -410,6 +412,23 @@
     }
   }
 
+  async function handleVerifyBundle(pluginName: string, path: string) {
+    isVerifyingPlugin = true;
+    verificationStatus[pluginName] = 'verifying';
+    try {
+      const isValid = await invoke('verify_installed_plugin', { path });
+      verificationStatus[pluginName] = isValid ? 'valid' : 'invalid';
+      actionMessage = isValid
+        ? `Bundle integrity verified for ${pluginName} at ${path}`
+        : `Integrity check failed: bundle file not found at ${path}`;
+    } catch (err: any) {
+      verificationStatus[pluginName] = 'invalid';
+      actionMessage = `Bundle verification error: ${err}`;
+    } finally {
+      isVerifyingPlugin = false;
+    }
+  }
+
   async function handleQuit() {
     if (confirm('Quit VST Monster desktop app and stop local services?')) {
       try {
@@ -748,11 +767,24 @@
   {#if previewPlugin}
     {@const previewInstalled = getInstalledInfo(previewPlugin.name)}
     {@const previewVersionStatus = previewInstalled ? getVersionStatus(previewPlugin.version, previewInstalled.version) : null}
+    {@const previewInferredFormat = inferCatalogFormat(previewPlugin)}
     <div class="modal-backdrop">
       <div class="modal-card preview-card">
         <div class="modal-header">
           <div class="preview-header-info">
-            <span class="preview-category">{previewPlugin.category || 'synth'}</span>
+            <div class="preview-header-tags">
+              <span class="preview-category">{previewPlugin.category || 'synth'}</span>
+              {#if previewInferredFormat}
+                <span class="catalog-format-badge" use:tooltip={"Inferred audio plugin architecture from binary distribution"}>
+                  {previewInferredFormat}
+                </span>
+              {/if}
+              {#if previewInstalled}
+                <span class="installed-badge" use:tooltip={`Installed format: ${previewInstalled.format.toUpperCase()} at ${previewInstalled.path}`}>
+                  ✓ {previewInstalled.format.toUpperCase()}
+                </span>
+              {/if}
+            </div>
             <h2>{previewPlugin.name}</h2>
             <span class="preview-author">by {previewPlugin.developer}</span>
           </div>
@@ -764,12 +796,38 @@
           {#if previewInstalled}
             <div class="preview-install-status {previewVersionStatus?.state === 'update-available' ? 'status-update' : 'status-installed'}">
               <span class="icon">✓</span>
-              <div>
-                <strong>Installed in {previewInstalled.format.toUpperCase()} format</strong>
+              <div class="preview-status-details">
+                <div class="preview-status-title-row">
+                  <strong>Installed in {previewInstalled.format.toUpperCase()} format</strong>
+                  {#if verificationStatus[previewPlugin.name]}
+                    <span class="verification-badge {verificationStatus[previewPlugin.name]}">
+                      {verificationStatus[previewPlugin.name] === 'valid' ? '✓ Verified Bundle' : verificationStatus[previewPlugin.name] === 'verifying' ? '⏳ Verifying...' : '⚠ Missing Binary'}
+                    </span>
+                  {/if}
+                </div>
                 <p>Path: <code>{previewInstalled.path}</code></p>
                 {#if previewVersionStatus}
-                  <small>{previewVersionStatus.label}</small>
+                  <small class="version-label-note">{previewVersionStatus.label}</small>
                 {/if}
+                <div class="preview-status-subactions">
+                  <button
+                    type="button"
+                    class="btn-tiny-action"
+                    onclick={() => handleVerifyBundle(previewPlugin!.name, previewInstalled.path)}
+                    disabled={isVerifyingPlugin}
+                    use:tooltip={"Check if plugin binary or bundle exists on local filesystem"}
+                  >
+                    🔍 Verify File Integrity
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-tiny-action"
+                    onclick={() => handleOpenDirectory(previewPlugin!.name)}
+                    use:tooltip={"Open enclosing plugin directory in native file manager"}
+                  >
+                    📂 Show in File Explorer
+                  </button>
+                </div>
               </div>
             </div>
           {:else}
@@ -1933,9 +1991,79 @@
     padding: 0.8rem 1rem;
     border-radius: 8px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.8rem;
     font-size: 0.85rem;
+  }
+
+  .preview-status-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1;
+  }
+
+  .preview-status-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+  }
+
+  .verification-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .verification-badge.valid {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+  }
+
+  .verification-badge.verifying {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+  }
+
+  .verification-badge.invalid {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+  }
+
+  .version-label-note {
+    font-size: 0.75rem;
+    color: #fde68a;
+  }
+
+  .preview-status-subactions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.2rem;
+  }
+
+  .btn-tiny-action {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .btn-tiny-action:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .btn-tiny-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .preview-install-status.status-installed {
