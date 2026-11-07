@@ -425,6 +425,29 @@
     return !!getInstalledInfo(name);
   }
 
+  function getPluginTags(plugin: Plugin): string[] {
+    const tags = new Set<string>();
+    if (plugin.category) tags.add(plugin.category.toLowerCase());
+    if (plugin.license_model) tags.add(plugin.license_model.toLowerCase());
+
+    const desc = (plugin.metadata?.description || '').toLowerCase();
+    const keywords = ['wavetable', 'fm', 'analog', 'subtractive', 'filter', 'polyphonic', 'reverb', 'delay', 'chorus', 'distortion', 'compressor', 'eq', 'mpe'];
+    for (const kw of keywords) {
+      if (desc.includes(kw)) {
+        tags.add(kw);
+      }
+    }
+    return Array.from(tags).slice(0, 4);
+  }
+
+  function inferCatalogFormat(plugin: Plugin): string {
+    const url = (plugin.download_url || '').toLowerCase();
+    if (url.endsWith('.vst3.zip') || url.includes('vst3')) return 'VST3';
+    if (url.includes('clap')) return 'CLAP';
+    if (url.includes('dmg') || url.includes('pkg') || url.includes('component')) return 'AU / VST3';
+    return 'VST3';
+  }
+
   // Dynamic counts for status pills
   let countAll = $derived(plugins.length);
   let countInstalled = $derived(plugins.filter(p => isPluginInstalled(p.name)).length);
@@ -1124,9 +1147,9 @@
               <!-- Metadata Specs -->
               <div class="specs-grid">
                 <div class="spec-item">
-                  <span class="spec-label">Category</span>
-                  <span class="spec-val category-badge" use:tooltip={`Plugin type: ${plugin.category || 'synth'}`}>
-                    {plugin.category || 'synth'}
+                  <span class="spec-label">Format</span>
+                  <span class="spec-val format-badge-tag" use:tooltip={"Supported binary audio plugin format"}>
+                    {installedInfo ? installedInfo.format.toUpperCase() : inferCatalogFormat(plugin)}
                   </span>
                 </div>
                 <div class="spec-item">
@@ -1141,6 +1164,20 @@
                     {plugin.strategy || 'extract_binaries'}
                   </span>
                 </div>
+              </div>
+
+              <!-- Discoverability Tag Pills -->
+              <div class="tag-pills-row">
+                {#each getPluginTags(plugin) as tag}
+                  <button
+                    type="button"
+                    class="tag-pill"
+                    onclick={() => { searchQuery = tag; }}
+                    use:tooltip={`Click to filter catalog by tag '${tag}'`}
+                  >
+                    #{tag}
+                  </button>
+                {/each}
               </div>
 
               <!-- Cryptographic SHA256 Verification -->
@@ -1533,6 +1570,36 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .tag-pills-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0.2rem 0;
+  }
+
+  .tag-pill {
+    background: #0f1117;
+    border: 1px solid #232d42;
+    color: #38bdf8;
+    font-size: 0.68rem;
+    padding: 2px 7px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.15s ease-in-out;
+  }
+
+  .tag-pill:hover {
+    background: #1e293b;
+    border-color: #38bdf8;
+    color: #7dd3fc;
+    transform: scale(1.05);
+  }
+
+  .format-badge-tag {
+    color: #a78bfa;
+    font-weight: 700;
   }
 
   .card-header h3 {

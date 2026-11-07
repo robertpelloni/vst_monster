@@ -1,5 +1,10 @@
 # CHANGELOG: VST Monster
 
+## [0.3.3] - Discoverability Tag Engine, Audio Format Badges & Explorer Quick Actions
+- Added dynamic keyword tag extraction (`#synth`, `#wavetable`, `#fm`, `#polyphonic`, `#analog`, `#mpe`, etc.) with interactive click-to-filter pill buttons on catalog cards.
+- Added audio format catalog badging (`inferCatalogFormat`) displaying format support (`VST3`, `CLAP`, `AU / VST3`) across all plugins.
+- Deep linked directory explorer actions and dynamic filter activations directly from tag pills and inspection cards.
+
 ## [0.3.2] - macOS DMG Extraction Engine & Real-time Download Progress Streaming
 - Implemented automated macOS DMG volume mounting (`hdiutil attach -nobrowse -readonly`), recursive audio bundle discovery (`.vst3`, `.component`, `.clap`), and clean volume detachment (`hdiutil detach -force`).
 - Implemented real-time `install_progress` event payload streaming from Tauri Rust installer engine emitting percentage and downloaded bytes.

@@ -29,4 +29,6 @@
 - [x] Implement standalone plugin manifest JSON exporter in dashboard preview drawer.
 - [x] Implement macOS DMG volume mount, `.vst3` / `.component` / `.clap` extraction, and unmount.
 - [x] Implement real-time download progress streaming via Tauri events.
+- [x] Implement discoverability tag engine (`getPluginTags`) with interactive click-to-filter pills.
+- [x] Implement catalog audio format inference (`inferCatalogFormat`) with dynamic badge tags.
 - [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.

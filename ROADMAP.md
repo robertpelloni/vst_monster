@@ -28,6 +28,8 @@
 
 ## Milestone 3: Advanced Installation Engines & Package Extraction
 - [x] Implement complete macOS `.dmg` automated extraction and `.vst3` / `.component` placement to `~/Library/Audio/Plug-Ins/`.
+- [x] Discoverability tag extraction engine with interactive click-to-filter pills.
+- [x] Automated audio format detection and badging across catalog.
 - [ ] Implement Linux `.so` / `.vst3` / `.clap` archive extraction and installation to `~/.vst3` and `~/.clap`.
 - [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
 - [ ] Add sandbox malware scanning integration (VirusTotal API / ClamAV) prior to installation.
