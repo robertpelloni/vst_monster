@@ -796,9 +796,9 @@
               <span class="label">Target OS</span>
               <strong class="value capitalize">{previewPlugin.platform || 'linux'}</strong>
             </div>
-            <div class="spec-tile">
+            <div class="spec-tile" use:tooltip={"Installation execution mode: silent installer, archive decompression (ZIP/TAR/DMG), or direct binary relocation"}>
               <span class="label">Strategy</span>
-              <strong class="value">{previewPlugin.strategy || 'extract_binaries'}</strong>
+              <strong class="value strategy-value">{previewPlugin.strategy || 'extract_binaries'}</strong>
             </div>
           </div>
 
@@ -823,8 +823,14 @@
           <!-- Direct Download Link -->
           {#if previewPlugin.download_url}
             <div class="preview-section">
-              <h4>Direct Download Source</h4>
-              <a href={previewPlugin.download_url} target="_blank" rel="noreferrer" class="preview-download-link">
+              <h4>Direct Binary Download Source</h4>
+              <a
+                href={previewPlugin.download_url}
+                target="_blank"
+                rel="noreferrer"
+                class="preview-download-link"
+                use:tooltip={"Open direct binary distribution endpoint in external browser"}
+              >
                 🔗 {previewPlugin.download_url}
               </a>
             </div>

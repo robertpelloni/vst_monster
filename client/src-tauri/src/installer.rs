@@ -156,15 +156,38 @@ pub async fn install_plugin(
                 return Err(format!("MSI installation failed with status: {}", status));
             }
         } else if ext.eq_ignore_ascii_case("exe") {
+            // Attempt standard silent switches; if failed, attempt InnoSetup/NSIS alternative switches
             let status = Command::new(file_path.to_str().unwrap())
                 .args(&["/S", "/silent", "/quiet"])
                 .status()
-                .await
-                .map_err(|e| e.to_string())?;
-            if !status.success() {
-                return Err(format!("EXE installation failed with status: {}", status));
+                .await;
+
+            let failed = match status {
+                Ok(s) => !s.success(),
+                Err(_) => true,
+            };
+
+            if failed {
+                let fallback = Command::new(file_path.to_str().unwrap())
+                    .args(&["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"])
+                    .status()
+                    .await
+                    .map_err(|e| e.to_string())?;
+                if !fallback.success() {
+                    return Err(format!("EXE installation failed with status: {}", fallback));
+                }
             }
         }
+    }
+
+    // Direct standalone binary installation (.so, .dll, .vst3 single binary, or .clap)
+    let is_standalone_binary = ext.eq_ignore_ascii_case("so")
+        || ext.eq_ignore_ascii_case("dll")
+        || ext.eq_ignore_ascii_case("clap");
+
+    if is_standalone_binary {
+        install_standalone_binary(&file_path, &safe_name, &ext).await.map_err(|e| format!("Failed to install standalone binary: {}", e))?;
+        return Ok(format!("Successfully installed standalone audio binary for {}", name));
     }
 
     #[cfg(target_os = "macos")]
@@ -700,5 +723,39 @@ async fn extract_deb_archive(deb_path: &Path, plugin_name: &str) -> Result<(), i
     }
 
     let _ = fs::remove_dir_all(&temp_unpack);
+    Ok(())
+}
+
+async fn install_standalone_binary(file_path: &Path, plugin_name: &str, ext: &str) -> Result<(), io::Error> {
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    #[cfg(target_os = "linux")]
+    let target_dir = home_path.join(".vst3").join(plugin_name);
+
+    #[cfg(target_os = "macos")]
+    let target_dir = home_path.join("Library/Audio/Plug-Ins/VST3").join(plugin_name);
+
+    #[cfg(target_os = "windows")]
+    let target_dir = home_path.join("Documents/VST3").join(plugin_name);
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let target_dir = env::temp_dir().join("vst_monster_plugins").join(plugin_name);
+
+    fs::create_dir_all(&target_dir)?;
+
+    let dest_file = target_dir.join(format!("{}.{}", plugin_name, ext));
+    fs::copy(file_path, &dest_file)?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = fs::metadata(&dest_file) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o755);
+            let _ = fs::set_permissions(&dest_file, perms);
+        }
+    }
+
     Ok(())
 }
