@@ -548,6 +548,10 @@
     const inst = getInstalledInfo(p.name);
     return inst ? inst.format.toLowerCase() === 'lv2' : inferCatalogFormat(p).toLowerCase().includes('lv2');
   }).length);
+  let countAU = $derived(plugins.filter(p => {
+    const inst = getInstalledInfo(p.name);
+    return inst ? inst.format.toLowerCase() === 'au' : (inferCatalogFormat(p).toLowerCase().includes('au') || p.platform === 'macos');
+  }).length);
 
   // Filtered and Sorted Plugins
   let filteredPlugins = $derived(
@@ -1011,6 +1015,16 @@
                   </div>
                 </div>
               {/if}
+
+              {#if previewInferredFormat.includes('AU') || previewPlugin.platform === 'macos' || (previewInstalled?.format.toLowerCase() === 'au')}
+                <div class="au-spec-banner" use:tooltip={"Apple Audio Unit (AUv2) CoreAudio Architecture"}>
+                  <span class="au-icon">🍎</span>
+                  <div class="au-content">
+                    <strong>Apple Audio Unit (AUv2 / .component) Supported</strong>
+                    <p>Native macOS CoreAudio plugin architecture. Compatible with Apple Logic Pro, GarageBand, Ableton Live, Studio One, and Reaper with zero-latency sandbox hosting.</p>
+                  </div>
+                </div>
+              {/if}
             </div>
 
           {:else if activeInspectorTab === 'filesystem'}
@@ -1457,6 +1471,15 @@
             use:tooltip={`Filter directly for LV2 format plugins (${countLV2} available)`}
           >
             🎛️ LV2 <span class="pill-badge">{countLV2}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill format-pill {selectedFormat === 'au' ? 'pill-active' : ''}"
+            onclick={() => { selectedFormat = selectedFormat === 'au' ? 'all' : 'au'; }}
+            use:tooltip={`Filter directly for Apple Audio Unit (.component) format plugins (${countAU} available)`}
+          >
+            🍎 AU <span class="pill-badge">{countAU}</span>
           </button>
         </div>
       </div>
@@ -2220,6 +2243,35 @@
   .legacy-warning-box .warning-content p {
     color: #cbd5e1;
     font-size: 0.78rem;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .au-spec-banner {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(244, 63, 94, 0.08);
+    border: 1px solid rgba(244, 63, 94, 0.25);
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+
+  .au-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .au-content strong {
+    display: block;
+    color: #fb7185;
+    font-size: 0.82rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .au-content p {
+    color: #94a3b8;
+    font-size: 0.75rem;
     line-height: 1.4;
     margin: 0;
   }

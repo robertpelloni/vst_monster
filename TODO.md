@@ -49,4 +49,5 @@
 - [x] Enrich preview inspection modal with Audio Format & Host Compatibility Matrix breakdown (v0.4.5).
 - [x] Implement configurable tabbed views inside plugin inspection drawer (Overview & Specs, Filesystem & DAW, Raw Manifest JSON) (v0.4.6).
 - [x] Implement local metadata scan caching and acceleration with cache flush UI controls (v0.4.7).
+- [x] Add Audio Unit (AU) discoverability chip, reactive count badges, and CoreAudio compatibility banner (v0.4.8).
 - [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.

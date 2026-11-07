@@ -1,5 +1,12 @@
 # CHANGELOG: VST Monster
 
+## [0.4.8] - Audio Unit (AU) Discoverability Chip, Count Badges & CoreAudio Compatibility
+- Added reactive `countAU` derived state calculating plugins available or installed in Apple Audio Unit (`.component`) format.
+- Added interactive `🍎 AU` format filter chip with active state and count badge alongside VST3, CLAP, and LV2 chips.
+- Added Apple Audio Unit (AUv2 / CoreAudio) compatibility card in the "Audio Format & Host Compatibility Matrix" inside the plugin inspector drawer with Logic Pro, GarageBand, Ableton Live, Studio One, and Reaper compatibility callouts.
+- Verified TypeScript/Svelte diagnostics (`npm run check`), production static build (`npm run build`), and Playwright screenshot verification.
+- Bumped ecosystem version to `v0.4.8`.
+
 ## [0.4.7] - Local Metadata Scan Caching, Rescan Acceleration & Cache Management
 - Implemented persistent local scan caching (`.vst_monster_cache.json`) in `client/src-tauri/src/installer.rs` keyed by filesystem path and file modification timestamps (`u64`), eliminating redundant disk I/O and version extraction during rescans.
 - Added `clear_scan_cache` command in `installer.rs` and registered handler in `client/src-tauri/src/lib.rs`.

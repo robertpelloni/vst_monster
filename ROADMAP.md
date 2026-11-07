@@ -40,6 +40,7 @@
 - [x] Audio Format & Host Compatibility Matrix breakdown and LV2 Open Audio Standard integration.
 - [x] Tabbed Inspector Views (Overview & Specs, Filesystem & DAW, Raw Manifest JSON).
 - [x] Local Scan Metadata Caching, Rescan Acceleration & Cache Flush Integration.
+- [x] Audio Unit (AU) Discoverability Chip & CoreAudio Compatibility Integration.
 - [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
 - [ ] Add sandbox malware scanning integration (VirusTotal API / ClamAV) prior to installation.
 

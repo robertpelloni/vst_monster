@@ -1,7 +1,13 @@
-# HANDOFF: VST Monster Autonomous Session (v0.4.7)
+# HANDOFF: VST Monster Autonomous Session (v0.4.8)
 
 ## Summary of Session Accomplishments
-1. **Local Metadata Scan Caching, Rescan Acceleration & Cache Management (v0.4.7)**:
+1. **Audio Unit (AU) Discoverability Chip, Count Badges & CoreAudio Compatibility (v0.4.8)**:
+   - Added reactive `countAU` derived state calculating plugins available or installed in Apple Audio Unit (`.component`) format.
+   - Added interactive `🍎 AU` format filter chip with active state and count badge alongside VST3, CLAP, and LV2 chips.
+   - Added Apple Audio Unit (AUv2 / CoreAudio) compatibility card in the "Audio Format & Host Compatibility Matrix" inside the plugin inspector drawer with Logic Pro, GarageBand, Ableton Live, Studio One, and Reaper compatibility callouts.
+   - Verified TypeScript/Svelte diagnostics (`npm run check`), production static build (`npm run build`), and Playwright screenshot verification.
+   - Bumped ecosystem version to `v0.4.8`.
+2. **Local Metadata Scan Caching, Rescan Acceleration & Cache Management (v0.4.7)**:
    - Added persistent local scan caching (`.vst_monster_cache.json`) in `client/src-tauri/src/installer.rs`. Scans key plugin entries by path and modified timestamp (`u64`), reusing previously detected version metadata and bundle formats to eliminate redundant disk I/O on repeated rescans.
    - Added `clear_scan_cache` Tauri command in `installer.rs` and registered handler in `client/src-tauri/src/lib.rs`.
    - Integrated a "Local Scan Cache" management panel into the Paths configuration modal in `client/src/routes/+page.svelte` featuring a "🧹 Flush Cache & Deep Rescan" button and dynamic status feedback.
