@@ -1,7 +1,12 @@
-# HANDOFF: VST Monster Autonomous Session (v0.4.3)
+# HANDOFF: VST Monster Autonomous Session (v0.4.4)
 
 ## Summary of Session Accomplishments
-1. **Comprehensive macOS DMG Extraction & Automated Plugin Installation (v0.4.3)**:
+1. **DAW Presets Quick Launcher & Legacy VST2/32-bit Compatibility Warnings (v0.4.4)**:
+   - Added `open_presets_directory` native command in `client/src-tauri/src/installer.rs` targeting OS standard DAW presets folders (`~/.vst3/presets`, `~/Library/Audio/Presets`, `Documents/VST3 Presets`) with automatic folder creation.
+   - Added `📁 Presets` top-navigation button in dashboard UI with explanatory tooltip guidance for preset installation and backups.
+   - Added legacy VST2 / 32-bit architecture compatibility detection (`isLegacyPlugin`), badging (`⚠️ Legacy`), and detailed bridging warning notice in preview modal for modern 64-bit DAWs.
+   - Synchronized global ecosystem version to `v0.4.4`.
+2. **Comprehensive macOS DMG Extraction & Automated Plugin Installation (v0.4.3)**:
    - Enhanced `hdiutil attach` with robust flags (`-nobrowse`, `-readonly`, `-noverify`, `-noautoopen`) to prevent hanging on verification or auto-opening Finder.
    - Added automated recursive `.pkg` / `.mpkg` discovery inside mounted DMG volumes with headless execution via `installer -pkg <path> -target /`.
    - Expanded audio bundle extraction to support `.vst` (VST2) alongside `.vst3`, `.component` (AU), and `.clap` directly into `~/Library/Audio/Plug-Ins/`.

@@ -413,6 +413,15 @@
     }
   }
 
+  async function handleOpenPresetsDirectory() {
+    try {
+      await invoke('open_presets_directory');
+      actionMessage = 'Opened system DAW presets directory';
+    } catch (err: any) {
+      actionMessage = `Error opening presets directory: ${err}`;
+    }
+  }
+
   async function handleVerifyBundle(pluginName: string, path: string) {
     isVerifyingPlugin = true;
     verificationStatus[pluginName] = 'verifying';
@@ -484,6 +493,19 @@
     if (url.endsWith('.vst3.zip') || url.includes('vst3')) return 'VST3';
     if (url.includes('dmg') || url.includes('pkg') || url.includes('component')) return 'AU / VST3';
     return 'VST3';
+  }
+
+  function isLegacyPlugin(plugin: Plugin, installedInfo?: InstalledPluginInfo | null): boolean {
+    if (installedInfo) {
+      const fmt = (installedInfo.format || '').toLowerCase();
+      if (fmt === 'vst' || fmt === 'vst2') return true;
+    }
+    const arch = (plugin.architecture || '').toLowerCase();
+    const name = plugin.name.toLowerCase();
+    const desc = (plugin.metadata?.description || '').toLowerCase();
+    if (arch === 'x86' || arch === 'i686' || arch === 'i386' || arch.includes('32')) return true;
+    if (desc.includes('32-bit') || name.includes('32-bit') || desc.includes('vst 2') || desc.includes('vst2')) return true;
+    return false;
   }
 
   // Dynamic counts for status pills
@@ -617,6 +639,10 @@
       <div class="status-item" use:tooltip={"Global Ecosystem Version String"}>
         <span class="version-tag">v{health?.version || '0.2.2'}</span>
       </div>
+
+      <button class="btn-folder-action" onclick={handleOpenPresetsDirectory} use:tooltip={"Open system DAW presets directory in file manager (~/.vst3/presets, ~/Library/Audio/Presets, Documents/VST3 Presets)"}>
+        📁 Presets
+      </button>
 
       <button class="btn-folder-action" onclick={() => (showScanPathsModal = true)} use:tooltip={"Configure and audit local audio plugin scan paths"}>
         ⚙️ Paths
@@ -857,6 +883,17 @@
               <div>
                 <strong>Not locally installed</strong>
                 <p>Ready to stream and unpack via VST Monster silent engine.</p>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Legacy Compatibility Warning -->
+          {#if isLegacyPlugin(previewPlugin, previewInstalled)}
+            <div class="legacy-warning-box">
+              <span class="warning-icon">⚠️</span>
+              <div class="warning-content">
+                <strong>Legacy VST2 / 32-bit Architecture Detected</strong>
+                <p>This plugin uses older VST2 or 32-bit binaries. Modern 64-bit DAWs (e.g., Cubase 12+, Bitwig, Ableton Live 10+, Apple Silicon macOS) may require a compatibility bridge such as <em>yabridge</em> or <em>jBridge</em> to load.</p>
               </div>
             </div>
           {/if}
@@ -1292,6 +1329,14 @@
                           {versionStatus.label}
                         </span>
                       {/if}
+                    {/if}
+                    {#if isLegacyPlugin(plugin, installedInfo)}
+                      <span
+                        class="badge-legacy"
+                        use:tooltip={"Legacy VST2 or 32-bit architecture. Modern 64-bit DAWs require bridging (e.g. yabridge, jBridge)."}
+                      >
+                        ⚠️ Legacy
+                      </span>
                     {/if}
                   </div>
                   <span class="developer-tag" use:tooltip={`Created by developer ${plugin.developer}`}>
@@ -1961,6 +2006,46 @@
     background: #451a03;
     color: #fbbf24;
     border: 1px solid #b45309;
+  }
+
+  .badge-legacy {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    background: #450a0a;
+    color: #f87171;
+    border: 1px solid #991b1b;
+  }
+
+  .legacy-warning-box {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(153, 27, 27, 0.15);
+    border: 1px solid #991b1b;
+    border-radius: 8px;
+    padding: 0.85rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .legacy-warning-box .warning-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .legacy-warning-box .warning-content strong {
+    display: block;
+    color: #fca5a5;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .legacy-warning-box .warning-content p {
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    margin: 0;
   }
 
   .btn-dir {

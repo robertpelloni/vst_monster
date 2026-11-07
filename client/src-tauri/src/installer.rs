@@ -614,6 +614,54 @@ pub async fn open_plugin_directory(_app: AppHandle, name: Option<String>) -> Res
     Ok(format!("Opened {:?}", target))
 }
 
+#[tauri::command]
+pub async fn open_presets_directory(_app: AppHandle) -> Result<String, String> {
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    #[cfg(target_os = "linux")]
+    let presets_dir = home_path.join(".vst3").join("presets");
+
+    #[cfg(target_os = "macos")]
+    let presets_dir = home_path.join("Library/Audio/Presets");
+
+    #[cfg(target_os = "windows")]
+    let presets_dir = home_path.join("Documents/VST3 Presets");
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let presets_dir = env::temp_dir().join("vst_monster_presets");
+
+    if !presets_dir.exists() {
+        let _ = fs::create_dir_all(&presets_dir);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        tokio::process::Command::new("xdg-open")
+            .arg(presets_dir.to_str().unwrap_or("."))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        tokio::process::Command::new("open")
+            .arg(presets_dir.to_str().unwrap_or("."))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        tokio::process::Command::new("explorer")
+            .arg(presets_dir.to_str().unwrap_or("."))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(format!("Opened presets directory {:?}", presets_dir))
+}
+
 fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Error> {
     let file = fs::File::open(zip_path)?;
     let mut archive = ZipArchive::new(file)

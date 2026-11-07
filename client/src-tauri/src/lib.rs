@@ -86,6 +86,7 @@ pub fn run() {
             installer::scan_installed_plugins,
             installer::get_default_scan_paths,
             installer::open_plugin_directory,
+            installer::open_presets_directory,
             installer::verify_installed_plugin,
             stop_servers,
             quit_app

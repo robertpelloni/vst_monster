@@ -43,6 +43,6 @@
 - [x] Implement active installation path spec indicator in catalog card specs for locally installed plugins (v0.4.2).
 - [x] Add direct one-click SHA-256 hash copy button on cards and preview drawer with copied state animation (v0.4.2).
 - [x] Implement comprehensive macOS DMG extraction and automated plugin installation (.pkg execution, .vst support, resilient detach) (v0.4.3).
+- [x] Implement VST2 / legacy 32-bit warning banner when scanning older binary formats (v0.4.4).
+- [x] Provide DAW preset folder quick launcher and OS presets directory creation (v0.4.4).
 - [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.
-- [ ] Implement VST2 / legacy 32-bit warning banner when scanning older binary formats.
-- [ ] Provide DAW preset scan integration and preset folder quick launcher.
