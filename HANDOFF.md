@@ -1,39 +1,81 @@
-# HANDOFF: VST Monster Autonomous Session
+# HANDOFF: VST Monster Autonomous Session (v0.4.6)
 
-## Summary of Session Learnings
-- **Registry API Bootstrapping:** Initialized an Express + PostgreSQL REST API inside the `registry` folder (`src/index.ts`).
-- **Frontend Wiring:** Rewrote the Tauri base template (`client/src/routes/+page.svelte`) to dynamically fetch plugin data from `http://localhost:3000/plugins` using an `onMount` hook.
-- **Git State Hygiene:** Discovered that large auto-generated dependency trees (`node_modules`) were crashing `git` diff logs and tracking caches. These have been meticulously purged from cache and appended globally to `.gitignore`.
-- **TypeScript Strictness:** Express bindings triggered strict `verbatimModuleSyntax` errors under `nodenext` configuration. Disabled the flag inside `registry/tsconfig.json` to allow standard ES imports.
+## Summary of Session Accomplishments
+1. **Tabbed Inspector Views (Overview & Specs, Filesystem & DAW, Raw Manifest JSON) (v0.4.6)**:
+   - Restructured the plugin inspector drawer (`client/src/routes/+page.svelte`) with a 3-way tabbed navigation bar (`activeInspectorTab` state):
+     - **🎛️ Overview & Specs**: Overview status banner, legacy compatibility warning, specs grid, synthesis description, and Audio Format & Host Compatibility Matrix.
+     - **📁 Filesystem & DAW**: Local installation format, absolute filesystem path, detected version, bundle integrity checks with inline verification triggers, cryptographic SHA-256 digest copy box, and direct distribution endpoint URL.
+     - **📋 Raw Manifest JSON**: Formatted syntax-highlighted raw JSON viewer rendering `JSON.stringify(previewPlugin, null, 2)` with inline "Copy JSON" and "Save .json" action triggers.
+   - Added corresponding modern dark-mode CSS styling for `.inspector-tabs-bar`, `.inspector-tab-btn`, `.filesystem-details-card`, `.fs-row`, `.raw-manifest-container`, and `.raw-manifest-pre`.
+   - Verified clean TypeScript/Svelte compilation (`npm run check`) and zero warnings/errors on Vite static build (`npm run build`).
+   - Bumped ecosystem version to `v0.4.6`.
+2. **Format-Aware Zip Extraction & Audio Format & Host Compatibility Matrix (v0.4.5)**:
+   - Enhanced `extract_zip_archive` in `client/src-tauri/src/installer.rs` to inspect archive entry paths and dynamically route extraction to format-specific OS audio directories (`~/.lv2` for LV2/TTL, `~/.clap` for CLAP, `~/.vst3` for VST3).
+   - Added a dedicated "Audio Format & Host Compatibility Matrix" section in `client/src/routes/+page.svelte` breaking down distribution architecture (`x86_64`), destination audio paths, and verified host DAWs (Bitwig, Reaper, Cubase, FL Studio, Ableton, Ardour).
+   - Added an LV2 Open Audio Standard banner detailing Turtle (`.ttl`) RDF manifest graph features and Linux audio host compatibility.
+   - Synchronized global ecosystem version to `v0.4.5`.
+2. **DAW Presets Quick Launcher & Legacy VST2/32-bit Compatibility Warnings (v0.4.4)**:
+   - Added `open_presets_directory` native command in `client/src-tauri/src/installer.rs` targeting OS standard DAW presets folders (`~/.vst3/presets`, `~/Library/Audio/Presets`, `Documents/VST3 Presets`) with automatic folder creation.
+   - Added `📁 Presets` top-navigation button in dashboard UI with explanatory tooltip guidance for preset installation and backups.
+   - Added legacy VST2 / 32-bit architecture compatibility detection (`isLegacyPlugin`), badging (`⚠️ Legacy`), and detailed bridging warning notice in preview modal for modern 64-bit DAWs.
+   - Synchronized global ecosystem version to `v0.4.4`.
+2. **Comprehensive macOS DMG Extraction & Automated Plugin Installation (v0.4.3)**:
+   - Enhanced `hdiutil attach` with robust flags (`-nobrowse`, `-readonly`, `-noverify`, `-noautoopen`) to prevent hanging on verification or auto-opening Finder.
+   - Added automated recursive `.pkg` / `.mpkg` discovery inside mounted DMG volumes with headless execution via `installer -pkg <path> -target /`.
+   - Expanded audio bundle extraction to support `.vst` (VST2) alongside `.vst3`, `.component` (AU), and `.clap` directly into `~/Library/Audio/Plug-Ins/`.
+   - Implemented detachment retry handling with automated delay if the volume handle is temporarily busy.
+   - Synchronized global ecosystem version to `v0.4.3`.
+2. **Active Installation Path Spec Indicator & Interactive Hash Copy Action (v0.4.2)**:
+   - Added active installation path display in the catalog grid specs for locally installed plugins with quick inspection tooltips.
+   - Implemented reactive one-click copy buttons (`copyToClipboard`) with visual confirmation state transitions (`📋` -> `✓` and `📋 Copy` -> `✓ Copied`) across both catalog cards and the plugin inspection preview drawer.
+   - Implemented multi-tier clipboard support utilizing modern `navigator.clipboard.writeText` with legacy `textarea` fallback for cross-platform Linux webkit / Tauri webview contexts.
+   - Synchronized global ecosystem version to `v0.4.2`.
+2. **LV2 Format Discoverability Chip & Windows VST2 Scanning (v0.4.1)**:
+   - Added interactive LV2 format discoverability filter chip (`🎛️ LV2`) with reactive catalog count badge (`countLV2`) in the primary dashboard filter row.
+   - Expanded Windows scan path discovery in `get_default_scan_paths` and `scan_installed_plugins` with `%ProgramFiles%/VSTPlugins`, `%ProgramFiles%/Steinberg/VSTPlugins`, `%CommonProgramFiles%/VST2`, and `Documents/VST`.
+2. **Comprehensive Plugin Inspector Drawer, Badging & Verification (v0.4.0)**:
+   - Enhanced the plugin detail preview drawer header with inferred format badging (`inferCatalogFormat`) and installed audio format tags (`✓ VST3`, `✓ CLAP`, etc.).
+   - Upgraded the preview drawer installed status banner with live verification status badges (`✓ Verified Bundle`, `⏳ Verifying...`, `⚠ Missing Binary`).
+   - Added inline quick actions in the preview drawer to trigger local bundle verification (`verify_installed_plugin`) and open enclosing folders (`open_plugin_directory`).
+3. **Standalone Binary Installation & InnoSetup Silent Fallbacks (v0.3.9)**:
+   - Added standalone audio binary installation engine (`.so`, `.dll`, `.clap`) in `client/src-tauri/src/installer.rs` with automated audio destination directory generation and `0o755` executable permissions.
+   - Implemented InnoSetup and NSIS secondary silent command fallback flags (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`) for Windows `.exe` installers.
+   - Enriched plugin extraction strategy spec tile and direct download source details inside dashboard inspection preview drawer (`client/src/routes/+page.svelte`) with descriptive tooltips.
+3. **Linux Archive Extraction (.deb, .tar.gz) & Format Pill Counts (v0.3.8)**:
+   - Implemented asynchronous `.tar.gz` and `.tgz` decompression engine in `client/src-tauri/src/installer.rs` unpacking directly into audio directory trees.
+   - Implemented Linux `.deb` package extraction using `dpkg-deb -x` scanning for audio bundles across standard Linux system plugin paths (`usr/lib/vst3`, `usr/lib/clap`, `usr/lib/lv2`).
+   - Added dynamic reactive count badges (`countVST3`, `countCLAP`) on dashboard format discoverability filter chips with descriptive tooltips.
+2. **Crawler Ingestion Stability, Platform Detection & Curated Seed Expansion (v0.3.7)**:
+   - Enhanced `crawler/db.go` with dynamic platform detection from download URLs (`linux`, `macos`, `windows`) and automated strategy assignment (`silent_install` vs `extract_binaries`).
+   - Added category column persistence in PostgreSQL `plugins` table during crawler upserts.
+   - Added detailed ingestion success logging in database pipeline.
+   - Implemented scraper panic recovery in `crawler/main.go` to prevent thread crashes from halting the pipeline.
+   - Expanded curated open-source staple seeds with Cardinal Modular Synth and Chow Tape Model.
+2. **Expanded Audio Plugin Format Discovery & Format Filter Chips (v0.3.6)**:
+   - Added Linux LV2 directory scanning (`~/.lv2`, `/usr/lib/lv2`, `/usr/local/lib/lv2`) and Windows CLAP directory scanning (`%CommonProgramFiles%/CLAP`) to `get_default_scan_paths` and `scan_installed_plugins`.
+   - Added native `.lv2` bundle recognition and clean naming in the local scanning engine.
+   - Added direct audio format quick-filter pills (`🎚️ VST3`, `⚡ CLAP`) in the dashboard filter bar.
+   - Enhanced format filter logic to match both installed binary format and catalog inferred download format.
+   - Added LV2 format support to format dropdown and catalog format inference engine.
+2. **Search Match Indicators & Query Refinements (v0.3.5)**:
+   - Added live search match counter badge in the Find Plugins header showing exact matched package count.
+   - Added quick "Clear" search shortcut button when an active query is present.
+   - Added visual focus/glow outline on search input when filtering plugins.
+2. **Category Discoverability Chips & Fast Navigation (v0.3.4)**:
+   - Added direct quick-filter chips for instruments (`🎹 Synths`, `🎛️ Effects`) into the primary filter row of `client/src/routes/+page.svelte`.
+   - Wired bidirectional synchronization between dropdown filters and category chips.
+3. **Discoverability Tag Engine & Audio Format Badging (v0.3.3)**:
+   - Implemented dynamic keyword tag extraction (`#synth`, `#wavetable`, `#fm`, `#polyphonic`, `#analog`, `#mpe`, etc.) with interactive click-to-filter pill buttons on catalog cards.
+   - Added audio format catalog badging (`inferCatalogFormat`) displaying format support (`VST3`, `CLAP`, `AU / VST3`) across all plugins.
+   - Deep linked directory explorer actions and dynamic filter activations directly from tag pills and inspection cards.
+4. **macOS DMG Automated Volume Extraction (v0.3.2)**:
+   - Upgraded macOS DMG handling in `client/src-tauri/src/installer.rs` to mount images (`hdiutil attach -nobrowse -readonly`), recursively copy `.vst3`, `.component`, and `.clap` bundles to `~/Library/Audio/Plug-Ins/`, and safely detach with `hdiutil detach -force`.
+5. **Real-time Download Progress Streaming (v0.3.2)**:
+   - Implemented `install_progress` event payload streaming from Tauri installer engine with bytes downloaded, total bytes, percentage, and status.
+   - Hooked Svelte 5 dashboard to listen and display dynamic progress percentages on installing plugin cards.
+6. **Documentation & Versioning**:
+   - Bumped global version to `0.3.8` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
 
-## Summary of Additional Session Learnings
-- **PostgreSQL Database Crawler Integration**: Integrated `github.com/lib/pq` directly into the Golang crawler system to map out Scraped Plugins into standard relational records against the `plugins`, `plugin_releases`, and `plugin_distributions` schema mappings.
-- **SQL Logic Architecture**: Replaced the initial ID-based ON CONFLICT fallback with a structurally sound `UNIQUE(name, developer)` constraint inside the `schema.sql`. Crawler loop was rewritten to do an `ON CONFLICT DO UPDATE SET updated_at = NOW()`.
-
-## Current State & Next Steps
-- The API is working locally and UI fetches dynamically.
-- The Go crawler effectively serializes structured VST distributions, hashes them via SHA-256 natively, and persists them via bulk `sql.DB` commands.
-- **Next Model Goals:**
-  1. Continue expanding crawler definitions and proxy logic in `TODO.md`.
-  2. Implement local Rust/Tauri installer strategies based on the binary distribution payload stored in Postgres.## Final Phase 1 & 2 Status
-- **Crawler Status (Phase 1 Complete):** Go crawler module is implemented with Colly in `crawler/main.go`, handling KVR, GitHub, and Plugin Boutique with concurrent scraping and PostgreSQL persistence.
-- **Client Status (Phase 2 Complete):** Tauri Rust native installation engine successfully built utilizing stream downloads to prevent OOM errors, and Svelte UI dynamically queries Registry API.
-- **UI Architecture:** Extensively refactored Svelte 5 frontend using standard state management. Integrated dynamic tooltips and comprehensive data retrieval joined across multiple tables, enabling seamless downloads sent straight to the Tauri Native Rust backend.
-# Autonomous Execution Handoff
-
-## Completed Work
-- Refactored `crawler/main.go` into modular components.
-- Extracted and generalized the `ScrapedPlugin` model and created a thread-safe `PluginCollection` using `sync.Mutex` in `models.go`.
-- Extracted the PostgreSQL database connection and setup logic into `db.go`.
-  - Added an upsert function supporting the `ON CONFLICT (name, developer) DO UPDATE` constraint.
-- Extracted downloading functionality to `downloader.go`, replacing in-memory file reading with writing to temporary disk files, allowing safe SHA-256 calculation and preventing OOM errors.
-- Structured scrapers via `colly` inside `crawler/scrapers/`:
-  - Retained and modularized the Bedroom Producers Blog scraper (`bpb.go`).
-  - Added a polite scraper targeting GitHub topics for "vst-plugin" (`github.go`).
-  - Added a polite scraper targeting KVR Audio's newest free plugins page (`kvr.go`).
-- Modified the main execution thread to initialize the PostgreSQL DB, orchestrate the scrapers concurrently utilizing goroutines and a WaitGroup, and safely collect plugins.
-
-## Next Steps
-- Write tests for the crawler.
-- Complete implementation and integration of actual file downloads linking back to the models, executing the `CalculateSHA256` function as appropriate during the scraping phase.
-- Further refine KVR and GitHub scrapers logic depending on actual CSS selector success against target sites.
+## Next Actions for Incoming Sessions:
+- Implement Linux tarball extraction (`.tar.gz`, `.tar.xz`) for standalone binaries using `tar` and `flate2`.
+- Implement VirusTotal or ClamAV sandbox integrity check before installation.

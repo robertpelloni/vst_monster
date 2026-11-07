@@ -6,3 +6,46 @@
 - [x] Initialize Tauri Desktop Client.
 - [x] Implement SHA-256 verification in Crawler and Client.
 - [x] Create basic UI for plugin listing.
+- [x] Redesign UI into a single comprehensive high-value dashboard with tooltips and stats.
+- [x] Implement Tauri v2 system tray icon with Show/Hide and Quit Servers support.
+- [x] Wire live crawler trigger and logs endpoint into Registry API and UI.
+- [x] Nondestructively archive old startup scripts and modernize `start.sh`.
+- [x] Refine GitHub scraper developer extraction and multi-format release asset parsing.
+- [x] Connect Bedroom Producers Blog scraper into concurrent crawler queue pipeline.
+- [x] Add support for unzipping `.zip` archives containing Linux `.so` or `.vst3` bundles in `client/src-tauri/src/installer.rs`.
+- [x] Add manual plugin submission modal in UI and REST endpoint `POST /plugins` in registry API.
+- [x] Add direct download link extraction parser for Bedroom Producers Blog articles.
+- [x] Add category categorization (synth, effect, dynamics, sampler, utility) to database and UI.
+- [x] Add plugin uninstall / directory removal feature in native Tauri installer engine (`remove_plugin`) and expose on dashboard cards.
+- [x] Implement VST3 directory scanner command in Tauri to detect and list locally installed plugins (`scan_installed_plugins`).
+- [x] Add dynamic "INSTALLED" badges and "Installed Only" filter toggle to dashboard.
+- [x] Implement native plugin directory explorer command (`open_plugin_directory`) and dashboard buttons (VST3 Folder, Rescan).
+- [x] Implement dynamic versioning in Registry API reading from `VERSION.md`.
+- [x] Implement SHA-256 binary integrity enforcement in native Tauri installer.
+- [x] Implement rich installed plugin metadata detection (`InstalledPluginInfo`), dynamic format badging, version diffing, and per-plugin directory explorer button.
+- [x] Implement advanced installed status filtering, format filtering, status-based sorting, and plugin detail preview modal in client UI.
+- [x] Implement native plugin bundle validation (`verify_installed_plugin`), batch updater ("Update All"), and quick filter count pills.
+- [x] Implement custom audio scan paths configuration modal (`get_default_scan_paths`, custom paths) with persistent `localStorage`.
+- [x] Implement standalone plugin manifest JSON exporter in dashboard preview drawer.
+- [x] Implement macOS DMG volume mount, `.vst3` / `.component` / `.clap` extraction, and unmount.
+- [x] Implement real-time download progress streaming via Tauri events.
+- [x] Implement discoverability tag engine (`getPluginTags`) with interactive click-to-filter pills.
+- [x] Implement catalog audio format inference (`inferCatalogFormat`) with dynamic badge tags.
+- [x] Implement category discoverability filter chips (`🎹 Synths`, `🎛️ Effects`).
+- [x] Implement search match counter and active query clear button.
+- [x] Expand plugin discovery format support (LV2, CLAP) and interactive format filter chips (`🎚️ VST3`, `⚡ CLAP`).
+- [x] Stabilize crawler data ingestion pipeline with panic recovery, URL-based platform inference, category column persistence, and expanded staple seeds.
+- [x] Implement Linux `.deb` and `.tar.gz` decompression and extraction engine in Tauri client with dynamic reactive format pill counts in UI.
+- [x] Implement standalone binary installer handler (`.so`, `.dll`, `.clap`) with target directory determination and Unix permissions.
+- [x] Add InnoSetup silent installer switches fallback (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`) for Windows executables.
+- [x] Enhance plugin detail inspector drawer with dynamic badging, verification status, and inline actions.
+- [x] Add LV2 format discoverability chip with dynamic count badge and Windows VST2 path scan expansion (v0.4.1).
+- [x] Implement active installation path spec indicator in catalog card specs for locally installed plugins (v0.4.2).
+- [x] Add direct one-click SHA-256 hash copy button on cards and preview drawer with copied state animation (v0.4.2).
+- [x] Implement comprehensive macOS DMG extraction and automated plugin installation (.pkg execution, .vst support, resilient detach) (v0.4.3).
+- [x] Implement VST2 / legacy 32-bit warning banner when scanning older binary formats (v0.4.4).
+- [x] Provide DAW preset folder quick launcher and OS presets directory creation (v0.4.4).
+- [x] Auto-target `.lv2` and `.clap` plugin bundles during zip archive extraction (v0.4.5).
+- [x] Enrich preview inspection modal with Audio Format & Host Compatibility Matrix breakdown (v0.4.5).
+- [x] Implement configurable tabbed views inside plugin inspection drawer (Overview & Specs, Filesystem & DAW, Raw Manifest JSON) (v0.4.6).
+- [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.
