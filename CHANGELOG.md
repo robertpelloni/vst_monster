@@ -1,5 +1,11 @@
 # CHANGELOG: VST Monster
 
+## [0.3.5] - Search Match Indicators & Query Refinements
+- Added live search match counter badge in the Find Plugins header showing exact matched package count.
+- Added quick "Clear" search shortcut button when an active query is present.
+- Added visual focus/glow outline on search input when filtering plugins.
+- Synchronized ecosystem version to `v0.3.5`.
+
 ## [0.3.4] - Category Discoverability Chips & Fast Navigation
 - Added dedicated quick-filter pills for direct category switching (`🎹 Synths`, `🎛️ Effects`) into the primary filter row of `client/src/routes/+page.svelte`.
 - Synchronized active toggle states between dropdown controls and interactive quick-filter pills.

@@ -875,14 +875,18 @@
         <div class="card-header">
           <span class="card-icon">🔍</span>
           <h3>Find Plugins</h3>
+          {#if searchQuery}
+            <span class="search-match-count">{filteredPlugins.length} match{filteredPlugins.length === 1 ? '' : 'es'}</span>
+            <button class="search-clear-btn" onclick={() => (searchQuery = '')}>Clear</button>
+          {/if}
           <span class="tooltip-badge" use:tooltip={"Search catalog by plugin name or developer keywords"}>?</span>
         </div>
         <div class="filter-controls">
           <input
             type="text"
-            placeholder="Search by name, developer, or synth type..."
+            placeholder="Search by name, developer, or keyword (e.g. 'wavetable', 'fm')..."
             bind:value={searchQuery}
-            class="search-input"
+            class="search-input {searchQuery ? 'has-query' : ''}"
           />
           <div class="dropdown-row">
             <select bind:value={selectedCategory} class="select-input" use:tooltip={"Filter by plugin instrument/audio category"}>
@@ -1625,6 +1629,33 @@
     font-size: 1rem;
     font-weight: 700;
     color: #f1f5f9;
+  }
+
+  .search-match-count {
+    font-size: 0.72rem;
+    background: #1e3a8a;
+    color: #93c5fd;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .search-clear-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .search-clear-btn:hover {
+    color: #f87171;
+  }
+
+  .search-input.has-query {
+    border-color: #3b82f6;
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
   }
 
   .tooltip-badge {

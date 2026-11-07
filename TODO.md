@@ -32,4 +32,5 @@
 - [x] Implement discoverability tag engine (`getPluginTags`) with interactive click-to-filter pills.
 - [x] Implement catalog audio format inference (`inferCatalogFormat`) with dynamic badge tags.
 - [x] Implement category discoverability filter chips (`🎹 Synths`, `🎛️ Effects`).
+- [x] Implement search match counter and active query clear button.
 - [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.
