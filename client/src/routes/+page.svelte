@@ -926,6 +926,44 @@
             </p>
           </div>
 
+          <!-- Audio Architecture & Compatibility Matrix -->
+          <div class="preview-section">
+            <div class="preview-section-title-row">
+              <h4>Audio Format & Host Compatibility Matrix</h4>
+              <span class="preview-format-tag" use:tooltip={"Primary audio plugin architecture inferred from distribution"}>
+                {previewInferredFormat} Standard
+              </span>
+            </div>
+            <div class="matrix-grid">
+              <div class="matrix-item">
+                <span class="matrix-label">Native Format</span>
+                <span class="matrix-val">{previewInferredFormat}</span>
+              </div>
+              <div class="matrix-item">
+                <span class="matrix-label">Distribution Architecture</span>
+                <span class="matrix-val">{previewPlugin.architecture || 'x86_64'}</span>
+              </div>
+              <div class="matrix-item">
+                <span class="matrix-label">Target OS Destination</span>
+                <span class="matrix-val capitalize">{previewPlugin.platform || 'linux'}</span>
+              </div>
+              <div class="matrix-item">
+                <span class="matrix-label">Host DAWs</span>
+                <span class="matrix-val">{previewInferredFormat.includes('LV2') ? 'Ardour, Reaper, Carla, Mixbus, LMMS' : 'Bitwig, Cubase, Reaper, FL Studio, Ableton'}</span>
+              </div>
+            </div>
+
+            {#if previewInferredFormat.includes('LV2') || (previewInstalled?.format.toLowerCase() === 'lv2')}
+              <div class="lv2-spec-banner" use:tooltip={"LV2 Open Audio Standard with Turtle (TTL) manifest graph"}>
+                <span class="lv2-icon">🎛️</span>
+                <div class="lv2-content">
+                  <strong>LV2 Open Audio Standard Detected</strong>
+                  <p>Includes Turtle graph definitions (<code>manifest.ttl</code>). Supported across Linux audio workstations (Ardour, Carla, Reaper, Qtractor) with sample-accurate parameter automation and dynamic port discovery.</p>
+                </div>
+              </div>
+            {/if}
+          </div>
+
           <!-- Cryptographic Digest -->
           {#if previewPlugin.sha256_hash}
             <div class="preview-section">
@@ -2258,6 +2296,81 @@
 
   .preview-section-title-row h4 {
     margin-bottom: 0;
+  }
+
+  .preview-format-tag {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    font-weight: 600;
+  }
+
+  .matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+    background: #0f1117;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 0.6rem;
+  }
+
+  .matrix-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .matrix-label {
+    font-size: 0.68rem;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .matrix-val {
+    font-size: 0.82rem;
+    color: #e2e8f0;
+    font-weight: 500;
+  }
+
+  .lv2-spec-banner {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+
+  .lv2-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .lv2-content strong {
+    display: block;
+    color: #34d399;
+    font-size: 0.82rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .lv2-content p {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .lv2-content code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #6ee7b7;
   }
 
   .btn-copy-hash {

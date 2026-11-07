@@ -1,5 +1,11 @@
 # CHANGELOG: VST Monster
 
+## [0.4.5] - Format-Aware Zip Extraction with LV2/CLAP Auto-Targeting & Inspector Compatibility Matrix
+- Enhanced `extract_zip_archive` in `client/src-tauri/src/installer.rs` to inspect archive entries and dynamically route extraction to format-specific OS audio directories (`~/.lv2` for LV2/TTL, `~/.clap` for CLAP, `~/.vst3` for VST3).
+- Added an "Audio Format & Host Compatibility Matrix" section in the plugin inspection preview drawer (`client/src/routes/+page.svelte`) detailing distribution architecture, target audio folders, and verified DAW hosts.
+- Embedded an LV2 Open Audio Standard banner highlighting Turtle (`.ttl`) RDF manifest graph features and Linux audio workstation compatibility.
+- Bumped ecosystem version to `v0.4.5`.
+
 ## [0.4.4] - DAW Presets Quick Launcher & Legacy VST2/32-bit Compatibility Warnings
 - Added `open_presets_directory` native command in `client/src-tauri/src/installer.rs` targeting OS standard DAW presets folders (`~/.vst3/presets`, `~/Library/Audio/Presets`, `Documents/VST3 Presets`) with automatic folder creation.
 - Added `📁 Presets` top-navigation button in dashboard UI with explanatory tooltip guidance for preset installation and backups.

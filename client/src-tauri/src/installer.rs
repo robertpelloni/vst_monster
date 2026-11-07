@@ -667,18 +667,49 @@ fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Err
     let mut archive = ZipArchive::new(file)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
-    // Determine target plugin directory based on current OS
+    // Detect whether archive contains LV2, CLAP, or VST3 files
+    let mut is_lv2 = false;
+    let mut is_clap = false;
+    for i in 0..archive.len() {
+        if let Ok(file) = archive.by_index(i) {
+            let name_lower = file.name().to_lowercase();
+            if name_lower.contains(".lv2") || name_lower.ends_with(".ttl") {
+                is_lv2 = true;
+                break;
+            } else if name_lower.contains(".clap") {
+                is_clap = true;
+            }
+        }
+    }
+
+    // Determine target plugin directory based on current OS and detected format
     let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
     let home_path = PathBuf::from(home);
 
     #[cfg(target_os = "linux")]
-    let target_dir = home_path.join(".vst3").join(plugin_name);
+    let target_dir = if is_lv2 {
+        home_path.join(".lv2").join(plugin_name)
+    } else if is_clap {
+        home_path.join(".clap").join(plugin_name)
+    } else {
+        home_path.join(".vst3").join(plugin_name)
+    };
 
     #[cfg(target_os = "macos")]
-    let target_dir = home_path.join("Library/Audio/Plug-Ins/VST3").join(plugin_name);
+    let target_dir = if is_lv2 {
+        home_path.join("Library/Audio/Plug-Ins/LV2").join(plugin_name)
+    } else if is_clap {
+        home_path.join("Library/Audio/Plug-Ins/CLAP").join(plugin_name)
+    } else {
+        home_path.join("Library/Audio/Plug-Ins/VST3").join(plugin_name)
+    };
 
     #[cfg(target_os = "windows")]
-    let target_dir = home_path.join("Documents/VST3").join(plugin_name);
+    let target_dir = if is_clap {
+        home_path.join("Documents/CLAP").join(plugin_name)
+    } else {
+        home_path.join("Documents/VST3").join(plugin_name)
+    };
 
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     let target_dir = env::temp_dir().join("vst_monster_plugins").join(plugin_name);
