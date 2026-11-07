@@ -84,6 +84,7 @@ pub fn run() {
             installer::install_plugin,
             installer::remove_plugin,
             installer::scan_installed_plugins,
+            installer::clear_scan_cache,
             installer::get_default_scan_paths,
             installer::open_plugin_directory,
             installer::open_presets_directory,

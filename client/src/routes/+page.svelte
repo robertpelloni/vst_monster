@@ -77,6 +77,8 @@
   let defaultScanPaths = $state<string[]>([]);
   let customScanPaths = $state<string[]>([]);
   let newCustomPath = $state('');
+  let isClearingCache = $state(false);
+  let cacheClearMsg = $state('');
 
   // New plugin form state
   let newPlugin = $state({
@@ -186,6 +188,23 @@
       console.log('Installed plugin scan skipped or not in Tauri:', err);
     } finally {
       isScanningFolders = false;
+    }
+  }
+
+  async function clearScanCache() {
+    isClearingCache = true;
+    cacheClearMsg = '';
+    try {
+      const res: string = await invoke('clear_scan_cache');
+      cacheClearMsg = res || 'Cache cleared!';
+      await scanLocalPlugins();
+      setTimeout(() => {
+        cacheClearMsg = '';
+      }, 4000);
+    } catch (err: any) {
+      cacheClearMsg = `Error: ${err?.message || err}`;
+    } finally {
+      isClearingCache = false;
     }
   }
 
@@ -725,6 +744,25 @@
                 {/each}
               {/if}
             </ul>
+          </div>
+
+          <!-- Local Metadata Scan Cache Controls -->
+          <div class="paths-cache-section">
+            <div class="paths-cache-info">
+              <h4>⚡ Local Scan Cache</h4>
+              <p>Metadata such as version markers and bundle structures are cached using filesystem modification timestamps for instant rescans.</p>
+              {#if cacheClearMsg}
+                <div class="cache-msg">{cacheClearMsg}</div>
+              {/if}
+            </div>
+            <button
+              class="btn-cache-flush"
+              onclick={clearScanCache}
+              disabled={isClearingCache || isScanningFolders}
+              use:tooltip={"Deletes local scan cache and triggers a full, deep filesystem re-read"}
+            >
+              {isClearingCache ? "Clearing..." : "🧹 Flush Cache & Deep Rescan"}
+            </button>
           </div>
 
           <div class="modal-actions">
@@ -3149,6 +3187,62 @@
     cursor: pointer;
     font-size: 0.85rem;
     padding: 0 4px;
+  }
+
+  .paths-cache-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+  }
+
+  .paths-cache-info h4 {
+    margin: 0 0 4px 0;
+    font-size: 13px;
+    color: #f1f5f9;
+  }
+
+  .paths-cache-info p {
+    margin: 0;
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  .cache-msg {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #10b981;
+    font-weight: 500;
+  }
+
+  .btn-cache-flush {
+    padding: 8px 12px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+
+  .btn-cache-flush:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: #ef4444;
+    color: #ffffff;
+  }
+
+  .btn-cache-flush:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   @media (max-width: 1024px) {

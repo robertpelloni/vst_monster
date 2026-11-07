@@ -331,6 +331,46 @@ pub struct InstalledPluginInfo {
     pub path: String,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct PluginCacheEntry {
+    pub name: String,
+    pub version: Option<String>,
+    pub format: String,
+    pub path: String,
+    pub modified_sec: u64,
+}
+
+fn get_scan_cache_path() -> PathBuf {
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    #[cfg(target_os = "linux")]
+    let base_dir = home_path.join(".vst3");
+
+    #[cfg(target_os = "macos")]
+    let base_dir = home_path.join("Library/Audio/Plug-Ins");
+
+    #[cfg(target_os = "windows")]
+    let base_dir = home_path.join("Documents/VST3");
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let base_dir = env::temp_dir().join("vst_monster_plugins");
+
+    let _ = fs::create_dir_all(&base_dir);
+    base_dir.join(".vst_monster_cache.json")
+}
+
+#[tauri::command]
+pub async fn clear_scan_cache(_app: AppHandle) -> Result<String, String> {
+    let cache_file = get_scan_cache_path();
+    if cache_file.exists() {
+        fs::remove_file(&cache_file).map_err(|e| format!("Failed to delete cache: {}", e))?;
+        Ok("Scan cache cleared successfully".to_string())
+    } else {
+        Ok("Scan cache was already empty".to_string())
+    }
+}
+
 #[tauri::command]
 pub fn get_default_scan_paths() -> Vec<String> {
     let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
@@ -434,6 +474,20 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
         }
     }
 
+    // Load existing scan cache if available
+    let cache_file = get_scan_cache_path();
+    let mut cache_map: std::collections::HashMap<String, PluginCacheEntry> = std::collections::HashMap::new();
+    if cache_file.exists() {
+        if let Ok(cache_data) = fs::read_to_string(&cache_file) {
+            if let Ok(entries) = serde_json::from_str::<Vec<PluginCacheEntry>>(&cache_data) {
+                for entry in entries {
+                    cache_map.insert(entry.path.clone(), entry);
+                }
+            }
+        }
+    }
+
+    let mut new_cache: Vec<PluginCacheEntry> = Vec::new();
     let mut discovered: Vec<InstalledPluginInfo> = Vec::new();
 
     for dir in plugin_dirs {
@@ -472,31 +526,33 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
                         continue;
                     }
 
-                    // Attempt to detect version from bundle if directory or metadata file exists
-                    let mut detected_version: Option<String> = None;
-                    if path.is_dir() {
-                        // Check for common version marker files or info files
-                        let version_file = path.join("VERSION");
-                        let version_txt = path.join("version.txt");
-                        let pkg_json = path.join("package.json");
-                        if version_file.exists() {
-                            if let Ok(v) = fs::read_to_string(&version_file) {
-                                detected_version = Some(v.trim().to_string());
-                            }
-                        } else if version_txt.exists() {
-                            if let Ok(v) = fs::read_to_string(&version_txt) {
-                                detected_version = Some(v.trim().to_string());
-                            }
-                        } else if pkg_json.exists() {
-                            if let Ok(v) = fs::read_to_string(&pkg_json) {
-                                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&v) {
-                                    if let Some(ver) = parsed.get("version").and_then(|val| val.as_str()) {
-                                        detected_version = Some(ver.to_string());
-                                    }
-                                }
-                            }
+                    let path_str = path.to_string_lossy().to_string();
+                    let mod_time = entry
+                        .metadata()
+                        .ok()
+                        .and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+
+                    // Check if cached entry is valid (path & modified timestamp match)
+                    let detected_version = if let Some(cached) = cache_map.get(&path_str) {
+                        if cached.modified_sec == mod_time && mod_time > 0 {
+                            cached.version.clone()
+                        } else {
+                            detect_bundle_version(&path)
                         }
-                    }
+                    } else {
+                        detect_bundle_version(&path)
+                    };
+
+                    new_cache.push(PluginCacheEntry {
+                        name: clean_name.clone(),
+                        version: detected_version.clone(),
+                        format: format.clone(),
+                        path: path_str.clone(),
+                        modified_sec: mod_time,
+                    });
 
                     // Avoid duplicate entries
                     if !discovered.iter().any(|item| item.name.eq_ignore_ascii_case(&clean_name)) {
@@ -504,7 +560,7 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
                             name: clean_name,
                             version: detected_version,
                             format,
-                            path: path.to_string_lossy().to_string(),
+                            path: path_str,
                         });
                     }
                 }
@@ -512,7 +568,39 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
         }
     }
 
+    // Persist new scan cache to disk
+    if let Ok(serialized) = serde_json::to_string_pretty(&new_cache) {
+        let _ = fs::write(&cache_file, serialized);
+    }
+
     Ok(discovered)
+}
+
+fn detect_bundle_version(path: &Path) -> Option<String> {
+    if !path.is_dir() {
+        return None;
+    }
+    let version_file = path.join("VERSION");
+    let version_txt = path.join("version.txt");
+    let pkg_json = path.join("package.json");
+    if version_file.exists() {
+        if let Ok(v) = fs::read_to_string(&version_file) {
+            return Some(v.trim().to_string());
+        }
+    } else if version_txt.exists() {
+        if let Ok(v) = fs::read_to_string(&version_txt) {
+            return Some(v.trim().to_string());
+        }
+    } else if pkg_json.exists() {
+        if let Ok(v) = fs::read_to_string(&pkg_json) {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&v) {
+                if let Some(ver) = parsed.get("version").and_then(|val| val.as_str()) {
+                    return Some(ver.to_string());
+                }
+            }
+        }
+    }
+    None
 }
 
 #[tauri::command]

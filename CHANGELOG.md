@@ -1,5 +1,12 @@
 # CHANGELOG: VST Monster
 
+## [0.4.7] - Local Metadata Scan Caching, Rescan Acceleration & Cache Management
+- Implemented persistent local scan caching (`.vst_monster_cache.json`) in `client/src-tauri/src/installer.rs` keyed by filesystem path and file modification timestamps (`u64`), eliminating redundant disk I/O and version extraction during rescans.
+- Added `clear_scan_cache` command in `installer.rs` and registered handler in `client/src-tauri/src/lib.rs`.
+- Added a "Local Scan Cache" management panel in the Paths modal (`client/src/routes/+page.svelte`) with a "🧹 Flush Cache & Deep Rescan" button and status feedback.
+- Verified TypeScript/Svelte diagnostics (`npm run check`), production build (`npm run build`), and Rust workspace compilation (`cargo check`).
+- Bumped ecosystem version to `v0.4.7`.
+
 ## [0.4.6] - Tabbed Inspector Views (Overview & Specs, Filesystem & DAW, Raw Manifest JSON)
 - Restructured the plugin inspector drawer (`client/src/routes/+page.svelte`) with a 3-way tabbed navigation bar (`activeInspectorTab` state):
   - **🎛️ Overview & Specs**: Overview status banner, legacy compatibility warning, specs grid, synthesis description, and Audio Format & Host Compatibility Matrix.

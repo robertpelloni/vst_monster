@@ -1,7 +1,13 @@
-# HANDOFF: VST Monster Autonomous Session (v0.4.6)
+# HANDOFF: VST Monster Autonomous Session (v0.4.7)
 
 ## Summary of Session Accomplishments
-1. **Tabbed Inspector Views (Overview & Specs, Filesystem & DAW, Raw Manifest JSON) (v0.4.6)**:
+1. **Local Metadata Scan Caching, Rescan Acceleration & Cache Management (v0.4.7)**:
+   - Added persistent local scan caching (`.vst_monster_cache.json`) in `client/src-tauri/src/installer.rs`. Scans key plugin entries by path and modified timestamp (`u64`), reusing previously detected version metadata and bundle formats to eliminate redundant disk I/O on repeated rescans.
+   - Added `clear_scan_cache` Tauri command in `installer.rs` and registered handler in `client/src-tauri/src/lib.rs`.
+   - Integrated a "Local Scan Cache" management panel into the Paths configuration modal in `client/src/routes/+page.svelte` featuring a "🧹 Flush Cache & Deep Rescan" button and dynamic status feedback.
+   - Verified via Playwright screenshot diagnostics, `npm run check`, `npm run build`, and `cargo check`.
+   - Bumped ecosystem version to `v0.4.7`.
+2. **Tabbed Inspector Views (Overview & Specs, Filesystem & DAW, Raw Manifest JSON) (v0.4.6)**:
    - Restructured the plugin inspector drawer (`client/src/routes/+page.svelte`) with a 3-way tabbed navigation bar (`activeInspectorTab` state):
      - **🎛️ Overview & Specs**: Overview status banner, legacy compatibility warning, specs grid, synthesis description, and Audio Format & Host Compatibility Matrix.
      - **📁 Filesystem & DAW**: Local installation format, absolute filesystem path, detected version, bundle integrity checks with inline verification triggers, cryptographic SHA-256 digest copy box, and direct distribution endpoint URL.
