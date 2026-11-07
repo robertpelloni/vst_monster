@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
 
   type Plugin = {
     id: string;
@@ -59,13 +60,22 @@
   let selectedCategory = $state('all');
   let selectedPlatform = $state('all');
   let selectedInstalledStatus = $state<'all' | 'installed' | 'update-available' | 'not-installed'>('all');
-  let selectedFormat = $state<'all' | 'vst3' | 'clap' | 'au' | 'vst2'>('all');
+  let selectedFormat = $state<'all' | 'vst3' | 'clap' | 'au' | 'vst2' | 'lv2'>('all');
   let sortBy = $state<'name' | 'developer' | 'license' | 'category' | 'status'>('name');
   let crawlerRunning = $state(false);
   let actionMessage = $state<string | null>(null);
   let isLogsCollapsed = $state(true);
   let showAddPluginModal = $state(false);
   let previewPlugin = $state<Plugin | null>(null);
+  let isVerifyingPlugin = $state(false);
+  let verificationStatus = $state<{ [key: string]: 'valid' | 'invalid' | 'verifying' }>({});
+  let copiedHashId = $state<string | number | null>(null);
+  let isBatchUpdating = $state(false);
+  let isScanningFolders = $state(false);
+  let showScanPathsModal = $state(false);
+  let defaultScanPaths = $state<string[]>([]);
+  let customScanPaths = $state<string[]>([]);
+  let newCustomPath = $state('');
 
   // New plugin form state
   let newPlugin = $state({
@@ -125,14 +135,122 @@
     };
   }
 
-  async function scanLocalPlugins() {
+  async function loadScanPaths() {
     try {
-      const detected: InstalledPluginInfo[] = await invoke('scan_installed_plugins');
+      const paths: string[] = await invoke('get_default_scan_paths');
+      defaultScanPaths = paths || [];
+    } catch (err) {
+      console.log('Failed to fetch default scan paths:', err);
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('vst_monster_custom_paths');
+      if (saved) {
+        try {
+          customScanPaths = JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+  }
+
+  function addCustomScanPath() {
+    const trimmed = newCustomPath.trim();
+    if (trimmed && !customScanPaths.includes(trimmed)) {
+      customScanPaths = [...customScanPaths, trimmed];
+      newCustomPath = '';
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('vst_monster_custom_paths', JSON.stringify(customScanPaths));
+      }
+      scanLocalPlugins();
+    }
+  }
+
+  function removeCustomScanPath(index: number) {
+    customScanPaths = customScanPaths.filter((_, i) => i !== index);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('vst_monster_custom_paths', JSON.stringify(customScanPaths));
+    }
+    scanLocalPlugins();
+  }
+
+  async function scanLocalPlugins() {
+    isScanningFolders = true;
+    try {
+      const detected: InstalledPluginInfo[] = await invoke('scan_installed_plugins', {
+        extraPaths: customScanPaths
+      });
       installedPlugins = detected || [];
     } catch (err) {
       // In web browser preview mode, invoke may fail silently
       console.log('Installed plugin scan skipped or not in Tauri:', err);
+    } finally {
+      isScanningFolders = false;
     }
+  }
+
+  function exportPluginManifest(plugin: Plugin) {
+    const manifestData = {
+      name: plugin.name,
+      developer: plugin.developer,
+      category: plugin.category,
+      license_model: plugin.license_model,
+      platform: plugin.platform,
+      version: plugin.version,
+      download_url: plugin.download_url,
+      sha256_hash: plugin.sha256_hash,
+      strategy: plugin.strategy,
+      metadata: plugin.metadata,
+      exported_at: new Date().toISOString(),
+      exporter: 'VST Monster Universal Client v0.3.1'
+    };
+
+    const blob = new Blob([JSON.stringify(manifestData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${plugin.name.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_manifest.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    actionMessage = `Manifest exported for ${plugin.name}!`;
+  }
+
+  async function updateAllOutdatedPlugins() {
+    const outdated = plugins.filter(p => {
+      const inst = getInstalledInfo(p.name);
+      if (!inst) return false;
+      const vStatus = getVersionStatus(p.version, inst.version);
+      return vStatus.state === 'update-available' && !!p.download_url;
+    });
+
+    if (outdated.length === 0) {
+      actionMessage = 'All installed plugins are currently up to date!';
+      return;
+    }
+
+    if (!confirm(`Found ${outdated.length} plugin(s) with updates available. Proceed with batch update?`)) {
+      return;
+    }
+
+    isBatchUpdating = true;
+    actionMessage = `Starting batch update of ${outdated.length} plugin(s)...`;
+
+    for (const plugin of outdated) {
+      try {
+        installStatus[plugin.id] = 'Updating...';
+        await invoke('install_plugin', {
+          url: plugin.download_url,
+          name: plugin.name,
+          expectedHash: plugin.sha256_hash || null
+        });
+        installStatus[plugin.id] = 'Updated to latest release!';
+      } catch (err: any) {
+        installStatus[plugin.id] = `Update failed: ${err}`;
+      }
+    }
+
+    await scanLocalPlugins();
+    isBatchUpdating = false;
+    actionMessage = 'Batch update sequence completed!';
   }
 
   function getInstalledInfo(pluginName: string): InstalledPluginInfo | undefined {
@@ -295,6 +413,39 @@
     }
   }
 
+  async function handleVerifyBundle(pluginName: string, path: string) {
+    isVerifyingPlugin = true;
+    verificationStatus[pluginName] = 'verifying';
+    try {
+      const isValid = await invoke('verify_installed_plugin', { path });
+      verificationStatus[pluginName] = isValid ? 'valid' : 'invalid';
+      actionMessage = isValid
+        ? `Bundle integrity verified for ${pluginName} at ${path}`
+        : `Integrity check failed: bundle file not found at ${path}`;
+    } catch (err: any) {
+      verificationStatus[pluginName] = 'invalid';
+      actionMessage = `Bundle verification error: ${err}`;
+    } finally {
+      isVerifyingPlugin = false;
+    }
+  }
+
+  async function copyToClipboard(text: string, identifier: string | number) {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+      }
+      copiedHashId = identifier;
+      setTimeout(() => {
+        if (copiedHashId === identifier) {
+          copiedHashId = null;
+        }
+      }, 2000);
+    } catch (err) {
+      console.warn('Clipboard write failed:', err);
+    }
+  }
+
   async function handleQuit() {
     if (confirm('Quit VST Monster desktop app and stop local services?')) {
       try {
@@ -309,6 +460,52 @@
   function isPluginInstalled(name: string): boolean {
     return !!getInstalledInfo(name);
   }
+
+  function getPluginTags(plugin: Plugin): string[] {
+    const tags = new Set<string>();
+    if (plugin.category) tags.add(plugin.category.toLowerCase());
+    if (plugin.license_model) tags.add(plugin.license_model.toLowerCase());
+
+    const desc = (plugin.metadata?.description || '').toLowerCase();
+    const keywords = ['wavetable', 'fm', 'analog', 'subtractive', 'filter', 'polyphonic', 'reverb', 'delay', 'chorus', 'distortion', 'compressor', 'eq', 'mpe'];
+    for (const kw of keywords) {
+      if (desc.includes(kw)) {
+        tags.add(kw);
+      }
+    }
+    return Array.from(tags).slice(0, 4);
+  }
+
+  function inferCatalogFormat(plugin: Plugin): string {
+    const url = (plugin.download_url || '').toLowerCase();
+    const desc = (plugin.metadata?.description || '').toLowerCase();
+    if (url.includes('.lv2') || desc.includes('lv2')) return 'LV2';
+    if (url.includes('clap') || desc.includes('clap')) return 'CLAP';
+    if (url.endsWith('.vst3.zip') || url.includes('vst3')) return 'VST3';
+    if (url.includes('dmg') || url.includes('pkg') || url.includes('component')) return 'AU / VST3';
+    return 'VST3';
+  }
+
+  // Dynamic counts for status pills
+  let countAll = $derived(plugins.length);
+  let countInstalled = $derived(plugins.filter(p => isPluginInstalled(p.name)).length);
+  let countUpdates = $derived(plugins.filter(p => {
+    const inst = getInstalledInfo(p.name);
+    return inst ? getVersionStatus(p.version, inst.version).state === 'update-available' : false;
+  }).length);
+  let countNotInstalled = $derived(plugins.filter(p => !isPluginInstalled(p.name)).length);
+  let countVST3 = $derived(plugins.filter(p => {
+    const inst = getInstalledInfo(p.name);
+    return inst ? inst.format.toLowerCase() === 'vst3' : inferCatalogFormat(p).toLowerCase().includes('vst3');
+  }).length);
+  let countCLAP = $derived(plugins.filter(p => {
+    const inst = getInstalledInfo(p.name);
+    return inst ? inst.format.toLowerCase() === 'clap' : inferCatalogFormat(p).toLowerCase().includes('clap');
+  }).length);
+  let countLV2 = $derived(plugins.filter(p => {
+    const inst = getInstalledInfo(p.name);
+    return inst ? inst.format.toLowerCase() === 'lv2' : inferCatalogFormat(p).toLowerCase().includes('lv2');
+  }).length);
 
   // Filtered and Sorted Plugins
   let filteredPlugins = $derived(
@@ -335,7 +532,12 @@
 
         let matchesFormat = true;
         if (selectedFormat !== 'all') {
-          matchesFormat = inst ? inst.format.toLowerCase() === selectedFormat : false;
+          if (inst) {
+            matchesFormat = inst.format.toLowerCase() === selectedFormat;
+          } else {
+            const inferred = inferCatalogFormat(p).toLowerCase();
+            matchesFormat = inferred.includes(selectedFormat);
+          }
         }
 
         return matchesSearch && matchesLicense && matchesCategory && matchesPlatform && matchesStatus && matchesFormat;
@@ -355,9 +557,30 @@
   );
 
   onMount(() => {
+    loadScanPaths();
     fetchDashboardData();
+    let unlistenProgress: (() => void) | null = null;
+    try {
+      listen('install_progress', (event: any) => {
+        const payload = event.payload;
+        if (payload && payload.name) {
+          const matchingPlugin = plugins.find(p => p.name.toLowerCase() === payload.name.toLowerCase());
+          if (matchingPlugin) {
+            if (payload.percentage !== null && payload.percentage !== undefined) {
+              installStatus[matchingPlugin.id] = `Downloading: ${Math.round(payload.percentage)}%`;
+            } else {
+              installStatus[matchingPlugin.id] = payload.status || 'Downloading...';
+            }
+          }
+        }
+      }).then(fn => { unlistenProgress = fn; }).catch(() => {});
+    } catch {}
+
     const interval = setInterval(fetchDashboardData, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (unlistenProgress) unlistenProgress();
+    };
   });
 </script>
 
@@ -395,6 +618,10 @@
         <span class="version-tag">v{health?.version || '0.2.2'}</span>
       </div>
 
+      <button class="btn-folder-action" onclick={() => (showScanPathsModal = true)} use:tooltip={"Configure and audit local audio plugin scan paths"}>
+        ⚙️ Paths
+      </button>
+
       <button class="btn-success-outline" onclick={() => (showAddPluginModal = !showAddPluginModal)} use:tooltip={"Register a plugin manifest directly into PostgreSQL"}>
         + Register Plugin
       </button>
@@ -410,6 +637,83 @@
     <div class="action-alert">
       <span>{actionMessage}</span>
       <button class="alert-close" onclick={() => (actionMessage = null)}>✕</button>
+    </div>
+  {/if}
+
+  <!-- Scan Paths Configuration Modal -->
+  {#if showScanPathsModal}
+    <div class="modal-backdrop">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="card-icon">⚙️</span>
+            <h2>Audio Plugin Scan Paths</h2>
+          </div>
+          <button class="modal-close" onclick={() => (showScanPathsModal = false)}>✕</button>
+        </div>
+
+        <div class="modal-body-section">
+          <p class="modal-desc">
+            VST Monster inspects these directories across your system to detect installed VST3, CLAP, AU, and legacy VST plugins.
+          </p>
+
+          <div class="paths-block">
+            <h4>Default System Directories</h4>
+            <ul class="paths-list">
+              {#if defaultScanPaths.length === 0}
+                <li class="path-empty">Standard OS audio directories (~/.vst3, Library/Audio, etc.)</li>
+              {:else}
+                {#each defaultScanPaths as p}
+                  <li class="path-item">
+                    <span class="path-type-badge">SYSTEM</span>
+                    <code>{p}</code>
+                  </li>
+                {/each}
+              {/if}
+            </ul>
+          </div>
+
+          <div class="paths-block">
+            <h4>Custom VST Search Paths</h4>
+            <div class="custom-path-input-row">
+              <input
+                type="text"
+                bind:value={newCustomPath}
+                placeholder="/custom/audio/plugins or D:\Audio\VSTs"
+                class="search-input"
+              />
+              <button class="btn-primary" onclick={addCustomScanPath}>Add Path</button>
+            </div>
+
+            <ul class="paths-list">
+              {#if customScanPaths.length === 0}
+                <li class="path-empty">No custom search directories configured.</li>
+              {:else}
+                {#each customScanPaths as cp, idx}
+                  <li class="path-item">
+                    <span class="path-type-badge custom-badge">CUSTOM</span>
+                    <code>{cp}</code>
+                    <button class="btn-path-del" onclick={() => removeCustomScanPath(idx)}>✕</button>
+                  </li>
+                {/each}
+              {/if}
+            </ul>
+          </div>
+
+          <div class="modal-actions">
+            <button
+              class="btn-primary"
+              onclick={() => {
+                scanLocalPlugins();
+                showScanPathsModal = false;
+              }}
+            >
+              Save & Rescan
+            </button>
+            <button class="btn-secondary" onclick={() => (showScanPathsModal = false)}>Close</button>
+          </div>
+        </div>
+      </div>
     </div>
   {/if}
 
@@ -484,11 +788,24 @@
   {#if previewPlugin}
     {@const previewInstalled = getInstalledInfo(previewPlugin.name)}
     {@const previewVersionStatus = previewInstalled ? getVersionStatus(previewPlugin.version, previewInstalled.version) : null}
+    {@const previewInferredFormat = inferCatalogFormat(previewPlugin)}
     <div class="modal-backdrop">
       <div class="modal-card preview-card">
         <div class="modal-header">
           <div class="preview-header-info">
-            <span class="preview-category">{previewPlugin.category || 'synth'}</span>
+            <div class="preview-header-tags">
+              <span class="preview-category">{previewPlugin.category || 'synth'}</span>
+              {#if previewInferredFormat}
+                <span class="catalog-format-badge" use:tooltip={"Inferred audio plugin architecture from binary distribution"}>
+                  {previewInferredFormat}
+                </span>
+              {/if}
+              {#if previewInstalled}
+                <span class="installed-badge" use:tooltip={`Installed format: ${previewInstalled.format.toUpperCase()} at ${previewInstalled.path}`}>
+                  ✓ {previewInstalled.format.toUpperCase()}
+                </span>
+              {/if}
+            </div>
             <h2>{previewPlugin.name}</h2>
             <span class="preview-author">by {previewPlugin.developer}</span>
           </div>
@@ -500,12 +817,38 @@
           {#if previewInstalled}
             <div class="preview-install-status {previewVersionStatus?.state === 'update-available' ? 'status-update' : 'status-installed'}">
               <span class="icon">✓</span>
-              <div>
-                <strong>Installed in {previewInstalled.format.toUpperCase()} format</strong>
+              <div class="preview-status-details">
+                <div class="preview-status-title-row">
+                  <strong>Installed in {previewInstalled.format.toUpperCase()} format</strong>
+                  {#if verificationStatus[previewPlugin.name]}
+                    <span class="verification-badge {verificationStatus[previewPlugin.name]}">
+                      {verificationStatus[previewPlugin.name] === 'valid' ? '✓ Verified Bundle' : verificationStatus[previewPlugin.name] === 'verifying' ? '⏳ Verifying...' : '⚠ Missing Binary'}
+                    </span>
+                  {/if}
+                </div>
                 <p>Path: <code>{previewInstalled.path}</code></p>
                 {#if previewVersionStatus}
-                  <small>{previewVersionStatus.label}</small>
+                  <small class="version-label-note">{previewVersionStatus.label}</small>
                 {/if}
+                <div class="preview-status-subactions">
+                  <button
+                    type="button"
+                    class="btn-tiny-action"
+                    onclick={() => handleVerifyBundle(previewPlugin!.name, previewInstalled.path)}
+                    disabled={isVerifyingPlugin}
+                    use:tooltip={"Check if plugin binary or bundle exists on local filesystem"}
+                  >
+                    🔍 Verify File Integrity
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-tiny-action"
+                    onclick={() => handleOpenDirectory(previewPlugin!.name)}
+                    use:tooltip={"Open enclosing plugin directory in native file manager"}
+                  >
+                    📂 Show in File Explorer
+                  </button>
+                </div>
               </div>
             </div>
           {:else}
@@ -532,9 +875,9 @@
               <span class="label">Target OS</span>
               <strong class="value capitalize">{previewPlugin.platform || 'linux'}</strong>
             </div>
-            <div class="spec-tile">
+            <div class="spec-tile" use:tooltip={"Installation execution mode: silent installer, archive decompression (ZIP/TAR/DMG), or direct binary relocation"}>
               <span class="label">Strategy</span>
-              <strong class="value">{previewPlugin.strategy || 'extract_binaries'}</strong>
+              <strong class="value strategy-value">{previewPlugin.strategy || 'extract_binaries'}</strong>
             </div>
           </div>
 
@@ -549,7 +892,17 @@
           <!-- Cryptographic Digest -->
           {#if previewPlugin.sha256_hash}
             <div class="preview-section">
-              <h4>Binary SHA-256 Digest</h4>
+              <div class="preview-section-title-row">
+                <h4>Binary SHA-256 Digest</h4>
+                <button
+                  type="button"
+                  class="btn-copy-hash"
+                  onclick={() => copyToClipboard(previewPlugin!.sha256_hash!, 'preview')}
+                  use:tooltip={"Copy full SHA-256 cryptographic digest to clipboard"}
+                >
+                  {copiedHashId === 'preview' ? '✓ Copied' : '📋 Copy'}
+                </button>
+              </div>
               <div class="preview-hash-box">
                 <code>{previewPlugin.sha256_hash}</code>
               </div>
@@ -559,8 +912,14 @@
           <!-- Direct Download Link -->
           {#if previewPlugin.download_url}
             <div class="preview-section">
-              <h4>Direct Download Source</h4>
-              <a href={previewPlugin.download_url} target="_blank" rel="noreferrer" class="preview-download-link">
+              <h4>Direct Binary Download Source</h4>
+              <a
+                href={previewPlugin.download_url}
+                target="_blank"
+                rel="noreferrer"
+                class="preview-download-link"
+                use:tooltip={"Open direct binary distribution endpoint in external browser"}
+              >
                 🔗 {previewPlugin.download_url}
               </a>
             </div>
@@ -600,6 +959,14 @@
               </button>
             {/if}
 
+            <button
+              class="btn-folder-action"
+              onclick={() => exportPluginManifest(previewPlugin!)}
+              use:tooltip={"Export plugin registry manifest to a standalone JSON file"}
+            >
+              📥 Export JSON
+            </button>
+
             <button class="btn-secondary" onclick={() => (previewPlugin = null)}>
               Close
             </button>
@@ -618,14 +985,18 @@
         <div class="card-header">
           <span class="card-icon">🔍</span>
           <h3>Find Plugins</h3>
+          {#if searchQuery}
+            <span class="search-match-count">{filteredPlugins.length} match{filteredPlugins.length === 1 ? '' : 'es'}</span>
+            <button class="search-clear-btn" onclick={() => (searchQuery = '')}>Clear</button>
+          {/if}
           <span class="tooltip-badge" use:tooltip={"Search catalog by plugin name or developer keywords"}>?</span>
         </div>
         <div class="filter-controls">
           <input
             type="text"
-            placeholder="Search by name, developer, or synth type..."
+            placeholder="Search by name, developer, or keyword (e.g. 'wavetable', 'fm')..."
             bind:value={searchQuery}
-            class="search-input"
+            class="search-input {searchQuery ? 'has-query' : ''}"
           />
           <div class="dropdown-row">
             <select bind:value={selectedCategory} class="select-input" use:tooltip={"Filter by plugin instrument/audio category"}>
@@ -663,6 +1034,7 @@
               <option value="all">All Formats</option>
               <option value="vst3">VST3</option>
               <option value="clap">CLAP</option>
+              <option value="lv2">LV2</option>
               <option value="au">AU (.component)</option>
               <option value="vst2">VST2 (.so/.dll)</option>
             </select>
@@ -687,10 +1059,21 @@
             <button
               type="button"
               class="btn-rescan-action"
+              disabled={isScanningFolders}
               onclick={scanLocalPlugins}
               use:tooltip={"Re-scan local audio directories for installed VSTs"}
             >
-              🔄 Rescan
+              {isScanningFolders ? '⏳ Scanning...' : '🔄 Rescan'}
+            </button>
+
+            <button
+              type="button"
+              class="btn-update-all"
+              disabled={isBatchUpdating}
+              onclick={updateAllOutdatedPlugins}
+              use:tooltip={"Download and install updates for all installed plugins that are outdated"}
+            >
+              {isBatchUpdating ? '⚡ Updating...' : '⚡ Update All'}
             </button>
           </div>
         </div>
@@ -773,9 +1156,95 @@
     <!-- High-Value Core: Plugin Registry Explorer & Silent Installer -->
     <section class="registry-section">
       <div class="section-header">
-        <div>
+        <div class="header-titles">
           <h2>Vetted Plugin Library</h2>
           <span class="section-subtitle">Showing {filteredPlugins.length} of {plugins.length} verified packages</span>
+        </div>
+
+        <!-- Quick Filter Count Pills -->
+        <div class="filter-pills-row">
+          <button
+            type="button"
+            class="filter-pill {selectedInstalledStatus === 'all' && selectedCategory === 'all' ? 'pill-active' : ''}"
+            onclick={() => { selectedInstalledStatus = 'all'; selectedCategory = 'all'; }}
+            use:tooltip={"View all plugins in database catalog"}
+          >
+            All <span class="pill-badge">{countAll}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill {selectedInstalledStatus === 'installed' ? 'pill-active' : ''}"
+            onclick={() => (selectedInstalledStatus = 'installed')}
+            use:tooltip={"View plugins currently installed on this system"}
+          >
+            ✓ Installed <span class="pill-badge">{countInstalled}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill pill-updates {selectedInstalledStatus === 'update-available' ? 'pill-active' : ''}"
+            onclick={() => (selectedInstalledStatus = 'update-available')}
+            use:tooltip={"View installed plugins with newer releases in registry"}
+          >
+            ⚡ Updates <span class="pill-badge">{countUpdates}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill {selectedInstalledStatus === 'not-installed' ? 'pill-active' : ''}"
+            onclick={() => (selectedInstalledStatus = 'not-installed')}
+            use:tooltip={"View plugins not yet installed"}
+          >
+            Not Installed <span class="pill-badge">{countNotInstalled}</span>
+          </button>
+
+          <!-- Category Discoverability Filter Chips -->
+          <button
+            type="button"
+            class="filter-pill category-pill {selectedCategory === 'synth' ? 'pill-active' : ''}"
+            onclick={() => { selectedCategory = selectedCategory === 'synth' ? 'all' : 'synth'; }}
+            use:tooltip={"Filter directly for Synthesizers"}
+          >
+            🎹 Synths
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill category-pill {selectedCategory === 'effect' ? 'pill-active' : ''}"
+            onclick={() => { selectedCategory = selectedCategory === 'effect' ? 'all' : 'effect'; }}
+            use:tooltip={"Filter directly for Audio Effects"}
+          >
+            🎛️ Effects
+          </button>
+
+          <!-- Format Discoverability Filter Chips -->
+          <button
+            type="button"
+            class="filter-pill format-pill {selectedFormat === 'vst3' ? 'pill-active' : ''}"
+            onclick={() => { selectedFormat = selectedFormat === 'vst3' ? 'all' : 'vst3'; }}
+            use:tooltip={`Filter directly for VST3 format plugins (${countVST3} available)`}
+          >
+            🎚️ VST3 <span class="pill-badge">{countVST3}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill format-pill {selectedFormat === 'clap' ? 'pill-active' : ''}"
+            onclick={() => { selectedFormat = selectedFormat === 'clap' ? 'all' : 'clap'; }}
+            use:tooltip={`Filter directly for modern CLAP format plugins (${countCLAP} available)`}
+          >
+            ⚡ CLAP <span class="pill-badge">{countCLAP}</span>
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill format-pill {selectedFormat === 'lv2' ? 'pill-active' : ''}"
+            onclick={() => { selectedFormat = selectedFormat === 'lv2' ? 'all' : 'lv2'; }}
+            use:tooltip={`Filter directly for LV2 format plugins (${countLV2} available)`}
+          >
+            🎛️ LV2 <span class="pill-badge">{countLV2}</span>
+          </button>
         </div>
       </div>
 
@@ -840,9 +1309,9 @@
               <!-- Metadata Specs -->
               <div class="specs-grid">
                 <div class="spec-item">
-                  <span class="spec-label">Category</span>
-                  <span class="spec-val category-badge" use:tooltip={`Plugin type: ${plugin.category || 'synth'}`}>
-                    {plugin.category || 'synth'}
+                  <span class="spec-label">Format</span>
+                  <span class="spec-val format-badge-tag" use:tooltip={"Supported binary audio plugin format"}>
+                    {installedInfo ? installedInfo.format.toUpperCase() : inferCatalogFormat(plugin)}
                   </span>
                 </div>
                 <div class="spec-item">
@@ -857,6 +1326,26 @@
                     {plugin.strategy || 'extract_binaries'}
                   </span>
                 </div>
+                {#if installedInfo}
+                  <div class="spec-item spec-path-item" use:tooltip={`Active file path: ${installedInfo.path}`}>
+                    <span class="spec-label">Location</span>
+                    <span class="spec-val path-val">{installedInfo.path}</span>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Discoverability Tag Pills -->
+              <div class="tag-pills-row">
+                {#each getPluginTags(plugin) as tag}
+                  <button
+                    type="button"
+                    class="tag-pill"
+                    onclick={() => { searchQuery = tag; }}
+                    use:tooltip={`Click to filter catalog by tag '${tag}'`}
+                  >
+                    #{tag}
+                  </button>
+                {/each}
               </div>
 
               <!-- Cryptographic SHA256 Verification -->
@@ -864,6 +1353,14 @@
                 <div class="hash-container" use:tooltip={`Full SHA-256 Digest: ${plugin.sha256_hash}`}>
                   <span class="hash-label">🔒 SHA-256:</span>
                   <code class="hash-code">{plugin.sha256_hash.substring(0, 16)}...</code>
+                  <button
+                    type="button"
+                    class="btn-card-copy-hash"
+                    onclick={(e) => { e.stopPropagation(); copyToClipboard(plugin.sha256_hash!, plugin.id); }}
+                    use:tooltip={"Copy full SHA-256 hash to clipboard"}
+                  >
+                    {copiedHashId === plugin.id ? '✓' : '📋'}
+                  </button>
                 </div>
               {/if}
 
@@ -1251,10 +1748,67 @@
     gap: 0.5rem;
   }
 
+  .tag-pills-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0.2rem 0;
+  }
+
+  .tag-pill {
+    background: #0f1117;
+    border: 1px solid #232d42;
+    color: #38bdf8;
+    font-size: 0.68rem;
+    padding: 2px 7px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.15s ease-in-out;
+  }
+
+  .tag-pill:hover {
+    background: #1e293b;
+    border-color: #38bdf8;
+    color: #7dd3fc;
+    transform: scale(1.05);
+  }
+
+  .format-badge-tag {
+    color: #a78bfa;
+    font-weight: 700;
+  }
+
   .card-header h3 {
     font-size: 1rem;
     font-weight: 700;
     color: #f1f5f9;
+  }
+
+  .search-match-count {
+    font-size: 0.72rem;
+    background: #1e3a8a;
+    color: #93c5fd;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .search-clear-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .search-clear-btn:hover {
+    color: #f87171;
+  }
+
+  .search-input.has-query {
+    border-color: #3b82f6;
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
   }
 
   .tooltip-badge {
@@ -1342,6 +1896,29 @@
     background: #1e293b;
     color: #f1f5f9;
     border-color: #3b82f6;
+  }
+
+  .btn-update-all {
+    padding: 0.5rem 0.8rem;
+    background: #78350f;
+    border: 1px solid #d97706;
+    border-radius: 6px;
+    color: #fde68a;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .btn-update-all:hover:not(:disabled) {
+    background: #b45309;
+    color: white;
+  }
+
+  .btn-update-all:disabled, .btn-rescan-action:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .title-badge-row {
@@ -1468,9 +2045,79 @@
     padding: 0.8rem 1rem;
     border-radius: 8px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.8rem;
     font-size: 0.85rem;
+  }
+
+  .preview-status-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1;
+  }
+
+  .preview-status-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+  }
+
+  .verification-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .verification-badge.valid {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+  }
+
+  .verification-badge.verifying {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+  }
+
+  .verification-badge.invalid {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+  }
+
+  .version-label-note {
+    font-size: 0.75rem;
+    color: #fde68a;
+  }
+
+  .preview-status-subactions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.2rem;
+  }
+
+  .btn-tiny-action {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .btn-tiny-action:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .btn-tiny-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .preview-install-status.status-installed {
@@ -1515,6 +2162,48 @@
   .spec-tile .value {
     font-size: 0.85rem;
     color: #e2e8f0;
+  }
+
+  .preview-section-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+  }
+
+  .preview-section-title-row h4 {
+    margin-bottom: 0;
+  }
+
+  .btn-copy-hash {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn-copy-hash:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+
+  .btn-card-copy-hash {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0 0.2rem;
+    transition: color 0.15s ease;
+  }
+
+  .btn-card-copy-hash:hover {
+    color: #38bdf8;
   }
 
   .preview-section h4 {
@@ -1675,6 +2364,14 @@
     gap: 1rem;
   }
 
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
   .section-header h2 {
     font-size: 1.3rem;
     font-weight: 700;
@@ -1683,6 +2380,52 @@
   .section-subtitle {
     font-size: 0.8rem;
     color: #94a3b8;
+  }
+
+  .filter-pills-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .filter-pill {
+    background: #161b26;
+    border: 1px solid #232d42;
+    border-radius: 20px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: 0.2s;
+  }
+
+  .filter-pill:hover {
+    border-color: #3b82f6;
+    color: #f1f5f9;
+  }
+
+  .filter-pill.pill-active {
+    background: #1e293b;
+    border-color: #3b82f6;
+    color: #60a5fa;
+    font-weight: 600;
+  }
+
+  .filter-pill.pill-updates.pill-active {
+    background: #451a03;
+    border-color: #d97706;
+    color: #fbbf24;
+  }
+
+  .pill-badge {
+    background: #0f1117;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
   }
 
   .plugins-grid {
@@ -1763,6 +2506,23 @@
   .spec-val {
     font-weight: 600;
     color: #e2e8f0;
+  }
+
+  .spec-path-item {
+    grid-column: span 3;
+    margin-top: 0.3rem;
+    padding-top: 0.3rem;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  }
+
+  .path-val {
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: #93c5fd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
   }
 
   .hash-container {
@@ -1874,6 +2634,102 @@
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+  }
+
+  /* Paths Configuration Modal Styles */
+  .modal-title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .modal-body-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .modal-desc {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  .paths-block h4 {
+    font-size: 0.8rem;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+  }
+
+  .paths-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 160px;
+    overflow-y: auto;
+    background: #0f1117;
+    border: 1px solid #232d42;
+    border-radius: 6px;
+    padding: 0.5rem;
+  }
+
+  .path-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.5rem;
+    background: #161b26;
+    border-radius: 4px;
+  }
+
+  .path-item code {
+    flex: 1;
+    color: #93c5fd;
+    word-break: break-all;
+  }
+
+  .path-type-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #1e293b;
+    color: #94a3b8;
+  }
+
+  .path-type-badge.custom-badge {
+    background: #064e3b;
+    color: #6ee7b7;
+  }
+
+  .path-empty {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-style: italic;
+    padding: 0.5rem;
+  }
+
+  .custom-path-input-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .custom-path-input-row .search-input {
+    flex: 1;
+  }
+
+  .btn-path-del {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0 4px;
   }
 
   @media (max-width: 1024px) {

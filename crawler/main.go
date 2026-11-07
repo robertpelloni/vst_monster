@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -105,6 +106,11 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Recovered from panic in BPB scraper: %v\n", r)
+			}
+		}()
 		scrapers.ScrapeBPB(func(data scrapers.PluginData) {
 			pipeline.Results <- parser.StandardPlugin{
 				Name:        data.Name,
@@ -113,7 +119,7 @@ func main() {
 				DownloadURL: data.DownloadURL,
 				License:     "free",
 				Source:      "Bedroom Producers Blog",
-				Metadata:    map[string]interface{}{"source": "bpb", "category": data.Category},
+				Metadata:    map[string]interface{}{"source": "bpb", "category": data.Category, "description": fmt.Sprintf("%s by %s via Bedroom Producers Blog", data.Name, data.Developer)},
 			}
 		}, proxyFunc)
 	}()
@@ -170,7 +176,27 @@ func seedStaplePlugins(pipeline *queue.Pipeline) {
 			DownloadURL: "https://thewavewarden.com/assets/Odin2Linux.zip",
 			License:     "free",
 			Source:      "Seed Manifest",
-			Metadata:    map[string]interface{}{"description": "24-voice polyphonic powerhouse with analog-modeled filters and distortion modules.", "source": "official"},
+			Metadata:    map[string]interface{}{"description": "24-voice polyphonic powerhouse with analog-modeled filters and distortion modules.", "source": "official", "category": "synth"},
+		},
+		{
+			Name:        "Cardinal Modular Synthesizer",
+			Developer:   "DISTRHO",
+			Version:     "24.04",
+			Formats:     []string{"VST3", "CLAP", "LV2"},
+			DownloadURL: "https://github.com/DISTRHO/Cardinal/releases/download/24.04/Cardinal-linux-x86_64-24.04.tar.gz",
+			License:     "opensource",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "Virtual modular synthesizer plugin based on VCV Rack with multi-format LV2 and CLAP support.", "source": "github", "category": "synth"},
+		},
+		{
+			Name:        "Chow Tape Model",
+			Developer:   "Chowdhury DSP",
+			Version:     "2.11.4",
+			Formats:     []string{"VST3", "CLAP", "AU", "LV2"},
+			DownloadURL: "https://github.com/jatinchowdhury18/AnalogTapeModel/releases/download/v2.11.4/ChowTapeModel-Linux-x64-2.11.4.deb",
+			License:     "opensource",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "Physical modeling analog reel-to-reel tape machine saturation and hysteresis effect.", "source": "github", "category": "effect"},
 		},
 	}
 

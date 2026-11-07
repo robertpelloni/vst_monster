@@ -21,10 +21,21 @@
 - [x] Unified dynamic version string delivery across Registry API and dashboard UI.
 - [x] Rich installed plugin scanning (`InstalledPluginInfo`), dynamic format badging, version diffing, and folder launch integration.
 - [x] Advanced installed state filtering, audio format filtering, status sorting, and interactive plugin detail inspector drawer.
+- [x] Native plugin bundle validation (`verify_installed_plugin`), batch plugin update orchestration, and interactive filter count pills.
+- [x] Custom audio scan paths configuration modal (`get_default_scan_paths`, custom paths) with persistent `localStorage` and standalone plugin manifest JSON exporter.
+- [x] macOS `.dmg` automated mounting, bundle extraction (`.vst3`, `.component`, `.clap`), and detachment.
+- [x] Real-time download progress streaming via Tauri events (`install_progress`).
 
 ## Milestone 3: Advanced Installation Engines & Package Extraction
-- [ ] Implement complete macOS `.dmg` automated extraction and `.vst3` / `.component` placement to `~/Library/Audio/Plug-Ins/`.
-- [ ] Implement Linux `.so` / `.vst3` / `.clap` archive extraction and installation to `~/.vst3` and `~/.clap`.
+- [x] Implement complete macOS `.dmg` automated extraction and `.vst3` / `.component` placement to `~/Library/Audio/Plug-Ins/`.
+- [x] Discoverability tag extraction engine with interactive click-to-filter pills.
+- [x] Automated audio format detection and badging across catalog.
+- [x] Category discoverability chips for direct synthesizer and effect filtering.
+- [x] Search match indicators and visual query clear triggers.
+- [x] Expanded audio format discovery (LV2 / CLAP) and interactive format filter chips.
+- [x] Crawler data ingestion stabilization, platform inference, and curated staple expansion.
+- [x] Implement Linux `.deb` and `.tar.gz` archive extraction engine (`dpkg-deb`, `tar`) and reactive format count indicators.
+- [ ] Implement Linux direct `.so` standalone binary relocation and permission handling.
 - [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
 - [ ] Add sandbox malware scanning integration (VirusTotal API / ClamAV) prior to installation.
 

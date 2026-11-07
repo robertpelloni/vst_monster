@@ -1,5 +1,84 @@
 # CHANGELOG
 
+## [0.4.2] - Active Installation Path Spec Indicator & Interactive Hash Copy Action
+- Added active installation path display in the catalog grid specs for locally installed plugins with quick inspection tooltips.
+- Implemented reactive one-click copy buttons (`copyToClipboard`) with visual confirmation state transitions (`📋` -> `✓` and `📋 Copy` -> `✓ Copied`) across both catalog cards and the plugin inspection preview drawer.
+- Implemented multi-tier clipboard support utilizing modern `navigator.clipboard.writeText` with legacy `textarea` fallback for cross-platform Linux webkit / Tauri webview contexts.
+- Synchronized global ecosystem version to `v0.4.2`.
+
+## [0.4.1] - LV2 Format Discoverability Chip & Windows VST2 Path Scanning
+- Added interactive LV2 format discoverability filter chip (`🎛️ LV2`) with reactive catalog count badge (`countLV2`) in the primary dashboard filter row.
+- Added Windows VST2 standard search locations (`%ProgramFiles%/VSTPlugins`, `%ProgramFiles%/Steinberg/VSTPlugins`, `%CommonProgramFiles%/VST2`, and `Documents/VST`) in `get_default_scan_paths` and `scan_installed_plugins`.
+- Synchronized global ecosystem version to `v0.4.1`.
+
+## [0.4.0] - Comprehensive Plugin Inspector Drawer, Badging & Verification
+- Enhanced the plugin detail preview drawer header with inferred format badging (`inferCatalogFormat`) and installed audio format tags (`✓ VST3`, `✓ CLAP`, etc.).
+- Upgraded the preview drawer installed status banner with live verification status badges (`✓ Verified Bundle`, `⏳ Verifying...`, `⚠ Missing Binary`).
+- Added inline quick actions in the preview drawer to trigger local bundle verification (`verify_installed_plugin`) and open enclosing folders (`open_plugin_directory`).
+- Synchronized global ecosystem version to `v0.4.0`.
+
+## [0.3.9] - Standalone Binary Installation & InnoSetup Silent Fallbacks
+- Added standalone audio binary installation engine (`.so`, `.dll`, `.clap`) in `client/src-tauri/src/installer.rs` with automated audio destination directory generation and `0o755` executable permissions.
+- Implemented InnoSetup and NSIS secondary silent command fallback flags (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`) for Windows `.exe` installers.
+- Enriched plugin extraction strategy spec tile and direct download source details inside dashboard inspection preview drawer (`client/src/routes/+page.svelte`) with descriptive tooltips.
+- Bumped global ecosystem version to `v0.3.9`.
+
+## [0.3.8] - Linux Archive Extraction (.deb, .tar.gz) & Format Pill Counts
+- Implemented asynchronous `.tar.gz` and `.tgz` decompression engine in `client/src-tauri/src/installer.rs` unpacking directly into audio directory trees.
+- Implemented Linux `.deb` package extraction using `dpkg-deb -x` scanning for audio bundles across standard Linux system plugin paths (`usr/lib/vst3`, `usr/lib/clap`, `usr/lib/lv2`).
+- Added dynamic reactive count badges (`countVST3`, `countCLAP`) on dashboard format discoverability filter chips.
+- Added informative tooltips indicating available plugin numbers per audio plugin format.
+- Bumped ecosystem version to `v0.3.8`.
+
+## [0.3.7] - Crawler Ingestion Stability, Platform Detection & Curated Seed Expansion
+- Enhanced `crawler/db.go` with dynamic platform detection from download URLs (`linux`, `macos`, `windows`) and automated strategy assignment (`silent_install` vs `extract_binaries`).
+- Added category column persistence in PostgreSQL `plugins` table during crawler upserts.
+- Added detailed ingestion success logging in database pipeline.
+- Implemented scraper panic recovery in `crawler/main.go` to prevent thread crashes from halting the pipeline.
+- Expanded curated open-source staple seeds with Cardinal Modular Synth and Chow Tape Model.
+- Bumped ecosystem version to `v0.3.7`.
+
+## [0.3.6] - Expanded Audio Plugin Format Discovery & Format Filter Chips
+- Added Linux LV2 directory scanning (`~/.lv2`, `/usr/lib/lv2`, `/usr/local/lib/lv2`) and Windows CLAP directory scanning (`%CommonProgramFiles%/CLAP`) to `get_default_scan_paths` and `scan_installed_plugins`.
+- Added native `.lv2` bundle recognition and clean naming in the local scanning engine.
+- Added direct audio format quick-filter pills (`🎚️ VST3`, `⚡ CLAP`) in the dashboard filter bar.
+- Enhanced format filter logic to match both installed binary format and catalog inferred download format.
+- Added LV2 format support to format dropdown and catalog format inference engine.
+- Bumped ecosystem version to `v0.3.6`.
+
+## [0.3.5] - Search Match Indicators & Query Refinements
+- Added live search match counter badge in the Find Plugins header showing exact matched package count.
+- Added quick "Clear" search shortcut button when an active query is present.
+- Added visual focus/glow outline on search input when filtering plugins.
+- Synchronized ecosystem version to `v0.3.5`.
+
+## [0.3.4] - Category Discoverability Chips & Fast Navigation
+- Added dedicated quick-filter pills for direct category switching (`🎹 Synths`, `🎛️ Effects`) into the primary filter row of `client/src/routes/+page.svelte`.
+- Synchronized active toggle states between dropdown controls and interactive quick-filter pills.
+- Bumped ecosystem version to `v0.3.4`.
+
+## [0.3.3] - Discoverability Tag Engine, Audio Format Badges & Explorer Quick Actions
+- Added dynamic keyword tag extraction (`#synth`, `#wavetable`, `#fm`, `#polyphonic`, `#analog`, `#mpe`, etc.) with interactive click-to-filter pill buttons on catalog cards.
+- Added audio format catalog badging (`inferCatalogFormat`) displaying format support (`VST3`, `CLAP`, `AU / VST3`) across all plugins.
+- Deep linked directory explorer actions and dynamic filter activations directly from tag pills and inspection cards.
+
+## [0.3.2] - macOS DMG Extraction Engine & Real-time Download Progress Streaming
+- Implemented automated macOS DMG volume mounting (`hdiutil attach -nobrowse -readonly`), recursive audio bundle discovery (`.vst3`, `.component`, `.clap`), and clean volume detachment (`hdiutil detach -force`).
+- Implemented real-time `install_progress` event payload streaming from Tauri Rust installer engine emitting percentage and downloaded bytes.
+- Hooked `listen('install_progress')` event stream to Svelte 5 dashboard updating active install percentages in real-time.
+
+## [0.3.1] - Custom Audio Scan Paths Configuration & Manifest JSON Exporter
+- Added `get_default_scan_paths` Tauri command returning operating-system native audio search paths.
+- Updated `scan_installed_plugins` to accept arbitrary `extra_paths: Option<Vec<String>>` to inspect user-defined audio plugin directories.
+- Implemented "⚙️ Paths" scan path manager modal in Svelte 5 dashboard with persistent `localStorage` support.
+- Added "📥 Export JSON" capability to export vetted plugin manifests for offline distribution, backups, and DAW integration.
+
+## [0.3.0] - Batch Plugin Lifecycle Controls, Quick Filter Pills & Native Bundle Validation
+- Added `verify_installed_plugin` Tauri command to validate audio bundle binary integrity and file presence.
+- Added "Update All" batch operation in Svelte client for updating all installed plugins with newer catalog releases.
+- Added visual progress feedback and state disabled triggers for batch updating and rescan operations.
+- Added interactive filter count pills (All, Installed, Updates, Not Installed) with dynamic catalog counts.
+
 ## [0.2.9] - Advanced Plugin Filtering, Sorting, and Detail Inspection Modal
 - Added installed status filtering in dashboard (`all`, `installed`, `update-available`, `not-installed`).
 - Added format filtering for detected plugins (`all`, `vst3`, `clap`, `au`, `vst2`).
