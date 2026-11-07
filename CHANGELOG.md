@@ -1,5 +1,10 @@
 # CHANGELOG: VST Monster
 
+## [0.3.4] - Category Discoverability Chips & Fast Navigation
+- Added dedicated quick-filter pills for direct category switching (`🎹 Synths`, `🎛️ Effects`) into the primary filter row of `client/src/routes/+page.svelte`.
+- Synchronized active toggle states between dropdown controls and interactive quick-filter pills.
+- Bumped ecosystem version to `v0.3.4`.
+
 ## [0.3.3] - Discoverability Tag Engine, Audio Format Badges & Explorer Quick Actions
 - Added dynamic keyword tag extraction (`#synth`, `#wavetable`, `#fm`, `#polyphonic`, `#analog`, `#mpe`, etc.) with interactive click-to-filter pill buttons on catalog cards.
 - Added audio format catalog badging (`inferCatalogFormat`) displaying format support (`VST3`, `CLAP`, `AU / VST3`) across all plugins.

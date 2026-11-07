@@ -1050,8 +1050,8 @@
         <div class="filter-pills-row">
           <button
             type="button"
-            class="filter-pill {selectedInstalledStatus === 'all' ? 'pill-active' : ''}"
-            onclick={() => (selectedInstalledStatus = 'all')}
+            class="filter-pill {selectedInstalledStatus === 'all' && selectedCategory === 'all' ? 'pill-active' : ''}"
+            onclick={() => { selectedInstalledStatus = 'all'; selectedCategory = 'all'; }}
             use:tooltip={"View all plugins in database catalog"}
           >
             All <span class="pill-badge">{countAll}</span>
@@ -1082,6 +1082,25 @@
             use:tooltip={"View plugins not yet installed"}
           >
             Not Installed <span class="pill-badge">{countNotInstalled}</span>
+          </button>
+
+          <!-- Category Discoverability Filter Chips -->
+          <button
+            type="button"
+            class="filter-pill category-pill {selectedCategory === 'synth' ? 'pill-active' : ''}"
+            onclick={() => { selectedCategory = selectedCategory === 'synth' ? 'all' : 'synth'; }}
+            use:tooltip={"Filter directly for Synthesizers"}
+          >
+            🎹 Synths
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill category-pill {selectedCategory === 'effect' ? 'pill-active' : ''}"
+            onclick={() => { selectedCategory = selectedCategory === 'effect' ? 'all' : 'effect'; }}
+            use:tooltip={"Filter directly for Audio Effects"}
+          >
+            🎛️ Effects
           </button>
         </div>
       </div>
