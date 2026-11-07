@@ -39,7 +39,9 @@
 - [x] Implement standalone binary installer handler (`.so`, `.dll`, `.clap`) with target directory determination and Unix permissions.
 - [x] Add InnoSetup silent installer switches fallback (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`) for Windows executables.
 - [x] Enhance plugin detail inspector drawer with dynamic badging, verification status, and inline actions.
-- [x] Add LV2 format discoverability chip with dynamic count badge and Windows VST2 path scan expansion.
+- [x] Add LV2 format discoverability chip with dynamic count badge and Windows VST2 path scan expansion (v0.4.1).
+- [x] Implement active installation path spec indicator in catalog card specs for locally installed plugins (v0.4.2).
+- [x] Add direct one-click SHA-256 hash copy button on cards and preview drawer with copied state animation (v0.4.2).
 - [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.
 - [ ] Implement VST2 / legacy 32-bit warning banner when scanning older binary formats.
 - [ ] Provide DAW preset scan integration and preset folder quick launcher.

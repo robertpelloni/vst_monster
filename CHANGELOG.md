@@ -1,5 +1,11 @@
 # CHANGELOG: VST Monster
 
+## [0.4.2] - Active Installation Path Spec Indicator & Interactive Hash Copy Action
+- Added active installation path display in the catalog grid specs for locally installed plugins with quick inspection tooltips.
+- Implemented reactive one-click copy buttons (`copyToClipboard`) with visual confirmation state transitions (`📋` -> `✓` and `📋 Copy` -> `✓ Copied`) across both catalog cards and the plugin inspection preview drawer.
+- Implemented multi-tier clipboard support utilizing modern `navigator.clipboard.writeText` with legacy `textarea` fallback for cross-platform Linux webkit / Tauri webview contexts.
+- Synchronized global ecosystem version to `v0.4.2`.
+
 ## [0.4.1] - LV2 Format Discoverability Chip & Windows VST2 Path Scanning
 - Added interactive LV2 format discoverability filter chip (`🎛️ LV2`) with reactive catalog count badge (`countLV2`) in the primary dashboard filter row.
 - Added Windows VST2 standard search locations (`%ProgramFiles%/VSTPlugins`, `%ProgramFiles%/Steinberg/VSTPlugins`, `%CommonProgramFiles%/VST2`, and `Documents/VST`) in `get_default_scan_paths` and `scan_installed_plugins`.

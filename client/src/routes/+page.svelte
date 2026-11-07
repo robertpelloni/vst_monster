@@ -69,6 +69,7 @@
   let previewPlugin = $state<Plugin | null>(null);
   let isVerifyingPlugin = $state(false);
   let verificationStatus = $state<{ [key: string]: 'valid' | 'invalid' | 'verifying' }>({});
+  let copiedHashId = $state<string | number | null>(null);
   let isBatchUpdating = $state(false);
   let isScanningFolders = $state(false);
   let showScanPathsModal = $state(false);
@@ -426,6 +427,22 @@
       actionMessage = `Bundle verification error: ${err}`;
     } finally {
       isVerifyingPlugin = false;
+    }
+  }
+
+  async function copyToClipboard(text: string, identifier: string | number) {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+      }
+      copiedHashId = identifier;
+      setTimeout(() => {
+        if (copiedHashId === identifier) {
+          copiedHashId = null;
+        }
+      }, 2000);
+    } catch (err) {
+      console.warn('Clipboard write failed:', err);
     }
   }
 
@@ -875,7 +892,17 @@
           <!-- Cryptographic Digest -->
           {#if previewPlugin.sha256_hash}
             <div class="preview-section">
-              <h4>Binary SHA-256 Digest</h4>
+              <div class="preview-section-title-row">
+                <h4>Binary SHA-256 Digest</h4>
+                <button
+                  type="button"
+                  class="btn-copy-hash"
+                  onclick={() => copyToClipboard(previewPlugin!.sha256_hash!, 'preview')}
+                  use:tooltip={"Copy full SHA-256 cryptographic digest to clipboard"}
+                >
+                  {copiedHashId === 'preview' ? '✓ Copied' : '📋 Copy'}
+                </button>
+              </div>
               <div class="preview-hash-box">
                 <code>{previewPlugin.sha256_hash}</code>
               </div>
@@ -1299,6 +1326,12 @@
                     {plugin.strategy || 'extract_binaries'}
                   </span>
                 </div>
+                {#if installedInfo}
+                  <div class="spec-item spec-path-item" use:tooltip={`Active file path: ${installedInfo.path}`}>
+                    <span class="spec-label">Location</span>
+                    <span class="spec-val path-val">{installedInfo.path}</span>
+                  </div>
+                {/if}
               </div>
 
               <!-- Discoverability Tag Pills -->
@@ -1320,6 +1353,14 @@
                 <div class="hash-container" use:tooltip={`Full SHA-256 Digest: ${plugin.sha256_hash}`}>
                   <span class="hash-label">🔒 SHA-256:</span>
                   <code class="hash-code">{plugin.sha256_hash.substring(0, 16)}...</code>
+                  <button
+                    type="button"
+                    class="btn-card-copy-hash"
+                    onclick={(e) => { e.stopPropagation(); copyToClipboard(plugin.sha256_hash!, plugin.id); }}
+                    use:tooltip={"Copy full SHA-256 hash to clipboard"}
+                  >
+                    {copiedHashId === plugin.id ? '✓' : '📋'}
+                  </button>
                 </div>
               {/if}
 
@@ -2123,6 +2164,48 @@
     color: #e2e8f0;
   }
 
+  .preview-section-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+  }
+
+  .preview-section-title-row h4 {
+    margin-bottom: 0;
+  }
+
+  .btn-copy-hash {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn-copy-hash:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+
+  .btn-card-copy-hash {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0 0.2rem;
+    transition: color 0.15s ease;
+  }
+
+  .btn-card-copy-hash:hover {
+    color: #38bdf8;
+  }
+
   .preview-section h4 {
     font-size: 0.85rem;
     color: #94a3b8;
@@ -2423,6 +2506,23 @@
   .spec-val {
     font-weight: 600;
     color: #e2e8f0;
+  }
+
+  .spec-path-item {
+    grid-column: span 3;
+    margin-top: 0.3rem;
+    padding-top: 0.3rem;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  }
+
+  .path-val {
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: #93c5fd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
   }
 
   .hash-container {
