@@ -60,7 +60,7 @@
   let selectedCategory = $state('all');
   let selectedPlatform = $state('all');
   let selectedInstalledStatus = $state<'all' | 'installed' | 'update-available' | 'not-installed'>('all');
-  let selectedFormat = $state<'all' | 'vst3' | 'clap' | 'au' | 'vst2'>('all');
+  let selectedFormat = $state<'all' | 'vst3' | 'clap' | 'au' | 'vst2' | 'lv2'>('all');
   let sortBy = $state<'name' | 'developer' | 'license' | 'category' | 'status'>('name');
   let crawlerRunning = $state(false);
   let actionMessage = $state<string | null>(null);
@@ -442,8 +442,10 @@
 
   function inferCatalogFormat(plugin: Plugin): string {
     const url = (plugin.download_url || '').toLowerCase();
+    const desc = (plugin.metadata?.description || '').toLowerCase();
+    if (url.includes('.lv2') || desc.includes('lv2')) return 'LV2';
+    if (url.includes('clap') || desc.includes('clap')) return 'CLAP';
     if (url.endsWith('.vst3.zip') || url.includes('vst3')) return 'VST3';
-    if (url.includes('clap')) return 'CLAP';
     if (url.includes('dmg') || url.includes('pkg') || url.includes('component')) return 'AU / VST3';
     return 'VST3';
   }
@@ -482,7 +484,12 @@
 
         let matchesFormat = true;
         if (selectedFormat !== 'all') {
-          matchesFormat = inst ? inst.format.toLowerCase() === selectedFormat : false;
+          if (inst) {
+            matchesFormat = inst.format.toLowerCase() === selectedFormat;
+          } else {
+            const inferred = inferCatalogFormat(p).toLowerCase();
+            matchesFormat = inferred.includes(selectedFormat);
+          }
         }
 
         return matchesSearch && matchesLicense && matchesCategory && matchesPlatform && matchesStatus && matchesFormat;
@@ -924,6 +931,7 @@
               <option value="all">All Formats</option>
               <option value="vst3">VST3</option>
               <option value="clap">CLAP</option>
+              <option value="lv2">LV2</option>
               <option value="au">AU (.component)</option>
               <option value="vst2">VST2 (.so/.dll)</option>
             </select>
@@ -1105,6 +1113,25 @@
             use:tooltip={"Filter directly for Audio Effects"}
           >
             🎛️ Effects
+          </button>
+
+          <!-- Format Discoverability Filter Chips -->
+          <button
+            type="button"
+            class="filter-pill format-pill {selectedFormat === 'vst3' ? 'pill-active' : ''}"
+            onclick={() => { selectedFormat = selectedFormat === 'vst3' ? 'all' : 'vst3'; }}
+            use:tooltip={"Filter directly for VST3 plugins"}
+          >
+            🎚️ VST3
+          </button>
+
+          <button
+            type="button"
+            class="filter-pill format-pill {selectedFormat === 'clap' ? 'pill-active' : ''}"
+            onclick={() => { selectedFormat = selectedFormat === 'clap' ? 'all' : 'clap'; }}
+            use:tooltip={"Filter directly for CLAP plugins"}
+          >
+            ⚡ CLAP
           </button>
         </div>
       </div>

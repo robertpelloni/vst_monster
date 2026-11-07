@@ -1,7 +1,13 @@
-# HANDOFF: VST Monster Autonomous Session (v0.3.5)
+# HANDOFF: VST Monster Autonomous Session (v0.3.6)
 
 ## Summary of Session Accomplishments
-1. **Search Match Indicators & Query Refinements (v0.3.5)**:
+1. **Expanded Audio Plugin Format Discovery & Format Filter Chips (v0.3.6)**:
+   - Added Linux LV2 directory scanning (`~/.lv2`, `/usr/lib/lv2`, `/usr/local/lib/lv2`) and Windows CLAP directory scanning (`%CommonProgramFiles%/CLAP`) to `get_default_scan_paths` and `scan_installed_plugins`.
+   - Added native `.lv2` bundle recognition and clean naming in the local scanning engine.
+   - Added direct audio format quick-filter pills (`🎚️ VST3`, `⚡ CLAP`) in the dashboard filter bar.
+   - Enhanced format filter logic to match both installed binary format and catalog inferred download format.
+   - Added LV2 format support to format dropdown and catalog format inference engine.
+2. **Search Match Indicators & Query Refinements (v0.3.5)**:
    - Added live search match counter badge in the Find Plugins header showing exact matched package count.
    - Added quick "Clear" search shortcut button when an active query is present.
    - Added visual focus/glow outline on search input when filtering plugins.
@@ -18,7 +24,7 @@
    - Implemented `install_progress` event payload streaming from Tauri installer engine with bytes downloaded, total bytes, percentage, and status.
    - Hooked Svelte 5 dashboard to listen and display dynamic progress percentages on installing plugin cards.
 6. **Documentation & Versioning**:
-   - Bumped global version to `0.3.5` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
+   - Bumped global version to `0.3.6` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
 
 ## Next Actions for Incoming Sessions:
 - Implement Linux tarball extraction (`.tar.gz`, `.tar.xz`) for standalone binaries using `tar` and `flate2`.

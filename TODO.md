@@ -33,4 +33,5 @@
 - [x] Implement catalog audio format inference (`inferCatalogFormat`) with dynamic badge tags.
 - [x] Implement category discoverability filter chips (`🎹 Synths`, `🎛️ Effects`).
 - [x] Implement search match counter and active query clear button.
+- [x] Expand plugin discovery format support (LV2, CLAP) and interactive format filter chips (`🎚️ VST3`, `⚡ CLAP`).
 - [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.

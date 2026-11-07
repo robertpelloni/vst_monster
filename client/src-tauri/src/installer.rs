@@ -261,8 +261,11 @@ pub fn get_default_scan_paths() -> Vec<String> {
         plugin_dirs.push(home_path.join(".vst3"));
         plugin_dirs.push(home_path.join(".vst"));
         plugin_dirs.push(home_path.join(".clap"));
+        plugin_dirs.push(home_path.join(".lv2"));
         plugin_dirs.push(PathBuf::from("/usr/lib/vst3"));
         plugin_dirs.push(PathBuf::from("/usr/local/lib/vst3"));
+        plugin_dirs.push(PathBuf::from("/usr/lib/lv2"));
+        plugin_dirs.push(PathBuf::from("/usr/local/lib/lv2"));
     }
 
     #[cfg(target_os = "macos")]
@@ -270,6 +273,7 @@ pub fn get_default_scan_paths() -> Vec<String> {
         plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/VST3"));
         plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/Components"));
         plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/CLAP"));
+        plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/LV2"));
         plugin_dirs.push(PathBuf::from("/Library/Audio/Plug-Ins/VST3"));
         plugin_dirs.push(PathBuf::from("/Library/Audio/Plug-Ins/Components"));
     }
@@ -278,7 +282,8 @@ pub fn get_default_scan_paths() -> Vec<String> {
     {
         plugin_dirs.push(home_path.join("Documents/VST3"));
         if let Ok(prog_files) = env::var("CommonProgramFiles") {
-            plugin_dirs.push(PathBuf::from(prog_files).join("VST3"));
+            plugin_dirs.push(PathBuf::from(&prog_files).join("VST3"));
+            plugin_dirs.push(PathBuf::from(&prog_files).join("CLAP"));
         }
     }
 
@@ -300,8 +305,11 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
         plugin_dirs.push(home_path.join(".vst3"));
         plugin_dirs.push(home_path.join(".vst"));
         plugin_dirs.push(home_path.join(".clap"));
+        plugin_dirs.push(home_path.join(".lv2"));
         plugin_dirs.push(PathBuf::from("/usr/lib/vst3"));
         plugin_dirs.push(PathBuf::from("/usr/local/lib/vst3"));
+        plugin_dirs.push(PathBuf::from("/usr/lib/lv2"));
+        plugin_dirs.push(PathBuf::from("/usr/local/lib/lv2"));
     }
 
     #[cfg(target_os = "macos")]
@@ -309,6 +317,7 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
         plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/VST3"));
         plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/Components"));
         plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/CLAP"));
+        plugin_dirs.push(home_path.join("Library/Audio/Plug-Ins/LV2"));
         plugin_dirs.push(PathBuf::from("/Library/Audio/Plug-Ins/VST3"));
         plugin_dirs.push(PathBuf::from("/Library/Audio/Plug-Ins/Components"));
     }
@@ -317,7 +326,8 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
     {
         plugin_dirs.push(home_path.join("Documents/VST3"));
         if let Ok(prog_files) = env::var("CommonProgramFiles") {
-            plugin_dirs.push(PathBuf::from(prog_files).join("VST3"));
+            plugin_dirs.push(PathBuf::from(&prog_files).join("VST3"));
+            plugin_dirs.push(PathBuf::from(&prog_files).join("CLAP"));
         }
     }
 
@@ -345,6 +355,8 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
                         "clap".to_string()
                     } else if file_name.ends_with(".component") {
                         "au".to_string()
+                    } else if file_name.ends_with(".lv2") {
+                        "lv2".to_string()
                     } else if file_name.ends_with(".so") || file_name.ends_with(".dll") {
                         "vst2".to_string()
                     } else if path.is_dir() {
@@ -358,6 +370,7 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
                         .trim_end_matches(".so")
                         .trim_end_matches(".component")
                         .trim_end_matches(".clap")
+                        .trim_end_matches(".lv2")
                         .trim_end_matches(".dll")
                         .to_string();
 

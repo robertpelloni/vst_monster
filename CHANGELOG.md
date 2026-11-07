@@ -1,5 +1,13 @@
 # CHANGELOG: VST Monster
 
+## [0.3.6] - Expanded Audio Plugin Format Discovery & Format Filter Chips
+- Added Linux LV2 directory scanning (`~/.lv2`, `/usr/lib/lv2`, `/usr/local/lib/lv2`) and Windows CLAP directory scanning (`%CommonProgramFiles%/CLAP`) to `get_default_scan_paths` and `scan_installed_plugins`.
+- Added native `.lv2` bundle recognition and clean naming in the local scanning engine.
+- Added direct audio format quick-filter pills (`🎚️ VST3`, `⚡ CLAP`) in the dashboard filter bar.
+- Enhanced format filter logic to match both installed binary format and catalog inferred download format.
+- Added LV2 format support to format dropdown and catalog format inference engine.
+- Bumped ecosystem version to `v0.3.6`.
+
 ## [0.3.5] - Search Match Indicators & Query Refinements
 - Added live search match counter badge in the Find Plugins header showing exact matched package count.
 - Added quick "Clear" search shortcut button when an active query is present.
