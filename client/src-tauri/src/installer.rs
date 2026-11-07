@@ -115,6 +115,12 @@ pub async fn install_plugin(
         }
     }
 
+    // Pre-flight security antivirus scan if ClamAV or malware detection is present
+    if let Err(security_err) = scan_binary_security(&file_path).await {
+        let _ = tokio::fs::remove_file(&file_path).await;
+        return Err(format!("Security scan alert: {}", security_err));
+    }
+
     println!("Downloaded to {:?}", file_path);
 
     // If file is a zip archive, extract audio plugin binaries to platform standard paths
@@ -980,6 +986,33 @@ async fn extract_deb_archive(deb_path: &Path, plugin_name: &str) -> Result<(), i
     }
 
     let _ = fs::remove_dir_all(&temp_unpack);
+    Ok(())
+}
+
+async fn scan_binary_security(file_path: &Path) -> Result<(), String> {
+    // Check if clamscan is available on the host machine
+    let clam_check = Command::new("clamscan")
+        .arg("--version")
+        .output()
+        .await;
+
+    if let Ok(output) = clam_check {
+        if output.status.success() {
+            println!("[SECURITY] Running ClamAV pre-flight scan on {:?}", file_path);
+            let scan_result = Command::new("clamscan")
+                .args(&["--no-summary", file_path.to_str().unwrap_or("")])
+                .output()
+                .await
+                .map_err(|e| format!("Failed to invoke clamscan: {}", e))?;
+
+            // clamscan returns 0 for clean, 1 for virus found, 2 for error
+            if scan_result.status.code() == Some(1) {
+                let stdout_err = String::from_utf8_lossy(&scan_result.stdout);
+                return Err(format!("Malware detected in payload: {}", stdout_err.trim()));
+            }
+        }
+    }
+
     Ok(())
 }
 

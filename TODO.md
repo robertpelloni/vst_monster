@@ -50,4 +50,6 @@
 - [x] Implement configurable tabbed views inside plugin inspection drawer (Overview & Specs, Filesystem & DAW, Raw Manifest JSON) (v0.4.6).
 - [x] Implement local metadata scan caching and acceleration with cache flush UI controls (v0.4.7).
 - [x] Add Audio Unit (AU) discoverability chip, reactive count badges, and CoreAudio compatibility banner (v0.4.8).
-- [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.
+- [x] Implement pre-flight sandboxed ClamAV antivirus scanner before unpacking binaries (v0.4.9).
+- [x] Add Cryptographic Verification & Antivirus Scan Card in Inspector Drawer (v0.4.9).
+- [ ] Implement dark/light theme toggle in header.

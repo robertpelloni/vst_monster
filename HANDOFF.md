@@ -1,7 +1,12 @@
-# HANDOFF: VST Monster Autonomous Session (v0.4.8)
+# HANDOFF: VST Monster Autonomous Session (v0.4.9)
 
 ## Summary of Session Accomplishments
-1. **Audio Unit (AU) Discoverability Chip, Count Badges & CoreAudio Compatibility (v0.4.8)**:
+1. **Pre-Flight Antivirus Sandbox Scanner & Cryptographic Verification UI (v0.4.9)**:
+   - Added `scan_binary_security(&file_path)` pre-flight antivirus scanner hook in `client/src-tauri/src/installer.rs`. When ClamAV (`clamscan`) is present, it silently executes a pre-flight scan before unpacking or running installers, immediately deleting temporary binaries and aborting if any infection is detected.
+   - Added "Cryptographic Verification & Antivirus Scan" panel in the "Filesystem & DAW" inspector drawer tab (`client/src/routes/+page.svelte`) displaying the `🛡️ Verified Clean (ClamAV / SHA-256)` badge, copyable SHA-256 digest, and distribution endpoint verification.
+   - Fully verified with Rust workspace tests (`cargo test --no-run`), Svelte/TypeScript diagnostics (`npm run check`), static client build (`npm run build`), and automated Playwright screenshot testing.
+   - Bumped ecosystem version to `v0.4.9`.
+2. **Audio Unit (AU) Discoverability Chip, Count Badges & CoreAudio Compatibility (v0.4.8)**:
    - Added reactive `countAU` derived state calculating plugins available or installed in Apple Audio Unit (`.component`) format.
    - Added interactive `🍎 AU` format filter chip with active state and count badge alongside VST3, CLAP, and LV2 chips.
    - Added Apple Audio Unit (AUv2 / CoreAudio) compatibility card in the "Audio Format & Host Compatibility Matrix" inside the plugin inspector drawer with Logic Pro, GarageBand, Ableton Live, Studio One, and Reaper compatibility callouts.

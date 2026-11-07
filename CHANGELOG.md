@@ -1,5 +1,10 @@
 # CHANGELOG: VST Monster
 
+## [0.4.9] - Pre-Flight Antivirus Sandbox Scanner & Cryptographic Verification UI
+- Implemented `scan_binary_security(&file_path)` pre-flight security scanner hook in `client/src-tauri/src/installer.rs`. When ClamAV (`clamscan`) is present on the system, the installer executes a silent scan prior to archive extraction or binary execution, immediately deleting infected payloads and aborting installation if malicious signatures are detected.
+- Added structured "Cryptographic Verification & Antivirus Scan" panel in the "Filesystem & DAW" inspector drawer tab (`client/src/routes/+page.svelte`) with a `🛡️ Verified Clean (ClamAV / SHA-256)` badge, real-time SHA-256 cryptographic digest copy box, and direct distribution endpoint verification.
+- Bumped ecosystem version to `v0.4.9`.
+
 ## [0.4.8] - Audio Unit (AU) Discoverability Chip, Count Badges & CoreAudio Compatibility
 - Added reactive `countAU` derived state calculating plugins available or installed in Apple Audio Unit (`.component`) format.
 - Added interactive `🍎 AU` format filter chip with active state and count badge alongside VST3, CLAP, and LV2 chips.

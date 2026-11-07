@@ -40,9 +40,10 @@
 - [x] Audio Format & Host Compatibility Matrix breakdown and LV2 Open Audio Standard integration.
 - [x] Tabbed Inspector Views (Overview & Specs, Filesystem & DAW, Raw Manifest JSON).
 - [x] Local Scan Metadata Caching, Rescan Acceleration & Cache Flush Integration.
-- [x] Audio Unit (AU) Discoverability Chip & CoreAudio Compatibility Integration.
+- [x] Audio Unit (AU) Discoverability Chip & CoreAudio Compatibility Integration (v0.4.8).
+- [x] Pre-Flight Antivirus Sandbox Scanner & Cryptographic Verification UI (v0.4.9).
 - [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
-- [ ] Add sandbox malware scanning integration (VirusTotal API / ClamAV) prior to installation.
+- [ ] Headless automated DAW plugin bundle fuzzing and validation test suite.
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.
