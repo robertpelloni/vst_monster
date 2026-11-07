@@ -1,5 +1,13 @@
 # CHANGELOG: VST Monster
 
+## [0.3.7] - Crawler Ingestion Stability, Platform Detection & Curated Seed Expansion
+- Enhanced `crawler/db.go` with dynamic platform detection from download URLs (`linux`, `macos`, `windows`) and automated strategy assignment (`silent_install` vs `extract_binaries`).
+- Added category column persistence in PostgreSQL `plugins` table during crawler upserts.
+- Added detailed ingestion success logging in database pipeline.
+- Implemented scraper panic recovery in `crawler/main.go` to prevent thread crashes from halting the pipeline.
+- Expanded curated open-source staple seeds with Cardinal Modular Synth and Chow Tape Model.
+- Bumped ecosystem version to `v0.3.7`.
+
 ## [0.3.6] - Expanded Audio Plugin Format Discovery & Format Filter Chips
 - Added Linux LV2 directory scanning (`~/.lv2`, `/usr/lib/lv2`, `/usr/local/lib/lv2`) and Windows CLAP directory scanning (`%CommonProgramFiles%/CLAP`) to `get_default_scan_paths` and `scan_installed_plugins`.
 - Added native `.lv2` bundle recognition and clean naming in the local scanning engine.

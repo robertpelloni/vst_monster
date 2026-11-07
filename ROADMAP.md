@@ -33,6 +33,7 @@
 - [x] Category discoverability chips for direct synthesizer and effect filtering.
 - [x] Search match indicators and visual query clear triggers.
 - [x] Expanded audio format discovery (LV2 / CLAP) and interactive format filter chips.
+- [x] Crawler data ingestion stabilization, platform inference, and curated staple expansion.
 - [ ] Implement Linux `.so` / `.vst3` / `.clap` archive extraction and installation to `~/.vst3` and `~/.clap`.
 - [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
 - [ ] Add sandbox malware scanning integration (VirusTotal API / ClamAV) prior to installation.

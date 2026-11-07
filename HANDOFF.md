@@ -1,7 +1,13 @@
-# HANDOFF: VST Monster Autonomous Session (v0.3.6)
+# HANDOFF: VST Monster Autonomous Session (v0.3.7)
 
 ## Summary of Session Accomplishments
-1. **Expanded Audio Plugin Format Discovery & Format Filter Chips (v0.3.6)**:
+1. **Crawler Ingestion Stability, Platform Detection & Curated Seed Expansion (v0.3.7)**:
+   - Enhanced `crawler/db.go` with dynamic platform detection from download URLs (`linux`, `macos`, `windows`) and automated strategy assignment (`silent_install` vs `extract_binaries`).
+   - Added category column persistence in PostgreSQL `plugins` table during crawler upserts.
+   - Added detailed ingestion success logging in database pipeline.
+   - Implemented scraper panic recovery in `crawler/main.go` to prevent thread crashes from halting the pipeline.
+   - Expanded curated open-source staple seeds with Cardinal Modular Synth and Chow Tape Model.
+2. **Expanded Audio Plugin Format Discovery & Format Filter Chips (v0.3.6)**:
    - Added Linux LV2 directory scanning (`~/.lv2`, `/usr/lib/lv2`, `/usr/local/lib/lv2`) and Windows CLAP directory scanning (`%CommonProgramFiles%/CLAP`) to `get_default_scan_paths` and `scan_installed_plugins`.
    - Added native `.lv2` bundle recognition and clean naming in the local scanning engine.
    - Added direct audio format quick-filter pills (`🎚️ VST3`, `⚡ CLAP`) in the dashboard filter bar.
@@ -24,7 +30,7 @@
    - Implemented `install_progress` event payload streaming from Tauri installer engine with bytes downloaded, total bytes, percentage, and status.
    - Hooked Svelte 5 dashboard to listen and display dynamic progress percentages on installing plugin cards.
 6. **Documentation & Versioning**:
-   - Bumped global version to `0.3.6` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
+   - Bumped global version to `0.3.7` across `VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF.md`.
 
 ## Next Actions for Incoming Sessions:
 - Implement Linux tarball extraction (`.tar.gz`, `.tar.xz`) for standalone binaries using `tar` and `flate2`.

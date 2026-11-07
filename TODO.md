@@ -34,4 +34,5 @@
 - [x] Implement category discoverability filter chips (`🎹 Synths`, `🎛️ Effects`).
 - [x] Implement search match counter and active query clear button.
 - [x] Expand plugin discovery format support (LV2, CLAP) and interactive format filter chips (`🎚️ VST3`, `⚡ CLAP`).
+- [x] Stabilize crawler data ingestion pipeline with panic recovery, URL-based platform inference, category column persistence, and expanded staple seeds.
 - [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.
