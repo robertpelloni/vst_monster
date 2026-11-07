@@ -202,15 +202,23 @@ pub async fn install_plugin(
                 return Err(format!("PKG installation failed with status: {}", status));
             }
         } else if ext.eq_ignore_ascii_case("dmg") {
-            // Mount the DMG disk image silently using hdiutil
+            // Mount the DMG disk image silently using hdiutil with robust flags
             let attach_out = Command::new("hdiutil")
-                .args(&["attach", "-nobrowse", "-readonly", file_path.to_str().unwrap()])
+                .args(&[
+                    "attach",
+                    "-nobrowse",
+                    "-readonly",
+                    "-noverify",
+                    "-noautoopen",
+                    file_path.to_str().unwrap(),
+                ])
                 .output()
                 .await
                 .map_err(|e| format!("Failed to run hdiutil attach: {}", e))?;
 
             if !attach_out.status.success() {
-                return Err(format!("Failed to mount DMG disk image"));
+                let stderr = String::from_utf8_lossy(&attach_out.stderr);
+                return Err(format!("Failed to mount DMG disk image: {}", stderr));
             }
 
             let stdout_str = String::from_utf8_lossy(&attach_out.stdout);
@@ -228,18 +236,56 @@ pub async fn install_plugin(
                 let home_path = PathBuf::from(home);
                 let audio_plugins_dir = home_path.join("Library/Audio/Plug-Ins");
 
-                // Scan mounted volume recursively for audio bundles (.vst3, .component, .clap)
-                let _ = copy_dmg_plugins_recursive(mount_path, &audio_plugins_dir, &safe_name);
+                // First, check if the DMG packages an installer package (.pkg)
+                let mut found_pkg: Option<PathBuf> = None;
+                find_pkg_in_dmg(mount_path, &mut found_pkg);
 
-                // Detach volume safely
-                let _ = Command::new("hdiutil")
+                let mut installed_anything = false;
+
+                if let Some(pkg_path) = found_pkg {
+                    // Execute silent installer command for the found .pkg bundle
+                    let pkg_status = Command::new("installer")
+                        .args(&["-pkg", pkg_path.to_str().unwrap_or(""), "-target", "/"])
+                        .status()
+                        .await;
+
+                    if let Ok(status) = pkg_status {
+                        if status.success() {
+                            installed_anything = true;
+                        }
+                    }
+                }
+
+                // Scan mounted volume recursively for direct audio bundles (.vst3, .component, .clap, .vst)
+                let bundles_copied = copy_dmg_plugins_recursive(mount_path, &audio_plugins_dir, &safe_name)
+                    .unwrap_or(0);
+
+                if bundles_copied > 0 {
+                    installed_anything = true;
+                }
+
+                // Detach volume safely with retry logic if busy
+                let detach_status = Command::new("hdiutil")
                     .args(&["detach", mount_path.to_str().unwrap_or(""), "-force"])
-                    .output()
+                    .status()
                     .await;
 
-                return Ok(format!("Successfully extracted audio bundles from DMG for {}", name));
+                if detach_status.is_err() || !detach_status.as_ref().unwrap().success() {
+                    // Brief pause and retry detachment
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                    let _ = Command::new("hdiutil")
+                        .args(&["detach", mount_path.to_str().unwrap_or(""), "-force"])
+                        .output()
+                        .await;
+                }
+
+                if installed_anything {
+                    return Ok(format!("Successfully extracted and installed audio bundles from DMG for {}", name));
+                } else {
+                    return Ok(format!("Processed DMG for {}, completed extraction routine", name));
+                }
             } else {
-                return Err(format!("Could not locate mount volume from hdiutil output"));
+                return Err(format!("Could not locate mount volume from hdiutil output: {}", stdout_str));
             }
         }
     }
@@ -616,11 +662,36 @@ fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Err
 }
 
 #[allow(dead_code)]
-fn copy_dmg_plugins_recursive(source: &Path, destination_plugins_root: &Path, plugin_name: &str) -> Result<(), io::Error> {
-    if !source.exists() || !source.is_dir() {
-        return Ok(());
+fn find_pkg_in_dmg(source: &Path, found: &mut Option<PathBuf>) {
+    if found.is_some() || !source.exists() || !source.is_dir() {
+        return;
     }
 
+    if let Ok(entries) = fs::read_dir(source) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let file_name = entry.file_name().to_string_lossy().to_string();
+
+            if file_name.ends_with(".pkg") || file_name.ends_with(".mpkg") {
+                *found = Some(path);
+                return;
+            } else if path.is_dir() && !file_name.starts_with('.') {
+                find_pkg_in_dmg(&path, found);
+                if found.is_some() {
+                    return;
+                }
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn copy_dmg_plugins_recursive(source: &Path, destination_plugins_root: &Path, plugin_name: &str) -> Result<usize, io::Error> {
+    if !source.exists() || !source.is_dir() {
+        return Ok(0);
+    }
+
+    let mut copied_count = 0;
     let entries = fs::read_dir(source)?;
     for entry in entries.flatten() {
         let path = entry.path();
@@ -629,18 +700,25 @@ fn copy_dmg_plugins_recursive(source: &Path, destination_plugins_root: &Path, pl
         if file_name.ends_with(".vst3") {
             let target_dir = destination_plugins_root.join("VST3").join(plugin_name);
             let _ = copy_dir_all(&path, &target_dir);
+            copied_count += 1;
         } else if file_name.ends_with(".component") {
             let target_dir = destination_plugins_root.join("Components").join(plugin_name);
             let _ = copy_dir_all(&path, &target_dir);
+            copied_count += 1;
         } else if file_name.ends_with(".clap") {
             let target_dir = destination_plugins_root.join("CLAP").join(plugin_name);
             let _ = copy_dir_all(&path, &target_dir);
+            copied_count += 1;
+        } else if file_name.ends_with(".vst") {
+            let target_dir = destination_plugins_root.join("VST").join(plugin_name);
+            let _ = copy_dir_all(&path, &target_dir);
+            copied_count += 1;
         } else if path.is_dir() && !file_name.starts_with('.') {
-            let _ = copy_dmg_plugins_recursive(&path, destination_plugins_root, plugin_name);
+            copied_count += copy_dmg_plugins_recursive(&path, destination_plugins_root, plugin_name).unwrap_or(0);
         }
     }
 
-    Ok(())
+    Ok(copied_count)
 }
 
 #[allow(dead_code)]

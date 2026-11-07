@@ -1,7 +1,13 @@
-# HANDOFF: VST Monster Autonomous Session (v0.4.2)
+# HANDOFF: VST Monster Autonomous Session (v0.4.3)
 
 ## Summary of Session Accomplishments
-1. **Active Installation Path Spec Indicator & Interactive Hash Copy Action (v0.4.2)**:
+1. **Comprehensive macOS DMG Extraction & Automated Plugin Installation (v0.4.3)**:
+   - Enhanced `hdiutil attach` with robust flags (`-nobrowse`, `-readonly`, `-noverify`, `-noautoopen`) to prevent hanging on verification or auto-opening Finder.
+   - Added automated recursive `.pkg` / `.mpkg` discovery inside mounted DMG volumes with headless execution via `installer -pkg <path> -target /`.
+   - Expanded audio bundle extraction to support `.vst` (VST2) alongside `.vst3`, `.component` (AU), and `.clap` directly into `~/Library/Audio/Plug-Ins/`.
+   - Implemented detachment retry handling with automated delay if the volume handle is temporarily busy.
+   - Synchronized global ecosystem version to `v0.4.3`.
+2. **Active Installation Path Spec Indicator & Interactive Hash Copy Action (v0.4.2)**:
    - Added active installation path display in the catalog grid specs for locally installed plugins with quick inspection tooltips.
    - Implemented reactive one-click copy buttons (`copyToClipboard`) with visual confirmation state transitions (`📋` -> `✓` and `📋 Copy` -> `✓ Copied`) across both catalog cards and the plugin inspection preview drawer.
    - Implemented multi-tier clipboard support utilizing modern `navigator.clipboard.writeText` with legacy `textarea` fallback for cross-platform Linux webkit / Tauri webview contexts.

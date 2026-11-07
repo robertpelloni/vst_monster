@@ -1,5 +1,12 @@
 # CHANGELOG: VST Monster
 
+## [0.4.3] - Comprehensive macOS DMG Extraction & Automated Plugin Installation
+- Enhanced `hdiutil attach` with `-nobrowse`, `-readonly`, `-noverify`, and `-noautoopen` to prevent volume prompts or hanging on validation.
+- Added recursive `.pkg` / `.mpkg` discovery inside mounted DMG volumes with automated headless execution via `installer -pkg <path> -target /`.
+- Expanded audio bundle extraction to support `.vst` (legacy VST2) alongside `.vst3`, `.component` (AU), and `.clap` directly into `~/Library/Audio/Plug-Ins/`.
+- Added resilient volume detachment with automated retry logic to handle busy filesystem handles.
+- Bumped ecosystem version to `v0.4.3`.
+
 ## [0.4.2] - Active Installation Path Spec Indicator & Interactive Hash Copy Action
 - Added active installation path display in the catalog grid specs for locally installed plugins with quick inspection tooltips.
 - Implemented reactive one-click copy buttons (`copyToClipboard`) with visual confirmation state transitions (`📋` -> `✓` and `📋 Copy` -> `✓ Copied`) across both catalog cards and the plugin inspection preview drawer.
