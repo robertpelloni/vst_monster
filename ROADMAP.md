@@ -38,6 +38,7 @@
 - [x] Implement Linux direct `.so` standalone binary relocation and permission handling (`0o755`).
 - [x] Format-Aware ZIP Unpack Engine with dynamic format bundle routing (`.lv2`, `.clap`, `.vst3`).
 - [x] Audio Format & Host Compatibility Matrix breakdown and LV2 Open Audio Standard integration.
+- [x] Tabbed Inspector Views (Overview & Specs, Filesystem & DAW, Raw Manifest JSON).
 - [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
 - [ ] Add sandbox malware scanning integration (VirusTotal API / ClamAV) prior to installation.
 

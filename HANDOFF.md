@@ -1,7 +1,15 @@
-# HANDOFF: VST Monster Autonomous Session (v0.4.5)
+# HANDOFF: VST Monster Autonomous Session (v0.4.6)
 
 ## Summary of Session Accomplishments
-1. **Format-Aware Zip Extraction & Audio Format & Host Compatibility Matrix (v0.4.5)**:
+1. **Tabbed Inspector Views (Overview & Specs, Filesystem & DAW, Raw Manifest JSON) (v0.4.6)**:
+   - Restructured the plugin inspector drawer (`client/src/routes/+page.svelte`) with a 3-way tabbed navigation bar (`activeInspectorTab` state):
+     - **🎛️ Overview & Specs**: Overview status banner, legacy compatibility warning, specs grid, synthesis description, and Audio Format & Host Compatibility Matrix.
+     - **📁 Filesystem & DAW**: Local installation format, absolute filesystem path, detected version, bundle integrity checks with inline verification triggers, cryptographic SHA-256 digest copy box, and direct distribution endpoint URL.
+     - **📋 Raw Manifest JSON**: Formatted syntax-highlighted raw JSON viewer rendering `JSON.stringify(previewPlugin, null, 2)` with inline "Copy JSON" and "Save .json" action triggers.
+   - Added corresponding modern dark-mode CSS styling for `.inspector-tabs-bar`, `.inspector-tab-btn`, `.filesystem-details-card`, `.fs-row`, `.raw-manifest-container`, and `.raw-manifest-pre`.
+   - Verified clean TypeScript/Svelte compilation (`npm run check`) and zero warnings/errors on Vite static build (`npm run build`).
+   - Bumped ecosystem version to `v0.4.6`.
+2. **Format-Aware Zip Extraction & Audio Format & Host Compatibility Matrix (v0.4.5)**:
    - Enhanced `extract_zip_archive` in `client/src-tauri/src/installer.rs` to inspect archive entry paths and dynamically route extraction to format-specific OS audio directories (`~/.lv2` for LV2/TTL, `~/.clap` for CLAP, `~/.vst3` for VST3).
    - Added a dedicated "Audio Format & Host Compatibility Matrix" section in `client/src/routes/+page.svelte` breaking down distribution architecture (`x86_64`), destination audio paths, and verified host DAWs (Bitwig, Reaper, Cubase, FL Studio, Ableton, Ardour).
    - Added an LV2 Open Audio Standard banner detailing Turtle (`.ttl`) RDF manifest graph features and Linux audio host compatibility.

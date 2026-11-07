@@ -1,5 +1,14 @@
 # CHANGELOG: VST Monster
 
+## [0.4.6] - Tabbed Inspector Views (Overview & Specs, Filesystem & DAW, Raw Manifest JSON)
+- Restructured the plugin inspector drawer (`client/src/routes/+page.svelte`) with a 3-way tabbed navigation bar (`activeInspectorTab` state):
+  - **🎛️ Overview & Specs**: Overview status banner, legacy compatibility warning, specs grid, synthesis description, and Audio Format & Host Compatibility Matrix.
+  - **📁 Filesystem & DAW**: Local installation format, absolute filesystem path, detected version, bundle integrity checks with inline verification triggers, cryptographic SHA-256 digest copy box, and direct distribution endpoint URL.
+  - **📋 Raw Manifest JSON**: Formatted syntax-highlighted raw JSON viewer rendering `JSON.stringify(previewPlugin, null, 2)` with inline "Copy JSON" and "Save .json" action triggers.
+- Added corresponding modern dark-mode CSS styling for `.inspector-tabs-bar`, `.inspector-tab-btn`, `.filesystem-details-card`, `.fs-row`, `.raw-manifest-container`, and `.raw-manifest-pre`.
+- Verified clean TypeScript/Svelte compilation (`npm run check`) and zero warnings/errors on Vite static build (`npm run build`).
+- Bumped ecosystem version to `v0.4.6`.
+
 ## [0.4.5] - Format-Aware Zip Extraction with LV2/CLAP Auto-Targeting & Inspector Compatibility Matrix
 - Enhanced `extract_zip_archive` in `client/src-tauri/src/installer.rs` to inspect archive entries and dynamically route extraction to format-specific OS audio directories (`~/.lv2` for LV2/TTL, `~/.clap` for CLAP, `~/.vst3` for VST3).
 - Added an "Audio Format & Host Compatibility Matrix" section in the plugin inspection preview drawer (`client/src/routes/+page.svelte`) detailing distribution architecture, target audio folders, and verified DAW hosts.

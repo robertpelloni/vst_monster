@@ -67,6 +67,7 @@
   let isLogsCollapsed = $state(true);
   let showAddPluginModal = $state(false);
   let previewPlugin = $state<Plugin | null>(null);
+  let activeInspectorTab = $state<'overview' | 'filesystem' | 'manifest'>('overview');
   let isVerifyingPlugin = $state(false);
   let verificationStatus = $state<{ [key: string]: 'valid' | 'invalid' | 'verifying' }>({});
   let copiedHashId = $state<string | number | null>(null);
@@ -838,165 +839,264 @@
           <button class="modal-close" onclick={() => (previewPlugin = null)}>✕</button>
         </div>
 
+        <!-- Inspector View Navigation Tabs -->
+        <div class="inspector-tabs-bar">
+          <button
+            type="button"
+            class="inspector-tab-btn {activeInspectorTab === 'overview' ? 'active' : ''}"
+            onclick={() => (activeInspectorTab = 'overview')}
+            use:tooltip={"View synthesis architecture, license, release metadata, and host compatibility matrix"}
+          >
+            🎛️ Overview & Specs
+          </button>
+          <button
+            type="button"
+            class="inspector-tab-btn {activeInspectorTab === 'filesystem' ? 'active' : ''}"
+            onclick={() => (activeInspectorTab = 'filesystem')}
+            use:tooltip={"View local filesystem bundle paths, verification checks, scan paths, and cryptographic digest"}
+          >
+            📁 Filesystem & DAW
+          </button>
+          <button
+            type="button"
+            class="inspector-tab-btn {activeInspectorTab === 'manifest' ? 'active' : ''}"
+            onclick={() => (activeInspectorTab = 'manifest')}
+            use:tooltip={"Inspect structured raw JSON package manifest"}
+          >
+            📋 Raw Manifest JSON
+          </button>
+        </div>
+
         <div class="preview-content">
-          <!-- Status Banner -->
-          {#if previewInstalled}
-            <div class="preview-install-status {previewVersionStatus?.state === 'update-available' ? 'status-update' : 'status-installed'}">
-              <span class="icon">✓</span>
-              <div class="preview-status-details">
-                <div class="preview-status-title-row">
-                  <strong>Installed in {previewInstalled.format.toUpperCase()} format</strong>
-                  {#if verificationStatus[previewPlugin.name]}
-                    <span class="verification-badge {verificationStatus[previewPlugin.name]}">
-                      {verificationStatus[previewPlugin.name] === 'valid' ? '✓ Verified Bundle' : verificationStatus[previewPlugin.name] === 'verifying' ? '⏳ Verifying...' : '⚠ Missing Binary'}
-                    </span>
+          {#if activeInspectorTab === 'overview'}
+            <!-- Status Banner -->
+            {#if previewInstalled}
+              <div class="preview-install-status {previewVersionStatus?.state === 'update-available' ? 'status-update' : 'status-installed'}">
+                <span class="icon">✓</span>
+                <div class="preview-status-details">
+                  <div class="preview-status-title-row">
+                    <strong>Installed in {previewInstalled.format.toUpperCase()} format</strong>
+                    {#if verificationStatus[previewPlugin.name]}
+                      <span class="verification-badge {verificationStatus[previewPlugin.name]}">
+                        {verificationStatus[previewPlugin.name] === 'valid' ? '✓ Verified Bundle' : verificationStatus[previewPlugin.name] === 'verifying' ? '⏳ Verifying...' : '⚠ Missing Binary'}
+                      </span>
+                    {/if}
+                  </div>
+                  <p>Path: <code>{previewInstalled.path}</code></p>
+                  {#if previewVersionStatus}
+                    <small class="version-label-note">{previewVersionStatus.label}</small>
                   {/if}
                 </div>
-                <p>Path: <code>{previewInstalled.path}</code></p>
-                {#if previewVersionStatus}
-                  <small class="version-label-note">{previewVersionStatus.label}</small>
-                {/if}
-                <div class="preview-status-subactions">
-                  <button
-                    type="button"
-                    class="btn-tiny-action"
-                    onclick={() => handleVerifyBundle(previewPlugin!.name, previewInstalled.path)}
-                    disabled={isVerifyingPlugin}
-                    use:tooltip={"Check if plugin binary or bundle exists on local filesystem"}
-                  >
-                    🔍 Verify File Integrity
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-tiny-action"
-                    onclick={() => handleOpenDirectory(previewPlugin!.name)}
-                    use:tooltip={"Open enclosing plugin directory in native file manager"}
-                  >
-                    📂 Show in File Explorer
-                  </button>
-                </div>
               </div>
-            </div>
-          {:else}
-            <div class="preview-install-status status-not-installed">
-              <span class="icon">📦</span>
-              <div>
-                <strong>Not locally installed</strong>
-                <p>Ready to stream and unpack via VST Monster silent engine.</p>
-              </div>
-            </div>
-          {/if}
-
-          <!-- Legacy Compatibility Warning -->
-          {#if isLegacyPlugin(previewPlugin, previewInstalled)}
-            <div class="legacy-warning-box">
-              <span class="warning-icon">⚠️</span>
-              <div class="warning-content">
-                <strong>Legacy VST2 / 32-bit Architecture Detected</strong>
-                <p>This plugin uses older VST2 or 32-bit binaries. Modern 64-bit DAWs (e.g., Cubase 12+, Bitwig, Ableton Live 10+, Apple Silicon macOS) may require a compatibility bridge such as <em>yabridge</em> or <em>jBridge</em> to load.</p>
-              </div>
-            </div>
-          {/if}
-
-          <!-- Metadata Specs -->
-          <div class="preview-specs-grid">
-            <div class="spec-tile">
-              <span class="label">License</span>
-              <strong class="value uppercase">{previewPlugin.license_model}</strong>
-            </div>
-            <div class="spec-tile">
-              <span class="label">Latest Release</span>
-              <strong class="value">v{previewPlugin.version || '1.0.0'}</strong>
-            </div>
-            <div class="spec-tile">
-              <span class="label">Target OS</span>
-              <strong class="value capitalize">{previewPlugin.platform || 'linux'}</strong>
-            </div>
-            <div class="spec-tile" use:tooltip={"Installation execution mode: silent installer, archive decompression (ZIP/TAR/DMG), or direct binary relocation"}>
-              <span class="label">Strategy</span>
-              <strong class="value strategy-value">{previewPlugin.strategy || 'extract_binaries'}</strong>
-            </div>
-          </div>
-
-          <!-- Description -->
-          <div class="preview-section">
-            <h4>Description & Synthesis Architecture</h4>
-            <p class="preview-desc-text">
-              {previewPlugin.metadata?.description || 'No extended description provided. Cataloged via VST Monster distributed crawler pipeline.'}
-            </p>
-          </div>
-
-          <!-- Audio Architecture & Compatibility Matrix -->
-          <div class="preview-section">
-            <div class="preview-section-title-row">
-              <h4>Audio Format & Host Compatibility Matrix</h4>
-              <span class="preview-format-tag" use:tooltip={"Primary audio plugin architecture inferred from distribution"}>
-                {previewInferredFormat} Standard
-              </span>
-            </div>
-            <div class="matrix-grid">
-              <div class="matrix-item">
-                <span class="matrix-label">Native Format</span>
-                <span class="matrix-val">{previewInferredFormat}</span>
-              </div>
-              <div class="matrix-item">
-                <span class="matrix-label">Distribution Architecture</span>
-                <span class="matrix-val">{previewPlugin.architecture || 'x86_64'}</span>
-              </div>
-              <div class="matrix-item">
-                <span class="matrix-label">Target OS Destination</span>
-                <span class="matrix-val capitalize">{previewPlugin.platform || 'linux'}</span>
-              </div>
-              <div class="matrix-item">
-                <span class="matrix-label">Host DAWs</span>
-                <span class="matrix-val">{previewInferredFormat.includes('LV2') ? 'Ardour, Reaper, Carla, Mixbus, LMMS' : 'Bitwig, Cubase, Reaper, FL Studio, Ableton'}</span>
-              </div>
-            </div>
-
-            {#if previewInferredFormat.includes('LV2') || (previewInstalled?.format.toLowerCase() === 'lv2')}
-              <div class="lv2-spec-banner" use:tooltip={"LV2 Open Audio Standard with Turtle (TTL) manifest graph"}>
-                <span class="lv2-icon">🎛️</span>
-                <div class="lv2-content">
-                  <strong>LV2 Open Audio Standard Detected</strong>
-                  <p>Includes Turtle graph definitions (<code>manifest.ttl</code>). Supported across Linux audio workstations (Ardour, Carla, Reaper, Qtractor) with sample-accurate parameter automation and dynamic port discovery.</p>
+            {:else}
+              <div class="preview-install-status status-not-installed">
+                <span class="icon">📦</span>
+                <div>
+                  <strong>Not locally installed</strong>
+                  <p>Ready to stream and unpack via VST Monster silent engine.</p>
                 </div>
               </div>
             {/if}
-          </div>
 
-          <!-- Cryptographic Digest -->
-          {#if previewPlugin.sha256_hash}
-            <div class="preview-section">
-              <div class="preview-section-title-row">
-                <h4>Binary SHA-256 Digest</h4>
-                <button
-                  type="button"
-                  class="btn-copy-hash"
-                  onclick={() => copyToClipboard(previewPlugin!.sha256_hash!, 'preview')}
-                  use:tooltip={"Copy full SHA-256 cryptographic digest to clipboard"}
-                >
-                  {copiedHashId === 'preview' ? '✓ Copied' : '📋 Copy'}
-                </button>
+            <!-- Legacy Compatibility Warning -->
+            {#if isLegacyPlugin(previewPlugin, previewInstalled)}
+              <div class="legacy-warning-box">
+                <span class="warning-icon">⚠️</span>
+                <div class="warning-content">
+                  <strong>Legacy VST2 / 32-bit Architecture Detected</strong>
+                  <p>This plugin uses older VST2 or 32-bit binaries. Modern 64-bit DAWs (e.g., Cubase 12+, Bitwig, Ableton Live 10+, Apple Silicon macOS) may require a compatibility bridge such as <em>yabridge</em> or <em>jBridge</em> to load.</p>
+                </div>
               </div>
-              <div class="preview-hash-box">
-                <code>{previewPlugin.sha256_hash}</code>
+            {/if}
+
+            <!-- Metadata Specs -->
+            <div class="preview-specs-grid">
+              <div class="spec-tile">
+                <span class="label">License</span>
+                <strong class="value uppercase">{previewPlugin.license_model}</strong>
+              </div>
+              <div class="spec-tile">
+                <span class="label">Latest Release</span>
+                <strong class="value">v{previewPlugin.version || '1.0.0'}</strong>
+              </div>
+              <div class="spec-tile">
+                <span class="label">Target OS</span>
+                <strong class="value capitalize">{previewPlugin.platform || 'linux'}</strong>
+              </div>
+              <div class="spec-tile" use:tooltip={"Installation execution mode: silent installer, archive decompression (ZIP/TAR/DMG), or direct binary relocation"}>
+                <span class="label">Strategy</span>
+                <strong class="value strategy-value">{previewPlugin.strategy || 'extract_binaries'}</strong>
               </div>
             </div>
-          {/if}
 
-          <!-- Direct Download Link -->
-          {#if previewPlugin.download_url}
+            <!-- Description -->
             <div class="preview-section">
-              <h4>Direct Binary Download Source</h4>
-              <a
-                href={previewPlugin.download_url}
-                target="_blank"
-                rel="noreferrer"
-                class="preview-download-link"
-                use:tooltip={"Open direct binary distribution endpoint in external browser"}
-              >
-                🔗 {previewPlugin.download_url}
-              </a>
+              <h4>Description & Synthesis Architecture</h4>
+              <p class="preview-desc-text">
+                {previewPlugin.metadata?.description || 'No extended description provided. Cataloged via VST Monster distributed crawler pipeline.'}
+              </p>
+            </div>
+
+            <!-- Audio Architecture & Compatibility Matrix -->
+            <div class="preview-section">
+              <div class="preview-section-title-row">
+                <h4>Audio Format & Host Compatibility Matrix</h4>
+                <span class="preview-format-tag" use:tooltip={"Primary audio plugin architecture inferred from distribution"}>
+                  {previewInferredFormat} Standard
+                </span>
+              </div>
+              <div class="matrix-grid">
+                <div class="matrix-item">
+                  <span class="matrix-label">Native Format</span>
+                  <span class="matrix-val">{previewInferredFormat}</span>
+                </div>
+                <div class="matrix-item">
+                  <span class="matrix-label">Distribution Architecture</span>
+                  <span class="matrix-val">{previewPlugin.architecture || 'x86_64'}</span>
+                </div>
+                <div class="matrix-item">
+                  <span class="matrix-label">Target OS Destination</span>
+                  <span class="matrix-val capitalize">{previewPlugin.platform || 'linux'}</span>
+                </div>
+                <div class="matrix-item">
+                  <span class="matrix-label">Host DAWs</span>
+                  <span class="matrix-val">{previewInferredFormat.includes('LV2') ? 'Ardour, Reaper, Carla, Mixbus, LMMS' : 'Bitwig, Cubase, Reaper, FL Studio, Ableton'}</span>
+                </div>
+              </div>
+
+              {#if previewInferredFormat.includes('LV2') || (previewInstalled?.format.toLowerCase() === 'lv2')}
+                <div class="lv2-spec-banner" use:tooltip={"LV2 Open Audio Standard with Turtle (TTL) manifest graph"}>
+                  <span class="lv2-icon">🎛️</span>
+                  <div class="lv2-content">
+                    <strong>LV2 Open Audio Standard Detected</strong>
+                    <p>Includes Turtle graph definitions (<code>manifest.ttl</code>). Supported across Linux audio workstations (Ardour, Carla, Reaper, Qtractor) with sample-accurate parameter automation and dynamic port discovery.</p>
+                  </div>
+                </div>
+              {/if}
+            </div>
+
+          {:else if activeInspectorTab === 'filesystem'}
+            <!-- Filesystem & Local Inspection Tab -->
+            <div class="preview-section">
+              <h4>Local Audio Installation State</h4>
+              {#if previewInstalled}
+                <div class="filesystem-details-card">
+                  <div class="fs-row">
+                    <span class="fs-label">Audio Plugin Format:</span>
+                    <span class="fs-value badge-format">{previewInstalled.format.toUpperCase()}</span>
+                  </div>
+                  <div class="fs-row">
+                    <span class="fs-label">Absolute Filesystem Path:</span>
+                    <code class="fs-path">{previewInstalled.path}</code>
+                  </div>
+                  <div class="fs-row">
+                    <span class="fs-label">Detected Version:</span>
+                    <span class="fs-value">v{previewInstalled.version}</span>
+                  </div>
+                  <div class="fs-row">
+                    <span class="fs-label">Bundle Verification:</span>
+                    <span class="fs-value">
+                      {#if verificationStatus[previewPlugin.name] === 'valid'}
+                        <span class="verification-badge valid">✓ Valid Binary Structure</span>
+                      {:else if verificationStatus[previewPlugin.name] === 'verifying'}
+                        <span class="verification-badge verifying">⏳ Verifying bundle integrity...</span>
+                      {:else if verificationStatus[previewPlugin.name] === 'invalid'}
+                        <span class="verification-badge invalid">⚠ Missing Binary or Corrupt Bundle</span>
+                      {:else}
+                        <span class="verification-badge">Unverified</span>
+                      {/if}
+                    </span>
+                  </div>
+                  <div class="fs-action-row">
+                    <button
+                      type="button"
+                      class="btn-tiny-action"
+                      onclick={() => handleVerifyBundle(previewPlugin!.name, previewInstalled.path)}
+                      disabled={isVerifyingPlugin}
+                      use:tooltip={"Execute deep binary and bundle integrity check on local filesystem"}
+                    >
+                      🔍 Run Deep Verification
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-tiny-action"
+                      onclick={() => handleOpenDirectory(previewPlugin!.name)}
+                      use:tooltip={"Open local enclosing directory in file explorer"}
+                    >
+                      📂 Open in File Explorer
+                    </button>
+                  </div>
+                </div>
+              {:else}
+                <div class="empty-fs-state">
+                  <p>📦 Plugin is not installed locally. Default installation will target user audio directory.</p>
+                </div>
+              {/if}
+            </div>
+
+            <!-- Cryptographic Digest -->
+            {#if previewPlugin.sha256_hash}
+              <div class="preview-section">
+                <div class="preview-section-title-row">
+                  <h4>Cryptographic SHA-256 Digest</h4>
+                  <button
+                    type="button"
+                    class="btn-copy-hash"
+                    onclick={() => copyToClipboard(previewPlugin!.sha256_hash!, 'preview')}
+                    use:tooltip={"Copy full SHA-256 cryptographic digest to clipboard"}
+                  >
+                    {copiedHashId === 'preview' ? '✓ Copied' : '📋 Copy'}
+                  </button>
+                </div>
+                <div class="preview-hash-box">
+                  <code>{previewPlugin.sha256_hash}</code>
+                </div>
+              </div>
+            {/if}
+
+            <!-- Direct Download Link -->
+            {#if previewPlugin.download_url}
+              <div class="preview-section">
+                <h4>Direct Binary Distribution Endpoint</h4>
+                <a
+                  href={previewPlugin.download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  class="preview-download-link"
+                  use:tooltip={"Open direct binary distribution endpoint in external browser"}
+                >
+                  🔗 {previewPlugin.download_url}
+                </a>
+              </div>
+            {/if}
+
+          {:else if activeInspectorTab === 'manifest'}
+            <!-- Raw JSON Manifest Tab -->
+            <div class="preview-section">
+              <div class="preview-section-title-row">
+                <h4>Package Registry Manifest (JSON)</h4>
+                <div class="manifest-actions">
+                  <button
+                    type="button"
+                    class="btn-copy-hash"
+                    onclick={() => copyToClipboard(JSON.stringify(previewPlugin, null, 2), 'manifest-json')}
+                    use:tooltip={"Copy entire JSON manifest to clipboard"}
+                  >
+                    {copiedHashId === 'manifest-json' ? '✓ Copied' : '📋 Copy JSON'}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-tiny-action"
+                    onclick={() => exportPluginManifest(previewPlugin!)}
+                    use:tooltip={"Export as standalone manifest file"}
+                  >
+                    📥 Save .json
+                  </button>
+                </div>
+              </div>
+              <div class="raw-manifest-container">
+                <pre class="raw-manifest-pre"><code>{JSON.stringify(previewPlugin, null, 2)}</code></pre>
+              </div>
             </div>
           {/if}
 
@@ -2138,6 +2238,127 @@
   /* Preview Card Styles */
   .preview-card {
     max-width: 680px;
+  }
+
+  .inspector-tabs-bar {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 1.5rem;
+    background: #111827;
+    border-bottom: 1px solid #1f2937;
+  }
+
+  .inspector-tab-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #94a3b8;
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .inspector-tab-btn:hover {
+    color: #f1f5f9;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .inspector-tab-btn.active {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.3);
+  }
+
+  .filesystem-details-card {
+    background: #0f1117;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .fs-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.8rem;
+    font-size: 0.82rem;
+  }
+
+  .fs-label {
+    width: 160px;
+    color: #64748b;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .fs-value {
+    color: #e2e8f0;
+  }
+
+  .badge-format {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .fs-path {
+    background: rgba(0, 0, 0, 0.4);
+    color: #38bdf8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    word-break: break-all;
+    font-size: 0.75rem;
+  }
+
+  .fs-action-row {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.4rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .empty-fs-state {
+    background: #0f1117;
+    padding: 1.2rem;
+    border-radius: 8px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    border: 1px dashed #334155;
+  }
+
+  .manifest-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .raw-manifest-container {
+    background: #090d16;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.8rem;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .raw-manifest-pre {
+    margin: 0;
+    font-family: monospace;
+    font-size: 0.72rem;
+    color: #38bdf8;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   .preview-header-info {
