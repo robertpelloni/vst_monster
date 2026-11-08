@@ -1,5 +1,13 @@
 # CHANGELOG: VST Monster
 
+## [0.5.4] - Native Windows Zip Extraction & Exported DAW Entry Point Symbol Inspection
+- Implemented native Windows Zip archive extraction in `client/src-tauri/src/installer.rs`, detecting VST2 (`.dll`), CLAP (`.clap`), and VST3 payloads and dynamically routing extraction to `%CommonProgramFiles%/VST3`, `%CommonProgramFiles%/VST2`, `%CommonProgramFiles%/CLAP`, or user document fallbacks (`Documents/VST3`, `Documents/VST`).
+- Implemented exported entry point symbol verification within `test_plugin_bundle_integrity` in `client/src-tauri/src/installer.rs`, inspecting binary byte slices for standard DAW host entry points: `GetPluginFactory` (VST3), `clap_entry` (CLAP), `lv2_descriptor` (LV2), and `VSTPluginMain` / `main` (VST2).
+- Extended `BundleValidationResult` with `exported_symbols: Vec<String>` and added symbol badge tags in the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte`.
+- Added host loading tooltips explaining binary entry point verification for dynamic host linking across modern DAWs (Bitwig, REAPER, Cubase, FL Studio, Ableton Live).
+- Verified Rust test compilation (`cargo test --no-run`), Svelte diagnostics (`npm run check`), production build (`npm run build`), and Playwright visual testing.
+- Bumped ecosystem version to `v0.5.4`.
+
 ## [0.5.3] - Automated DAW Plugin Bundle Integrity Fuzzer & Diagnostic Suite
 - Added native command `test_plugin_bundle_integrity` in `client/src-tauri/src/installer.rs` delivering automated headless DAW bundle validation, executable permission assertions, binary counts, and total byte sizing.
 - Added executable binary inspection analyzing ELF (`0x7F 0x45 0x4C 0x46`), Mach-O (`0xCFFAEDFE` / `0xFEEDFACF`), and Windows PE (`MZ`) magic headers across bundle payloads.

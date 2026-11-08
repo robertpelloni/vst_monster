@@ -56,5 +56,6 @@
 - [x] Implement deep audio bundle structural inspection & audit diagnostics (v0.5.1).
 - [x] Implement CLAP open architecture specification callouts and inspector badging (v0.5.2).
 - [x] Headless automated DAW plugin bundle fuzzing and validation test suite (v0.5.3).
-- [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
+- [x] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files (v0.5.4).
+- [x] Exported DAW host entry point symbol verification (`GetPluginFactory`, `clap_entry`, `lv2_descriptor`, `VSTPluginMain`) (v0.5.4).
 - [ ] Community preset sharing repository and user preset export manager.

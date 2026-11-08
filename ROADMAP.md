@@ -46,7 +46,8 @@
 - [x] Deep Audio Bundle Structural Verification & Audit Diagnostics (v0.5.1).
 - [x] CLAP Open Architecture Specification Callouts & Inspection Badging (v0.5.2).
 - [x] Headless automated DAW plugin bundle fuzzing and validation test suite (v0.5.3).
-- [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
+- [x] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files (v0.5.4).
+- [x] Exported DAW host entry point symbol verification (`GetPluginFactory`, `clap_entry`, `lv2_descriptor`, `VSTPluginMain`) (v0.5.4).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

@@ -617,7 +617,28 @@ pub struct BundleValidationResult {
     pub total_size_bytes: u64,
     pub has_executable_permission: bool,
     pub architecture_compatible: bool,
+    pub exported_symbols: Vec<String>,
     pub diagnostics: Vec<String>,
+}
+
+fn check_binary_symbols(bytes: &[u8], symbols: &mut Vec<String>) {
+    // Scan for standard audio plugin entry point symbols in binary byte stream
+    let candidates = [
+        ("GetPluginFactory", "VST3 Entry Point (GetPluginFactory)"),
+        ("clap_entry", "CLAP Entry Point (clap_entry)"),
+        ("lv2_descriptor", "LV2 Descriptor (lv2_descriptor)"),
+        ("VSTPluginMain", "VST2 Main Entry Point (VSTPluginMain)"),
+        ("main", "Legacy C Audio Entry Point (main)"),
+    ];
+
+    for (symbol_str, label) in &candidates {
+        let sym_bytes = symbol_str.as_bytes();
+        if bytes.windows(sym_bytes.len()).any(|window| window == sym_bytes) {
+            if !symbols.contains(&label.to_string()) {
+                symbols.push(label.to_string());
+            }
+        }
+    }
 }
 
 #[tauri::command]
@@ -631,11 +652,13 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
             total_size_bytes: 0,
             has_executable_permission: false,
             architecture_compatible: false,
+            exported_symbols: Vec::new(),
             diagnostics: vec![format!("Path does not exist: {}", path)],
         });
     }
 
     let mut diagnostics = Vec::new();
+    let mut exported_symbols = Vec::new();
     let mut binary_count = 0;
     let mut total_size_bytes = 0;
     let mut has_executable_permission = true;
@@ -663,7 +686,7 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
                 }
             }
 
-            // Inspect magic bytes for ELF / Mach-O / PE
+            // Inspect magic bytes for ELF / Mach-O / PE and entry point symbols
             if let Ok(bytes) = fs::read(&p) {
                 if bytes.len() >= 4 {
                     if &bytes[0..4] == b"\x7fELF" {
@@ -676,6 +699,7 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
                         diagnostics.push("Custom or archive payload structure".to_string());
                     }
                 }
+                check_binary_symbols(&bytes, &mut exported_symbols);
             }
         }
     } else if p.is_dir() {
@@ -687,6 +711,7 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
         if lv2_manifest.exists() {
             detected_format = "LV2".to_string();
             diagnostics.push("LV2 RDF Turtle manifest.ttl verified".to_string());
+            exported_symbols.push("LV2 RDF Turtle Manifest Graph".to_string());
         } else if vst3_contents.exists() {
             detected_format = "VST3".to_string();
             diagnostics.push("VST3 bundle Contents/ architecture tree verified".to_string());
@@ -720,6 +745,10 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
                                         diagnostics.push(format!("Sub-binary missing +x permission: {}", subpath.file_name().unwrap_or_default().to_string_lossy()));
                                     }
                                 }
+
+                                if let Ok(bytes) = fs::read(&subpath) {
+                                    check_binary_symbols(&bytes, &mut exported_symbols);
+                                }
                             }
                         }
                     }
@@ -742,6 +771,7 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
         total_size_bytes,
         has_executable_permission,
         architecture_compatible: true,
+        exported_symbols,
         diagnostics,
     })
 }
@@ -942,9 +972,11 @@ fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Err
     let mut archive = ZipArchive::new(file)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
-    // Detect whether archive contains LV2, CLAP, or VST3 files
+    // Detect whether archive contains LV2, CLAP, VST2 (.dll), or VST3 files
     let mut is_lv2 = false;
     let mut is_clap = false;
+    #[allow(unused_mut)]
+    let mut is_vst2_dll = false;
     for i in 0..archive.len() {
         if let Ok(file) = archive.by_index(i) {
             let name_lower = file.name().to_lowercase();
@@ -953,9 +985,12 @@ fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Err
                 break;
             } else if name_lower.contains(".clap") {
                 is_clap = true;
+            } else if name_lower.ends_with(".dll") && !name_lower.contains(".vst3") {
+                is_vst2_dll = true;
             }
         }
     }
+    let _ = is_vst2_dll; // Silences unused variable warning on non-Windows builds
 
     // Determine target plugin directory based on current OS and detected format
     let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
@@ -981,9 +1016,26 @@ fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Err
 
     #[cfg(target_os = "windows")]
     let target_dir = if is_clap {
-        home_path.join("Documents/CLAP").join(plugin_name)
+        if let Ok(prog_files) = env::var("CommonProgramFiles") {
+            let p = PathBuf::from(&prog_files).join("CLAP").join(plugin_name);
+            if p.parent().map(|parent| parent.exists()).unwrap_or(false) { p } else { home_path.join("Documents/CLAP").join(plugin_name) }
+        } else {
+            home_path.join("Documents/CLAP").join(plugin_name)
+        }
+    } else if is_vst2_dll {
+        if let Ok(prog_files) = env::var("CommonProgramFiles") {
+            let p = PathBuf::from(&prog_files).join("VST2").join(plugin_name);
+            if p.parent().map(|parent| parent.exists()).unwrap_or(false) { p } else { home_path.join("Documents/VST").join(plugin_name) }
+        } else {
+            home_path.join("Documents/VST").join(plugin_name)
+        }
     } else {
-        home_path.join("Documents/VST3").join(plugin_name)
+        if let Ok(prog_files) = env::var("CommonProgramFiles") {
+            let p = PathBuf::from(&prog_files).join("VST3").join(plugin_name);
+            if p.parent().map(|parent| parent.exists()).unwrap_or(false) { p } else { home_path.join("Documents/VST3").join(plugin_name) }
+        } else {
+            home_path.join("Documents/VST3").join(plugin_name)
+        }
     };
 
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]

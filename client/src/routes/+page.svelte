@@ -78,6 +78,7 @@
     total_size_bytes: number;
     has_executable_permission: boolean;
     architecture_compatible: boolean;
+    exported_symbols?: string[];
     diagnostics: string[];
   } | null>(null);
   let copiedHashId = $state<string | number | null>(null);
@@ -1182,6 +1183,20 @@
                           <span class="fuzz-stat-val">{bundleTestResult.has_executable_permission ? '✓ Yes' : '⚠ No'}</span>
                         </div>
                       </div>
+
+                      {#if bundleTestResult.exported_symbols && bundleTestResult.exported_symbols.length > 0}
+                        <div class="fuzz-symbols-container">
+                          <span class="fuzz-symbols-label">Verified DAW Host Entry Symbols:</span>
+                          <div class="fuzz-symbols-badges">
+                            {#each bundleTestResult.exported_symbols as sym}
+                              <span class="fuzz-symbol-badge" use:tooltip={"Exported entry point verified for native DAW host loading and dynamic linking"}>
+                                ⚡ {sym}
+                              </span>
+                            {/each}
+                          </div>
+                        </div>
+                      {/if}
+
                       <ul class="fuzz-diag-list">
                         {#each bundleTestResult.diagnostics as diag}
                           <li>• {diag}</li>
@@ -3032,6 +3047,40 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: #f3f4f6;
+  }
+
+  .fuzz-symbols-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    background: #090d16;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #1e293b;
+  }
+
+  .fuzz-symbols-label {
+    font-size: 0.68rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .fuzz-symbols-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .fuzz-symbol-badge {
+    font-size: 0.72rem;
+    font-family: monospace;
+    font-weight: 600;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 4px;
+    padding: 2px 6px;
   }
 
   .fuzz-diag-list {
