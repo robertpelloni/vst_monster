@@ -1,5 +1,21 @@
 # CHANGELOG: VST Monster
 
+## [0.6.1] - Wine & Yabridge Host Synchronization and Compatibility Engine
+- Defined `YabridgeStatus` in `client/src-tauri/src/installer.rs` returning detection state (`installed`), binary version string (`version`), and currently configured plugin sync directories (`configured_paths`).
+- Implemented `check_yabridge_status` command in `client/src-tauri/src/installer.rs`:
+  - Executes `yabridgectl --version` to verify host compatibility and installation status.
+  - Executes `yabridgectl list` to parse monitored Wine/VST directory paths.
+- Implemented `sync_yabridge` command in `client/src-tauri/src/installer.rs`:
+  - Optionally auto-registers new plugin directories via `yabridgectl add "<path>"`.
+  - Executes host bridge synchronization via `yabridgectl sync` generating bit-bridged Linux VST2/VST3 wrappers for native Linux DAWs (Bitwig Studio, REAPER, Ardour).
+- Registered `check_yabridge_status` and `sync_yabridge` commands in `client/src-tauri/src/lib.rs`.
+- Added a dedicated "Wine & Yabridge Host Synchronization" card in `client/src/routes/+page.svelte` inside the "Filesystem & DAW" inspector tab:
+  - Interactive "🔍 Check Status" action button querying local bridge installation and reporting version info.
+  - Interactive "⚡ Sync Bridge" action button running bridge synchronization for Windows DLL/VST3 binaries.
+  - Configured paths chip list and status notification feedback banner.
+- Verified test suites across Rust (`cargo test` with 10 passing tests), Svelte (`npm run check` with 0 errors/warnings, `npm run build`), and visual Playwright verification (`ui_yabridge_active.png`).
+- Bumped ecosystem version to `v0.6.1`.
+
 ## [0.6.0] - Advanced Installation Routing Engine, Destination Overrides & Strategy Selection
 - Implemented `install_plugin_advanced` in `client/src-tauri/src/installer.rs` supporting optional custom destination directory overrides (`custom_target_dir`) and explicit execution strategies (`force_strategy`):
   - Extended Zip archive decompression engine (`extract_zip_archive_with_target`) to route extracted payloads into custom DAW directory paths when provided.

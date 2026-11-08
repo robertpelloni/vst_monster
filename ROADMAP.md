@@ -54,6 +54,7 @@
 - [x] Dedicated LV2 GitHub scraper topics, release asset prioritization, and manifest architecture badges (v0.5.8).
 - [x] Windows MSI silent installer engine, diagnostic log aggregation & exit code decoders (v0.5.9).
 - [x] Advanced installation routing engine, custom destination overrides & strategy selection (v0.6.0).
+- [x] Wine & Yabridge host synchronization and Windows DLL/VST3 bridge compatibility engine (v0.6.1).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

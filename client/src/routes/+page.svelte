@@ -102,6 +102,17 @@
   let isExportingPreset = $state(false);
   let presetExportMessage = $state('');
 
+  // Yabridge Linux Bridging State
+  interface YabridgeStatusInfo {
+    installed: boolean;
+    version?: string;
+    configured_paths: string[];
+  }
+  let yabridgeStatus = $state<YabridgeStatusInfo | null>(null);
+  let isCheckingYabridge = $state(false);
+  let isSyncingYabridge = $state(false);
+  let yabridgeMessage = $state('');
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -527,6 +538,33 @@
       }, 2000);
     } catch (err) {
       console.warn('Clipboard write failed:', err);
+    }
+  }
+
+  async function checkYabridge() {
+    isCheckingYabridge = true;
+    yabridgeMessage = '';
+    try {
+      const res: YabridgeStatusInfo = await invoke('check_yabridge_status');
+      yabridgeStatus = res;
+    } catch (err: any) {
+      yabridgeMessage = `Failed to check yabridge: ${err}`;
+    } finally {
+      isCheckingYabridge = false;
+    }
+  }
+
+  async function syncYabridgePlugin(pluginPath?: string) {
+    isSyncingYabridge = true;
+    yabridgeMessage = '';
+    try {
+      const res: string = await invoke('sync_yabridge', { pluginPath });
+      yabridgeMessage = res;
+      await checkYabridge();
+    } catch (err: any) {
+      yabridgeMessage = `Yabridge error: ${err}`;
+    } finally {
+      isSyncingYabridge = false;
     }
   }
 
@@ -1388,6 +1426,68 @@
                     <span class="sec-val-dim">Dynamic stream calculated upon download</span>
                   {/if}
                 </div>
+              </div>
+
+              <!-- Wine & Yabridge Linux Compatibility Sync -->
+              <div class="yabridge-card">
+                <div class="yabridge-header-row">
+                  <div class="yabridge-title">
+                    <span class="yabridge-icon">🍷</span>
+                    <div>
+                      <strong>Wine & Yabridge Host Synchronization</strong>
+                      <span class="yabridge-subtitle">Bridge Windows VST2 (.dll) and VST3 (.vst3) binaries on Linux DAWs (Bitwig, REAPER)</span>
+                    </div>
+                  </div>
+                  <div class="yabridge-actions">
+                    <button
+                      type="button"
+                      class="btn-yabridge-check"
+                      onclick={checkYabridge}
+                      disabled={isCheckingYabridge}
+                      use:tooltip={"Check if yabridgectl is installed and scan registered directories"}
+                    >
+                      {isCheckingYabridge ? 'Checking...' : '🔍 Check Status'}
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-yabridge-sync"
+                      onclick={() => syncYabridgePlugin(previewInstalled?.path)}
+                      disabled={isSyncingYabridge}
+                      use:tooltip={"Sync this plugin folder with yabridgectl sync to generate native Linux .so bridges"}
+                    >
+                      {isSyncingYabridge ? 'Syncing...' : '⚡ Sync Bridge'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if yabridgeStatus}
+                  <div class="yabridge-status-body">
+                    <div class="yabridge-status-line">
+                      <span class="badge" class:badge-active={yabridgeStatus.installed} class:badge-inactive={!yabridgeStatus.installed}>
+                        {yabridgeStatus.installed ? `✓ Yabridge Detected (${yabridgeStatus.version || 'Active'})` : '⚠️ yabridgectl Not Found'}
+                      </span>
+                      {#if !yabridgeStatus.installed}
+                        <span class="yabridge-install-tip">Install yabridge and Wine to run Windows plugins seamlessly on Linux.</span>
+                      {/if}
+                    </div>
+                    {#if yabridgeStatus.configured_paths.length > 0}
+                      <div class="yabridge-paths-list">
+                        <span class="yabridge-paths-title">Configured Bridge Directories:</span>
+                        <ul>
+                          {#each yabridgeStatus.configured_paths as p}
+                            <li><code>{p}</code></li>
+                          {/each}
+                        </ul>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+
+                {#if yabridgeMessage}
+                  <div class="yabridge-message-box" class:error={yabridgeMessage.includes('error') || yabridgeMessage.includes('not installed')}>
+                    <pre>{yabridgeMessage}</pre>
+                  </div>
+                {/if}
               </div>
             </div>
 
@@ -3437,6 +3537,139 @@
     font-size: 0.75rem;
     color: #64748b;
     font-style: italic;
+  }
+
+  .yabridge-card {
+    background: #140d1f;
+    border: 1px solid #381e5f;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+  }
+
+  .yabridge-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .yabridge-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .yabridge-icon {
+    font-size: 1.3rem;
+  }
+
+  .yabridge-title strong {
+    display: block;
+    font-size: 0.88rem;
+    color: #c084fc;
+  }
+
+  .yabridge-subtitle {
+    display: block;
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .yabridge-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-yabridge-check,
+  .btn-yabridge-sync {
+    background: #2a1b42;
+    border: 1px solid #582a85;
+    color: #e9d5ff;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: 0.15s ease-in-out;
+    white-space: nowrap;
+  }
+
+  .btn-yabridge-check:hover:not(:disabled),
+  .btn-yabridge-sync:hover:not(:disabled) {
+    background: #3b235e;
+    box-shadow: 0 0 10px rgba(192, 132, 252, 0.3);
+  }
+
+  .btn-yabridge-sync {
+    background: #7e22ce;
+    border-color: #a855f7;
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  .btn-yabridge-sync:hover:not(:disabled) {
+    background: #9333ea;
+  }
+
+  .yabridge-status-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .yabridge-status-line {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .yabridge-install-tip {
+    color: #94a3b8;
+    font-size: 0.72rem;
+  }
+
+  .yabridge-paths-list {
+    margin-top: 0.3rem;
+    background: #0a0612;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #271442;
+  }
+
+  .yabridge-paths-title {
+    color: #c084fc;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    display: block;
+  }
+
+  .yabridge-paths-list ul {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: #cbd5e1;
+  }
+
+  .yabridge-message-box {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.5rem;
+  }
+
+  .yabridge-message-box pre {
+    margin: 0;
+    font-size: 0.72rem;
+    color: #38bdf8;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .yabridge-message-box.error pre {
+    color: #f87171;
   }
 
   .bundle-fuzz-report {

@@ -1260,6 +1260,91 @@ fn extract_zip_archive_with_target(
     Ok(())
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct YabridgeStatus {
+    pub installed: bool,
+    pub version: Option<String>,
+    pub configured_paths: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn check_yabridge_status() -> Result<YabridgeStatus, String> {
+    let check = Command::new("yabridgectl")
+        .arg("--version")
+        .output()
+        .await;
+
+    match check {
+        Ok(output) if output.status.success() => {
+            let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+            // Try reading configured paths via yabridgectl list
+            let mut paths = Vec::new();
+            if let Ok(list_output) = Command::new("yabridgectl").arg("list").output().await {
+                if list_output.status.success() {
+                    let out_str = String::from_utf8_lossy(&list_output.stdout);
+                    for line in out_str.lines() {
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() && !trimmed.starts_with("yabridgectl") && !trimmed.starts_with("---") {
+                            paths.push(trimmed.to_string());
+                        }
+                    }
+                }
+            }
+
+            Ok(YabridgeStatus {
+                installed: true,
+                version: Some(ver),
+                configured_paths: paths,
+            })
+        }
+        _ => Ok(YabridgeStatus {
+            installed: false,
+            version: None,
+            configured_paths: Vec::new(),
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn sync_yabridge(plugin_path: Option<String>) -> Result<String, String> {
+    let check = Command::new("yabridgectl")
+        .arg("--version")
+        .output()
+        .await;
+
+    match check {
+        Ok(output) if output.status.success() => {
+            if let Some(path) = plugin_path {
+                let add_res = Command::new("yabridgectl")
+                    .args(&["add", &path])
+                    .output()
+                    .await
+                    .map_err(|e| format!("Failed to add path to yabridge: {}", e))?;
+                if !add_res.status.success() {
+                    let err = String::from_utf8_lossy(&add_res.stderr);
+                    return Err(format!("yabridgectl add failed: {}", err));
+                }
+            }
+
+            let sync_res = Command::new("yabridgectl")
+                .arg("sync")
+                .output()
+                .await
+                .map_err(|e| format!("Failed to run yabridgectl sync: {}", e))?;
+
+            if sync_res.status.success() {
+                let stdout = String::from_utf8_lossy(&sync_res.stdout);
+                Ok(format!("Yabridge sync successful:\n{}", stdout.trim()))
+            } else {
+                let stderr = String::from_utf8_lossy(&sync_res.stderr);
+                Err(format!("yabridgectl sync error: {}", stderr.trim()))
+            }
+        }
+        _ => Err("yabridgectl is not installed on this system. Install yabridge (https://github.com/robbert-vdh/yabridge) and Wine to bridge Windows plugins on Linux.".to_string()),
+    }
+}
+
 #[allow(dead_code)]
 fn find_pkg_in_dmg(source: &Path, found: &mut Option<PathBuf>) {
     if found.is_some() || !source.exists() || !source.is_dir() {
