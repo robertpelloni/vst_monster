@@ -147,6 +147,16 @@ pub async fn install_plugin(
     #[cfg(target_os = "windows")]
     {
         if ext.eq_ignore_ascii_case("msi") {
+            let log_file = std::env::temp_dir().join(format!("vst_monster_{}_msi.log", safe_name));
+            let log_arg = format!("/l*v");
+            let log_path_str = log_file.to_string_lossy().to_string();
+
+            // Direct standard VST3 install directory
+            let target_dir_arg = match std::env::var("CommonProgramFiles") {
+                Ok(common) => format!("TARGETDIR={}\\VST3", common),
+                Err(_) => "TARGETDIR=C:\\Program Files\\Common Files\\VST3".to_string(),
+            };
+
             let status = Command::new("msiexec")
                 .args(&[
                     "/i",
@@ -154,12 +164,38 @@ pub async fn install_plugin(
                     "/quiet",
                     "/qn",
                     "/norestart",
+                    &log_arg,
+                    &log_path_str,
+                    &target_dir_arg,
+                    "ALLUSERS=1",
                 ])
                 .status()
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| format!("Failed to invoke msiexec: {}", e))?;
+
             if !status.success() {
-                return Err(format!("MSI installation failed with status: {}", status));
+                let code = status.code().unwrap_or(-1);
+                let diagnostic = match code {
+                    1603 => "Fatal error during MSI installation (1603). Check installer permissions or conflicting runtime versions.",
+                    1618 => "Another installation is already in progress (1618). Wait for current installer to complete.",
+                    1619 => "The installation package could not be opened (1619). Verify package integrity and path.",
+                    3010 => "Installation completed successfully, restart required (3010).",
+                    _ => "MSI installation failed.",
+                };
+
+                let mut log_snippet = String::new();
+                if let Ok(content) = std::fs::read_to_string(&log_file) {
+                    let lines: Vec<&str> = content.lines().collect();
+                    let count = lines.len();
+                    let start = if count > 8 { count - 8 } else { 0 };
+                    log_snippet = format!(" Log details: {}", lines[start..].join(" | "));
+                }
+
+                if code == 3010 {
+                    log::info!("MSI installation returned 3010 (restart required).");
+                } else {
+                    return Err(format!("{} Exit code: {}.{}", diagnostic, code, log_snippet));
+                }
             }
         } else if ext.eq_ignore_ascii_case("exe") {
             // Attempt standard silent switches; if failed, attempt InnoSetup/NSIS alternative switches

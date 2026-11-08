@@ -1,5 +1,14 @@
 # CHANGELOG: VST Monster
 
+## [0.5.9] - Windows MSI Silent Installer Engine, Diagnostic Log Aggregation & Exit Code Decoders
+- Enhanced Windows `.msi` headless installation engine in `client/src-tauri/src/installer.rs`:
+  - Added targeted verbose MSI logging via `/l*v <temp_dir>/vst_monster_<safe_name>_msi.log`.
+  - Added direct installation destination targeting to `%CommonProgramFiles%\VST3` with `ALLUSERS=1`.
+  - Implemented diagnostic error reporting with automatic exit code decoders for standard Windows installer statuses (1603 Fatal error, 1618 Another installation in progress, 1619 Package could not be opened, 3010 Reboot required).
+- Added Windows MSI Silent Installation callout banner in `client/src/routes/+page.svelte` detailing unattended execution flags and log trace locations.
+- Verified compilation and test pipelines across Rust (`cargo test`) and Svelte (`npm run check`, `npm run build`), and confirmed visual rendering via Playwright screenshot (`ui_msi_spec_active.png`).
+- Bumped ecosystem version to `v0.5.9`.
+
 ## [0.5.8] - Dedicated LV2 Scraper Topics, Release Priority & Audio Architecture Manifest Badges
 - Added dedicated scraping of GitHub topics `https://github.com/topics/lv2` and `https://github.com/topics/lv2-plugin` in `crawler/main.go`.
 - Upgraded GitHub release asset parsing in `crawler/scraper/github.go` to prioritize LV2 distribution packages (`.lv2.zip`, `.lv2.tar.gz`, `.deb`, `.dmg`, `.zip`, `.tar.gz`) and auto-register the `LV2` format.

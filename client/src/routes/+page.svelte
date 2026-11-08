@@ -1137,6 +1137,16 @@
                   </div>
                 </div>
               {/if}
+
+              {#if previewPlugin.download_url?.toLowerCase().endsWith('.msi') || (previewPlugin.platform === 'windows' && previewPlugin.strategy === 'silent_install')}
+                <div class="msi-spec-banner" use:tooltip={"Windows MSI Headless Unattended Installation Engine with automated log aggregation"}>
+                  <span class="msi-icon">🪟</span>
+                  <div class="msi-content">
+                    <strong>Windows MSI Silent Installation Engine</strong>
+                    <p>Executes <code>msiexec.exe /i package.msi /quiet /qn /norestart TARGETDIR=%CommonProgramFiles%\VST3 ALLUSERS=1</code> with automated verbose diagnostic logging in <code>%TEMP%\vst_monster_*.log</code>.</p>
+                  </div>
+                </div>
+              {/if}
             </div>
 
           {:else if activeInspectorTab === 'filesystem'}
@@ -2559,6 +2569,44 @@
     font-size: 0.78rem;
     line-height: 1.4;
     margin: 0;
+  }
+
+  .msi-spec-banner {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    margin-top: 0.75rem;
+  }
+
+  .msi-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .msi-content strong {
+    display: block;
+    color: #60a5fa;
+    font-size: 0.82rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .msi-content p {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .msi-content code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #93c5fd;
+    font-size: 0.7rem;
   }
 
   .clap-spec-banner {
