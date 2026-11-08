@@ -1,7 +1,17 @@
-# HANDOFF: VST Monster Autonomous Session (v0.5.9)
+# HANDOFF: VST Monster Autonomous Session (v0.6.0)
 
 ## Summary of Session Accomplishments
-1. **Windows MSI Silent Installer Engine, Diagnostic Log Aggregation & Exit Code Decoders (v0.5.9)**:
+1. **Advanced Installation Routing Engine, Destination Overrides & Strategy Selection (v0.6.0)**:
+   - Implemented `install_plugin_advanced` native Tauri command in `client/src-tauri/src/installer.rs` accepting `custom_target_dir: Option<String>` and `force_strategy: Option<String>`.
+   - Enhanced Zip archive extraction engine with `extract_zip_archive_with_target` routing uncompressed bundles into custom user destination paths when specified.
+   - Maintained backward compatibility via `install_plugin` which forwards directly to `install_plugin_advanced`.
+   - Added collapsible "Advanced Installation Routing & Options" section inside the plugin detail drawer in `client/src/routes/+page.svelte`:
+     - Custom destination directory input with quick path preset pills (`~/.vst3`, `~/.clap`, `~/.lv2`, and default OS path).
+     - Execution strategy dropdown override (Auto-Detect, Unpack Zip Archive, Headless MSI, Unattended Executable, Mount macOS DMG, Debian Package).
+     - "Install with Custom Options" action trigger with live progress bar and status updates.
+   - Verified backend compilation and unit testing (`cargo test` with 10 passing tests), Svelte check (`npm run check` with 0 errors and 0 warnings), production static build (`npm run build`), and automated Playwright visual screenshot verification (`ui_advanced_install_active.png`).
+   - Bumped ecosystem version to `v0.6.0`.
+2. **Windows MSI Silent Installer Engine, Diagnostic Log Aggregation & Exit Code Decoders (v0.5.9)**:
    - Upgraded native Windows `.msi` installation handler in `client/src-tauri/src/installer.rs`:
      - Added targeted unattended silent flags: `/i`, `/quiet`, `/qn`, `/norestart`.
      - Direct destination directory routing: `TARGETDIR=%CommonProgramFiles%\VST3 ALLUSERS=1`.

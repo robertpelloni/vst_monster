@@ -28,6 +28,18 @@ pub async fn install_plugin(
     name: String,
     expected_hash: Option<String>,
 ) -> Result<String, String> {
+    install_plugin_advanced(app, url, name, expected_hash, None, None).await
+}
+
+#[tauri::command]
+pub async fn install_plugin_advanced(
+    app: AppHandle,
+    url: String,
+    name: String,
+    expected_hash: Option<String>,
+    custom_target_dir: Option<String>,
+    force_strategy: Option<String>,
+) -> Result<String, String> {
     let client = Client::new();
     let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
 
@@ -123,9 +135,12 @@ pub async fn install_plugin(
 
     println!("Downloaded to {:?}", file_path);
 
-    // If file is a zip archive, extract audio plugin binaries to platform standard paths
-    if ext.eq_ignore_ascii_case("zip") {
-        extract_zip_archive(&file_path, &safe_name).map_err(|e| format!("Failed to extract ZIP: {}", e))?;
+    // Handle explicit force strategies or default detection
+    let strategy = force_strategy.unwrap_or_else(|| "auto".to_string()).to_lowercase();
+
+    // If forced to zip or file is a zip archive, extract audio plugin binaries
+    if strategy == "extract_zip" || (strategy == "auto" && ext.eq_ignore_ascii_case("zip")) {
+        extract_zip_archive_with_target(&file_path, &safe_name, custom_target_dir.as_deref()).map_err(|e| format!("Failed to extract ZIP: {}", e))?;
         return Ok(format!("Successfully unpacked and installed {}", name));
     }
 
@@ -1125,7 +1140,16 @@ pub async fn export_plugin_preset(
     Ok(file_path.to_string_lossy().to_string())
 }
 
+#[allow(dead_code)]
 fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Error> {
+    extract_zip_archive_with_target(zip_path, plugin_name, None)
+}
+
+fn extract_zip_archive_with_target(
+    zip_path: &Path,
+    plugin_name: &str,
+    custom_target: Option<&str>,
+) -> Result<(), io::Error> {
     let file = fs::File::open(zip_path)?;
     let mut archive = ZipArchive::new(file)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
@@ -1150,54 +1174,65 @@ fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Err
     }
     let _ = is_vst2_dll; // Silences unused variable warning on non-Windows builds
 
-    // Determine target plugin directory based on current OS and detected format
+    // Determine target plugin directory based on custom override or current OS and detected format
     let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
     let home_path = PathBuf::from(home);
 
-    #[cfg(target_os = "linux")]
-    let target_dir = if is_lv2 {
-        home_path.join(".lv2").join(plugin_name)
-    } else if is_clap {
-        home_path.join(".clap").join(plugin_name)
-    } else {
-        home_path.join(".vst3").join(plugin_name)
-    };
-
-    #[cfg(target_os = "macos")]
-    let target_dir = if is_lv2 {
-        home_path.join("Library/Audio/Plug-Ins/LV2").join(plugin_name)
-    } else if is_clap {
-        home_path.join("Library/Audio/Plug-Ins/CLAP").join(plugin_name)
-    } else {
-        home_path.join("Library/Audio/Plug-Ins/VST3").join(plugin_name)
-    };
-
-    #[cfg(target_os = "windows")]
-    let target_dir = if is_clap {
-        if let Ok(prog_files) = env::var("CommonProgramFiles") {
-            let p = PathBuf::from(&prog_files).join("CLAP").join(plugin_name);
-            if p.parent().map(|parent| parent.exists()).unwrap_or(false) { p } else { home_path.join("Documents/CLAP").join(plugin_name) }
+    let target_dir = if let Some(custom) = custom_target {
+        let p = PathBuf::from(custom);
+        if p.is_dir() {
+            p.join(plugin_name)
         } else {
-            home_path.join("Documents/CLAP").join(plugin_name)
-        }
-    } else if is_vst2_dll {
-        if let Ok(prog_files) = env::var("CommonProgramFiles") {
-            let p = PathBuf::from(&prog_files).join("VST2").join(plugin_name);
-            if p.parent().map(|parent| parent.exists()).unwrap_or(false) { p } else { home_path.join("Documents/VST").join(plugin_name) }
-        } else {
-            home_path.join("Documents/VST").join(plugin_name)
+            p
         }
     } else {
-        if let Ok(prog_files) = env::var("CommonProgramFiles") {
-            let p = PathBuf::from(&prog_files).join("VST3").join(plugin_name);
-            if p.parent().map(|parent| parent.exists()).unwrap_or(false) { p } else { home_path.join("Documents/VST3").join(plugin_name) }
+        #[cfg(target_os = "linux")]
+        let dir = if is_lv2 {
+            home_path.join(".lv2").join(plugin_name)
+        } else if is_clap {
+            home_path.join(".clap").join(plugin_name)
         } else {
-            home_path.join("Documents/VST3").join(plugin_name)
-        }
-    };
+            home_path.join(".vst3").join(plugin_name)
+        };
 
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-    let target_dir = env::temp_dir().join("vst_monster_plugins").join(plugin_name);
+        #[cfg(target_os = "macos")]
+        let dir = if is_lv2 {
+            home_path.join("Library/Audio/Plug-Ins/LV2").join(plugin_name)
+        } else if is_clap {
+            home_path.join("Library/Audio/Plug-Ins/CLAP").join(plugin_name)
+        } else {
+            home_path.join("Library/Audio/Plug-Ins/VST3").join(plugin_name)
+        };
+
+        #[cfg(target_os = "windows")]
+        let dir = if is_clap {
+            if let Ok(prog_files) = env::var("CommonProgramFiles") {
+                let p = PathBuf::from(&prog_files).join("CLAP").join(plugin_name);
+                if p.parent().map(|parent| parent.exists()).unwrap_or(false) { p } else { home_path.join("Documents/CLAP").join(plugin_name) }
+            } else {
+                home_path.join("Documents/CLAP").join(plugin_name)
+            }
+        } else if is_vst2_dll {
+            if let Ok(prog_files) = env::var("CommonProgramFiles") {
+                let p = PathBuf::from(&prog_files).join("VST2").join(plugin_name);
+                if p.parent().map(|parent| parent.exists()).unwrap_or(false) { p } else { home_path.join("Documents/VST").join(plugin_name) }
+            } else {
+                home_path.join("Documents/VST").join(plugin_name)
+            }
+        } else {
+            if let Ok(prog_files) = env::var("CommonProgramFiles") {
+                let p = PathBuf::from(&prog_files).join("VST3").join(plugin_name);
+                if p.parent().map(|parent| parent.exists()).unwrap_or(false) { p } else { home_path.join("Documents/VST3").join(plugin_name) }
+            } else {
+                home_path.join("Documents/VST3").join(plugin_name)
+            }
+        };
+
+        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        let dir = env::temp_dir().join("vst_monster_plugins").join(plugin_name);
+
+        dir
+    };
 
     fs::create_dir_all(&target_dir)?;
 

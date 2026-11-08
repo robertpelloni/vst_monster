@@ -82,6 +82,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             installer::install_plugin,
+            installer::install_plugin_advanced,
             installer::remove_plugin,
             installer::scan_installed_plugins,
             installer::clear_scan_cache,

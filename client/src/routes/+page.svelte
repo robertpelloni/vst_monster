@@ -83,6 +83,11 @@
     diagnostics: string[];
   } | null>(null);
   let copiedHashId = $state<string | number | null>(null);
+
+  // Advanced Installation Options State
+  let showAdvancedInstall = $state(false);
+  let customTargetDir = $state('');
+  let forceStrategy = $state<'auto' | 'extract_zip' | 'silent_msi' | 'silent_exe' | 'mount_dmg' | 'deb_pkg'>('auto');
   let isBatchUpdating = $state(false);
   let isScanningFolders = $state(false);
   let showScanPathsModal = $state(false);
@@ -418,6 +423,14 @@
   }
 
   async function handleInstall(plugin: Plugin) {
+    await handleInstallAdvanced(plugin, null, null);
+  }
+
+  async function handleInstallAdvanced(
+    plugin: Plugin,
+    targetOverride: string | null = null,
+    strategyOverride: string | null = null
+  ) {
     if (!plugin.download_url) {
       installStatus[plugin.id] = "No direct binary download URL available";
       return;
@@ -425,10 +438,12 @@
     installStatus[plugin.id] = "Downloading & Installing...";
 
     try {
-      const response = await invoke('install_plugin', {
+      const response = await invoke('install_plugin_advanced', {
         url: plugin.download_url,
         name: plugin.name,
-        expectedHash: plugin.sha256_hash || null
+        expectedHash: plugin.sha256_hash || null,
+        customTargetDir: targetOverride && targetOverride.trim().length > 0 ? targetOverride.trim() : null,
+        forceStrategy: strategyOverride && strategyOverride !== 'auto' ? strategyOverride : null
       });
       installStatus[plugin.id] = `Success: ${response}`;
       await scanLocalPlugins();
@@ -1419,6 +1434,92 @@
               <div class="raw-manifest-container">
                 <pre class="raw-manifest-pre"><code>{JSON.stringify(previewPlugin, null, 2)}</code></pre>
               </div>
+            </div>
+          {/if}
+
+          <!-- Advanced Installation Options Collapsible Panel -->
+          {#if previewPlugin.download_url}
+            <div class="advanced-install-container">
+              <button
+                type="button"
+                class="btn-toggle-advanced"
+                onclick={() => (showAdvancedInstall = !showAdvancedInstall)}
+              >
+                <span>⚙️ Advanced Installation Routing & Options</span>
+                <span class="chevron">{showAdvancedInstall ? '▲' : '▼'}</span>
+              </button>
+
+              {#if showAdvancedInstall}
+                <div class="advanced-install-body">
+                  <div class="adv-field-group">
+                    <label for="adv-target-dir">Custom Destination Directory (Optional):</label>
+                    <input
+                      id="adv-target-dir"
+                      type="text"
+                      bind:value={customTargetDir}
+                      placeholder="e.g. /opt/audio/vst3 or C:\CustomPlugins\VST3"
+                      class="adv-input-text"
+                    />
+                    <div class="preset-path-pills">
+                      <span class="path-pill-label">Quick Presets:</span>
+                      <button
+                        type="button"
+                        class="path-preset-pill"
+                        onclick={() => (customTargetDir = '~/.vst3')}
+                      >
+                        ~/.vst3
+                      </button>
+                      <button
+                        type="button"
+                        class="path-preset-pill"
+                        onclick={() => (customTargetDir = '~/.clap')}
+                      >
+                        ~/.clap
+                      </button>
+                      <button
+                        type="button"
+                        class="path-preset-pill"
+                        onclick={() => (customTargetDir = '~/.lv2')}
+                      >
+                        ~/.lv2
+                      </button>
+                      <button
+                        type="button"
+                        class="path-preset-pill"
+                        onclick={() => (customTargetDir = '')}
+                      >
+                        Default OS Path
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="adv-field-group">
+                    <label for="adv-strategy">Execution Strategy Override:</label>
+                    <select id="adv-strategy" bind:value={forceStrategy} class="adv-select">
+                      <option value="auto">Auto-Detect (Archive / Binary / OS Package)</option>
+                      <option value="extract_zip">Force ZIP Archive Extraction</option>
+                      <option value="silent_msi">Force Windows MSI Silent Installer</option>
+                      <option value="silent_exe">Force Windows InnoSetup / NSIS Silent Executable</option>
+                      <option value="mount_dmg">Force macOS DMG Mount & Install</option>
+                      <option value="deb_pkg">Force Linux DEB Package Extraction</option>
+                    </select>
+                  </div>
+
+                  <div class="adv-execute-row">
+                    <button
+                      type="button"
+                      class="btn-primary adv-install-btn"
+                      onclick={() => {
+                        handleInstallAdvanced(previewPlugin!, customTargetDir, forceStrategy);
+                        previewPlugin = null;
+                      }}
+                      use:tooltip={"Execute download and installation with your customized directory routing and strategy parameters"}
+                    >
+                      🚀 Install with Custom Options
+                    </button>
+                  </div>
+                </div>
+              {/if}
             </div>
           {/if}
 
@@ -3470,6 +3571,115 @@
 
   .preview-download-link:hover {
     text-decoration: underline;
+  }
+
+  /* Advanced Installation Options Styling */
+  .advanced-install-container {
+    margin: 1rem 0;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.6);
+    overflow: hidden;
+  }
+
+  .btn-toggle-advanced {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 1rem;
+    background: rgba(56, 189, 248, 0.08);
+    border: none;
+    color: #38bdf8;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+  }
+
+  .btn-toggle-advanced:hover {
+    background: rgba(56, 189, 248, 0.15);
+  }
+
+  .btn-toggle-advanced .chevron {
+    font-size: 0.75rem;
+  }
+
+  .advanced-install-body {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    border-top: 1px solid rgba(56, 189, 248, 0.15);
+  }
+
+  .adv-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .adv-field-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #cbd5e1;
+  }
+
+  .adv-input-text, .adv-select {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #f8fafc;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.78rem;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .adv-input-text:focus, .adv-select:focus {
+    border-color: #38bdf8;
+  }
+
+  .preset-path-pills {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.3rem;
+  }
+
+  .path-pill-label {
+    font-size: 0.7rem;
+    color: #64748b;
+  }
+
+  .path-preset-pill {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    padding: 0.15rem 0.45rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .path-preset-pill:hover {
+    color: #38bdf8;
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+  }
+
+  .adv-execute-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.4rem;
+  }
+
+  .adv-install-btn {
+    font-size: 0.78rem;
+    padding: 0.45rem 1rem;
   }
 
   .preview-actions {

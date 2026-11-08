@@ -1,5 +1,17 @@
 # CHANGELOG: VST Monster
 
+## [0.6.0] - Advanced Installation Routing Engine, Destination Overrides & Strategy Selection
+- Implemented `install_plugin_advanced` in `client/src-tauri/src/installer.rs` supporting optional custom destination directory overrides (`custom_target_dir`) and explicit execution strategies (`force_strategy`):
+  - Extended Zip archive decompression engine (`extract_zip_archive_with_target`) to route extracted payloads into custom DAW directory paths when provided.
+  - Maintained backward compatibility via `install_plugin` which invokes `install_plugin_advanced` with `None`.
+  - Registered `install_plugin_advanced` in `client/src-tauri/src/lib.rs`.
+- Added collapsible "Advanced Installation Routing & Options" panel inside the plugin detail drawer (`client/src/routes/+page.svelte`):
+  - Added custom destination directory text input with quick preset path chips (`~/.vst3`, `~/.clap`, `~/.lv2`, and default OS path).
+  - Added strategy selection dropdown override (Auto-Detect, Unpack Zip Archive, Headless MSI, Unattended Executable, Mount macOS DMG, Debian Package).
+  - Added "Install with Custom Options" action trigger with live progress bar and status feedback.
+- Verified test suites across Rust (`cargo test` with 10 passing tests), Svelte (`npm run check` with 0 errors and 0 warnings, `npm run build`), and visual Playwright verification (`ui_advanced_install_active.png`).
+- Bumped ecosystem version to `v0.6.0`.
+
 ## [0.5.9] - Windows MSI Silent Installer Engine, Diagnostic Log Aggregation & Exit Code Decoders
 - Enhanced Windows `.msi` headless installation engine in `client/src-tauri/src/installer.rs`:
   - Added targeted verbose MSI logging via `/l*v <temp_dir>/vst_monster_<safe_name>_msi.log`.
