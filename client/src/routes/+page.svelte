@@ -1024,6 +1024,16 @@
                 </div>
               </div>
 
+              {#if previewInferredFormat.includes('CLAP') || (previewInstalled?.format.toLowerCase() === 'clap')}
+                <div class="clap-spec-banner" use:tooltip={"CLever Audio Plug-in (CLAP) Open Standard Architecture"}>
+                  <span class="clap-icon">⚡</span>
+                  <div class="clap-content">
+                    <strong>CLever Audio Plug-in (CLAP) Open Architecture</strong>
+                    <p>Modern open-source audio standard developed by u-he & Bitwig. Features sample-accurate non-destructive parameter modulation, CPU thread-pool delegation, multiple voice handling, and polyphonic MIDI expression.</p>
+                  </div>
+                </div>
+              {/if}
+
               {#if previewInferredFormat.includes('LV2') || (previewInstalled?.format.toLowerCase() === 'lv2')}
                 <div class="lv2-spec-banner" use:tooltip={"LV2 Open Audio Standard with Turtle (TTL) manifest graph"}>
                   <span class="lv2-icon">🎛️</span>
@@ -2343,6 +2353,35 @@
   .legacy-warning-box .warning-content p {
     color: #cbd5e1;
     font-size: 0.78rem;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .clap-spec-banner {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+
+  .clap-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .clap-content strong {
+    display: block;
+    color: #fde68a;
+    font-size: 0.82rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .clap-content p {
+    color: #d6d3d1;
+    font-size: 0.75rem;
     line-height: 1.4;
     margin: 0;
   }

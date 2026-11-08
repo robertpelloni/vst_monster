@@ -1,7 +1,13 @@
-# HANDOFF: VST Monster Autonomous Session (v0.5.1)
+# HANDOFF: VST Monster Autonomous Session (v0.5.2)
 
 ## Summary of Session Accomplishments
-1. **Deep Audio Bundle Structural Verification & Audit Diagnostics (v0.5.1)**:
+1. **CLAP Open Architecture Specification Callouts & Inspection Badging (v0.5.2)**:
+   - Added a dedicated CLAP (CLever Audio Plug-in) modern open architecture specification callout card within the Audio Format & Host Compatibility Matrix in `client/src/routes/+page.svelte`.
+   - Detailed key architectural advantages of CLAP: sample-accurate non-destructive parameter modulation, CPU thread-pool delegation, multiple voice handling, and polyphonic MIDI/MPE expression.
+   - Added visual `CLAP Standard` badge and amber/gold card styling (`.clap-spec-banner`, `.clap-icon`, `.clap-content`) highlighting host DAW compatibility (Bitwig Studio, REAPER, Cubase, FL Studio).
+   - Verified TypeScript/Svelte diagnostics (`npm run check`), static client build (`npm run build`), and automated Playwright visual testing.
+   - Bumped ecosystem version to `v0.5.2`.
+2. **Deep Audio Bundle Structural Verification & Audit Diagnostics (v0.5.1)**:
    - Upgraded `verify_installed_plugin` in `client/src-tauri/src/installer.rs` to execute multi-format bundle structural inspection across LV2 (`manifest.ttl`), VST3 (`Contents/` architecture trees), and Apple AU (`Info.plist` / `Contents/MacOS/`).
    - Added automated binary permission verification on Unix (`0o755`) for standalone dynamic libraries.
    - Enhanced the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte` with descriptive tooltips detailing structural integrity status badges.
