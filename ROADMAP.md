@@ -56,6 +56,7 @@
 - [x] Advanced installation routing engine, custom destination overrides & strategy selection (v0.6.0).
 - [x] Wine & Yabridge host synchronization and Windows DLL/VST3 bridge compatibility engine (v0.6.1).
 - [x] DAW Buffer & DSP Latency Diagnostic Simulation Matrix (v0.6.2).
+- [x] Channel Audio Bus Configuration & I/O Routing Matrix (v0.6.3).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

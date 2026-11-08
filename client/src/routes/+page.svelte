@@ -132,6 +132,32 @@
   let latencyDiagnosticResult = $state<LatencyResult | null>(null);
   let isDiagnosingLatency = $state(false);
 
+  interface AudioBusChannelItem {
+    name: string;
+    channel_type: string;
+  }
+  interface AudioBusConfigItem {
+    bus_name: string;
+    direction: string;
+    channel_count: number;
+    is_auxiliary: boolean;
+    channels: AudioBusChannelItem[];
+  }
+  interface AudioBusDiagnosisResultItem {
+    configuration_id: string;
+    display_name: string;
+    total_input_channels: number;
+    total_output_channels: number;
+    supports_sidechain: boolean;
+    is_instrument: boolean;
+    speaker_arrangement: string;
+    daw_compatibility_notes: string;
+    buses: AudioBusConfigItem[];
+  }
+  let selectedBusConfigType = $state<string>('auto');
+  let audioBusDiagnosisResult = $state<AudioBusDiagnosisResultItem | null>(null);
+  let isDiagnosingAudioBuses = $state(false);
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -599,6 +625,22 @@
       console.warn('Latency calculation failed:', err);
     } finally {
       isDiagnosingLatency = false;
+    }
+  }
+
+  async function calculateAudioBusDiagnostics(category?: string) {
+    isDiagnosingAudioBuses = true;
+    try {
+      const configParam = selectedBusConfigType === 'auto' ? null : selectedBusConfigType;
+      const res: AudioBusDiagnosisResultItem = await invoke('diagnose_plugin_audio_buses', {
+        configurationType: configParam,
+        category: category || previewPlugin?.category || null,
+      });
+      audioBusDiagnosisResult = res;
+    } catch (err: any) {
+      console.warn('Audio bus calculation failed:', err);
+    } finally {
+      isDiagnosingAudioBuses = false;
     }
   }
 
@@ -1590,6 +1632,83 @@
                           <span class="time-cell">{pt.latency_ms} ms</span>
                           <span class="time-cell roundtrip">~{pt.roundtrip_estimate_ms} ms</span>
                           <span class="workflow-cell">{pt.daw_workflow_category}</span>
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <!-- Audio Bus Configuration & Channel Routing Matrix -->
+            <div class="preview-section">
+              <div class="audio-bus-matrix-card">
+                <div class="bus-matrix-header">
+                  <div class="bus-matrix-title">
+                    <span class="bus-matrix-icon">🎚️</span>
+                    <div>
+                      <strong>CHANNEL AUDIO BUS CONFIGURATION & I/O ROUTING MATRIX</strong>
+                      <span class="bus-matrix-subtitle">Inspect input/output pin topology, multi-channel auxiliary stems, and surround speaker configurations</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn-latency-calc"
+                    onclick={() => calculateAudioBusDiagnostics()}
+                    disabled={isDiagnosingAudioBuses}
+                    use:tooltip={"Inspect audio bus arrangement and I/O routing topology"}
+                  >
+                    {isDiagnosingAudioBuses ? '⏳ Analyzing...' : '🔀 Inspect I/O Topology'}
+                  </button>
+                </div>
+
+                <div class="bus-controls-row">
+                  <div class="latency-input-group">
+                    <label for="bus-profile-select">Bus Layout Profile:</label>
+                    <select id="bus-profile-select" bind:value={selectedBusConfigType} class="latency-select">
+                      <option value="auto">Auto-Detect from Category</option>
+                      <option value="stereo_standard">Standard Stereo (2-In / 2-Out)</option>
+                      <option value="stereo_sidechain">Stereo + Sidechain Aux Key (4-In / 2-Out)</option>
+                      <option value="multi_out_instrument">Multi-Out Instrument / Sampler (0-In / 16-Out)</option>
+                      <option value="surround_5_1">5.1 Cinema Surround (6-In / 6-Out)</option>
+                      <option value="mono">Mono Insert (1-In / 1-Out)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {#if audioBusDiagnosisResult}
+                  <div class="bus-results-container">
+                    <div class="bus-summary-banner">
+                      <div class="bus-banner-top">
+                        <span class="bus-topology-badge">{audioBusDiagnosisResult.speaker_arrangement}</span>
+                        <span class="bus-io-count">Inputs: {audioBusDiagnosisResult.total_input_channels} ch | Outputs: {audioBusDiagnosisResult.total_output_channels} ch</span>
+                        {#if audioBusDiagnosisResult.supports_sidechain}
+                          <span class="bus-sidechain-badge">✓ Sidechain Key Ready</span>
+                        {/if}
+                        {#if audioBusDiagnosisResult.is_instrument}
+                          <span class="bus-instrument-badge">🎹 Multi-Stem Synth</span>
+                        {/if}
+                      </div>
+                      <div class="bus-daw-notes">
+                        💡 {audioBusDiagnosisResult.daw_compatibility_notes}
+                      </div>
+                    </div>
+
+                    <div class="bus-buses-grid">
+                      {#each audioBusDiagnosisResult.buses as bus}
+                        <div class="bus-card {bus.direction === 'input' ? 'bus-in' : 'bus-out'} {bus.is_auxiliary ? 'bus-aux' : ''}">
+                          <div class="bus-card-header">
+                            <span class="bus-dir-badge">{bus.direction.toUpperCase()}</span>
+                            <strong>{bus.bus_name}</strong>
+                            <span class="bus-channels-badge">{bus.channel_count} ch</span>
+                          </div>
+                          <div class="bus-card-pins">
+                            {#each bus.channels as ch}
+                              <span class="bus-pin-pill" use:tooltip={ch.channel_type}>
+                                🔌 {ch.name} <small>({ch.channel_type})</small>
+                              </span>
+                            {/each}
+                          </div>
                         </div>
                       {/each}
                     </div>
@@ -3939,6 +4058,198 @@
   }
 
   .workflow-cell {
+    color: #94a3b8;
+  }
+
+  .audio-bus-matrix-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+  }
+
+  .bus-matrix-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .bus-matrix-title {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .bus-matrix-title strong {
+    display: block;
+    font-size: 0.88rem;
+    color: #a78bfa;
+  }
+
+  .bus-matrix-subtitle {
+    display: block;
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .bus-matrix-icon {
+    font-size: 1.4rem;
+  }
+
+  .bus-controls-row {
+    display: flex;
+    gap: 1.25rem;
+    background: #090e17;
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    border: 1px solid #1e293b;
+  }
+
+  .bus-results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .bus-summary-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: #180d2b;
+    border: 1px solid #7c3aed;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+  }
+
+  .bus-banner-top {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
+
+  .bus-topology-badge {
+    background: #8b5cf6;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .bus-io-count {
+    font-size: 0.75rem;
+    color: #e9d5ff;
+    font-weight: 600;
+  }
+
+  .bus-sidechain-badge {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid #10b981;
+    color: #6ee7b7;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+  }
+
+  .bus-instrument-badge {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid #f59e0b;
+    color: #fcd34d;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+  }
+
+  .bus-daw-notes {
+    font-size: 0.73rem;
+    color: #c4b5fd;
+    line-height: 1.4;
+  }
+
+  .bus-buses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .bus-card {
+    background: #090e17;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .bus-card.bus-in {
+    border-left: 3px solid #38bdf8;
+  }
+
+  .bus-card.bus-out {
+    border-left: 3px solid #10b981;
+  }
+
+  .bus-card.bus-aux {
+    background: #111422;
+    border-left: 3px solid #f59e0b;
+  }
+
+  .bus-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .bus-card-header strong {
+    color: #f1f5f9;
+    flex: 1;
+  }
+
+  .bus-dir-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    background: #1e293b;
+    color: #94a3b8;
+  }
+
+  .bus-channels-badge {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    background: #2e1065;
+    color: #c4b5fd;
+    font-weight: 600;
+  }
+
+  .bus-card-pins {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .bus-pin-pill {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+    font-size: 0.68rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    cursor: default;
+  }
+
+  .bus-pin-pill small {
     color: #94a3b8;
   }
 

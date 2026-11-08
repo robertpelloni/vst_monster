@@ -66,4 +66,5 @@
 - [x] Advanced installation routing engine, custom destination overrides & strategy selection (v0.6.0).
 - [x] Wine & Yabridge host synchronization and Windows DLL/VST3 bridge compatibility engine (v0.6.1).
 - [x] Latency & buffer diagnostic simulation matrix with sample rate & DSP lookahead PDC analysis (v0.6.2).
+- [x] Channel audio bus configuration & I/O routing matrix inspection (v0.6.3).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

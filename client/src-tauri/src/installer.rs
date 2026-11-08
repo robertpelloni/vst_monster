@@ -976,6 +976,285 @@ pub fn diagnose_plugin_latency(sample_rate: Option<u32>, dsp_latency_samples: Op
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct AudioBusChannel {
+    pub name: String,
+    pub channel_type: String, // "Left", "Right", "Center", "LFE", "Surround Left", "Aux", etc.
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct AudioBusConfig {
+    pub bus_name: String,
+    pub direction: String, // "input" or "output"
+    pub channel_count: u32,
+    pub is_auxiliary: bool,
+    pub channels: Vec<AudioBusChannel>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct AudioBusDiagnosisResult {
+    pub configuration_id: String,
+    pub display_name: String,
+    pub total_input_channels: u32,
+    pub total_output_channels: u32,
+    pub supports_sidechain: bool,
+    pub is_instrument: bool,
+    pub speaker_arrangement: String, // e.g. "Stereo (2.0)", "Mono (1.0)", "5.1 Surround", "Multi-Out (16ch)"
+    pub daw_compatibility_notes: String,
+    pub buses: Vec<AudioBusConfig>,
+}
+
+#[tauri::command]
+pub fn diagnose_plugin_audio_buses(
+    configuration_type: Option<String>,
+    category: Option<String>,
+) -> AudioBusDiagnosisResult {
+    // Resolve configuration identifier, auto-detecting based on plugin category if not specified
+    let config = configuration_type.unwrap_or_else(|| {
+        match category.as_deref() {
+            Some("synth") | Some("instrument") | Some("sampler") => "multi_out_instrument".to_string(),
+            Some("dynamics") | Some("compressor") | Some("gate") => "stereo_sidechain".to_string(),
+            Some("spatial") | Some("surround") => "surround_5_1".to_string(),
+            _ => "stereo_standard".to_string(),
+        }
+    });
+
+    match config.as_str() {
+        "mono" => AudioBusDiagnosisResult {
+            configuration_id: "mono".to_string(),
+            display_name: "Mono Processing Bus (1-In / 1-Out)".to_string(),
+            total_input_channels: 1,
+            total_output_channels: 1,
+            supports_sidechain: false,
+            is_instrument: false,
+            speaker_arrangement: "Mono (1.0)".to_string(),
+            daw_compatibility_notes: "Native single-channel processing for guitar tracks, lead vocal chains, and hardware synth tracking.".to_string(),
+            buses: vec![
+                AudioBusConfig {
+                    bus_name: "Main Input".to_string(),
+                    direction: "input".to_string(),
+                    channel_count: 1,
+                    is_auxiliary: false,
+                    channels: vec![AudioBusChannel { name: "Center".to_string(), channel_type: "Mono Center".to_string() }],
+                },
+                AudioBusConfig {
+                    bus_name: "Main Output".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 1,
+                    is_auxiliary: false,
+                    channels: vec![AudioBusChannel { name: "Center".to_string(), channel_type: "Mono Center".to_string() }],
+                },
+            ],
+        },
+        "stereo_sidechain" => AudioBusDiagnosisResult {
+            configuration_id: "stereo_sidechain".to_string(),
+            display_name: "Stereo Bus with External Sidechain (4-In / 2-Out)".to_string(),
+            total_input_channels: 4,
+            total_output_channels: 2,
+            supports_sidechain: true,
+            is_instrument: false,
+            speaker_arrangement: "Stereo (2.0) + External Key Input".to_string(),
+            daw_compatibility_notes: "Enables sidechain ducking & key filtering across Bitwig, REAPER, Ableton Live, FL Studio, and Cubase.".to_string(),
+            buses: vec![
+                AudioBusConfig {
+                    bus_name: "Main Input".to_string(),
+                    direction: "input".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: false,
+                    channels: vec![
+                        AudioBusChannel { name: "Left".to_string(), channel_type: "Stereo Left".to_string() },
+                        AudioBusChannel { name: "Right".to_string(), channel_type: "Stereo Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Sidechain Aux Input".to_string(),
+                    direction: "input".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: true,
+                    channels: vec![
+                        AudioBusChannel { name: "Sidechain L".to_string(), channel_type: "Aux Key Left".to_string() },
+                        AudioBusChannel { name: "Sidechain R".to_string(), channel_type: "Aux Key Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Main Output".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: false,
+                    channels: vec![
+                        AudioBusChannel { name: "Left".to_string(), channel_type: "Stereo Left".to_string() },
+                        AudioBusChannel { name: "Right".to_string(), channel_type: "Stereo Right".to_string() },
+                    ],
+                },
+            ],
+        },
+        "multi_out_instrument" => AudioBusDiagnosisResult {
+            configuration_id: "multi_out_instrument".to_string(),
+            display_name: "Multi-Out Synthesizer / Drum Sampler (0-In / 16-Out)".to_string(),
+            total_input_channels: 0,
+            total_output_channels: 16,
+            supports_sidechain: false,
+            is_instrument: true,
+            speaker_arrangement: "8x Stereo Output Stems (16 Channels)".to_string(),
+            daw_compatibility_notes: "Routes independent drum kit pieces, synth oscillator layers, or FX returns to separate DAW mixer channels.".to_string(),
+            buses: vec![
+                AudioBusConfig {
+                    bus_name: "Master Out (Stereo 1-2)".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: false,
+                    channels: vec![
+                        AudioBusChannel { name: "Out 1 (L)".to_string(), channel_type: "Master Left".to_string() },
+                        AudioBusChannel { name: "Out 2 (R)".to_string(), channel_type: "Master Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Aux Out 1 (Stereo 3-4)".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: true,
+                    channels: vec![
+                        AudioBusChannel { name: "Out 3 (L)".to_string(), channel_type: "Stem Aux 1 Left".to_string() },
+                        AudioBusChannel { name: "Out 4 (R)".to_string(), channel_type: "Stem Aux 1 Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Aux Out 2 (Stereo 5-6)".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: true,
+                    channels: vec![
+                        AudioBusChannel { name: "Out 5 (L)".to_string(), channel_type: "Stem Aux 2 Left".to_string() },
+                        AudioBusChannel { name: "Out 6 (R)".to_string(), channel_type: "Stem Aux 2 Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Aux Out 3 (Stereo 7-8)".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: true,
+                    channels: vec![
+                        AudioBusChannel { name: "Out 7 (L)".to_string(), channel_type: "Stem Aux 3 Left".to_string() },
+                        AudioBusChannel { name: "Out 8 (R)".to_string(), channel_type: "Stem Aux 3 Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Aux Out 4 (Stereo 9-10)".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: true,
+                    channels: vec![
+                        AudioBusChannel { name: "Out 9 (L)".to_string(), channel_type: "Stem Aux 4 Left".to_string() },
+                        AudioBusChannel { name: "Out 10 (R)".to_string(), channel_type: "Stem Aux 4 Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Aux Out 5 (Stereo 11-12)".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: true,
+                    channels: vec![
+                        AudioBusChannel { name: "Out 11 (L)".to_string(), channel_type: "Stem Aux 5 Left".to_string() },
+                        AudioBusChannel { name: "Out 12 (R)".to_string(), channel_type: "Stem Aux 5 Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Aux Out 6 (Stereo 13-14)".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: true,
+                    channels: vec![
+                        AudioBusChannel { name: "Out 13 (L)".to_string(), channel_type: "Stem Aux 6 Left".to_string() },
+                        AudioBusChannel { name: "Out 14 (R)".to_string(), channel_type: "Stem Aux 6 Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Aux Out 7 (Stereo 15-16)".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: true,
+                    channels: vec![
+                        AudioBusChannel { name: "Out 15 (L)".to_string(), channel_type: "Stem Aux 7 Left".to_string() },
+                        AudioBusChannel { name: "Out 16 (R)".to_string(), channel_type: "Stem Aux 7 Right".to_string() },
+                    ],
+                },
+            ],
+        },
+        "surround_5_1" => AudioBusDiagnosisResult {
+            configuration_id: "surround_5_1".to_string(),
+            display_name: "5.1 Surround Spatial Bus (6-In / 6-Out)".to_string(),
+            total_input_channels: 6,
+            total_output_channels: 6,
+            supports_sidechain: false,
+            is_instrument: false,
+            speaker_arrangement: "5.1 Surround (L, R, C, LFE, Ls, Rs)".to_string(),
+            daw_compatibility_notes: "Cinema audio & immersive Dolby Atmos bed positioning for Nuendo, Pro Tools, and REAPER surround tracks.".to_string(),
+            buses: vec![
+                AudioBusConfig {
+                    bus_name: "5.1 Surround Input".to_string(),
+                    direction: "input".to_string(),
+                    channel_count: 6,
+                    is_auxiliary: false,
+                    channels: vec![
+                        AudioBusChannel { name: "L".to_string(), channel_type: "Left".to_string() },
+                        AudioBusChannel { name: "R".to_string(), channel_type: "Right".to_string() },
+                        AudioBusChannel { name: "C".to_string(), channel_type: "Center".to_string() },
+                        AudioBusChannel { name: "LFE".to_string(), channel_type: "Subwoofer LFE".to_string() },
+                        AudioBusChannel { name: "Ls".to_string(), channel_type: "Left Surround".to_string() },
+                        AudioBusChannel { name: "Rs".to_string(), channel_type: "Right Surround".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "5.1 Surround Output".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 6,
+                    is_auxiliary: false,
+                    channels: vec![
+                        AudioBusChannel { name: "L".to_string(), channel_type: "Left".to_string() },
+                        AudioBusChannel { name: "R".to_string(), channel_type: "Right".to_string() },
+                        AudioBusChannel { name: "C".to_string(), channel_type: "Center".to_string() },
+                        AudioBusChannel { name: "LFE".to_string(), channel_type: "Subwoofer LFE".to_string() },
+                        AudioBusChannel { name: "Ls".to_string(), channel_type: "Left Surround".to_string() },
+                        AudioBusChannel { name: "Rs".to_string(), channel_type: "Right Surround".to_string() },
+                    ],
+                },
+            ],
+        },
+        _ => AudioBusDiagnosisResult {
+            configuration_id: "stereo_standard".to_string(),
+            display_name: "Standard Stereo Bus (2-In / 2-Out)".to_string(),
+            total_input_channels: 2,
+            total_output_channels: 2,
+            supports_sidechain: false,
+            is_instrument: false,
+            speaker_arrangement: "Stereo (2.0)".to_string(),
+            daw_compatibility_notes: "Universal insert effect routing for standard stereo audio tracks, master buses, and instrument channels.".to_string(),
+            buses: vec![
+                AudioBusConfig {
+                    bus_name: "Main Input".to_string(),
+                    direction: "input".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: false,
+                    channels: vec![
+                        AudioBusChannel { name: "Left".to_string(), channel_type: "Stereo Left".to_string() },
+                        AudioBusChannel { name: "Right".to_string(), channel_type: "Stereo Right".to_string() },
+                    ],
+                },
+                AudioBusConfig {
+                    bus_name: "Main Output".to_string(),
+                    direction: "output".to_string(),
+                    channel_count: 2,
+                    is_auxiliary: false,
+                    channels: vec![
+                        AudioBusChannel { name: "Left".to_string(), channel_type: "Stereo Left".to_string() },
+                        AudioBusChannel { name: "Right".to_string(), channel_type: "Stereo Right".to_string() },
+                    ],
+                },
+            ],
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1001,6 +1280,39 @@ mod tests {
         assert_eq!(result.reported_dsp_latency_samples, 256);
         assert!(result.dsp_latency_ms > 5.0);
         assert!(result.recommendation.contains("Moderate DSP lookahead"));
+    }
+
+    #[test]
+    fn test_diagnose_plugin_audio_buses_defaults() {
+        let result = diagnose_plugin_audio_buses(None, None);
+        assert_eq!(result.configuration_id, "stereo_standard");
+        assert_eq!(result.total_input_channels, 2);
+        assert_eq!(result.total_output_channels, 2);
+        assert!(!result.supports_sidechain);
+        assert_eq!(result.buses.len(), 2);
+    }
+
+    #[test]
+    fn test_diagnose_plugin_audio_buses_category_inference() {
+        let synth_res = diagnose_plugin_audio_buses(None, Some("synth".to_string()));
+        assert_eq!(synth_res.configuration_id, "multi_out_instrument");
+        assert_eq!(synth_res.total_input_channels, 0);
+        assert_eq!(synth_res.total_output_channels, 16);
+        assert!(synth_res.is_instrument);
+
+        let dyn_res = diagnose_plugin_audio_buses(None, Some("dynamics".to_string()));
+        assert_eq!(dyn_res.configuration_id, "stereo_sidechain");
+        assert!(dyn_res.supports_sidechain);
+        assert_eq!(dyn_res.total_input_channels, 4);
+    }
+
+    #[test]
+    fn test_diagnose_plugin_audio_buses_surround() {
+        let surr = diagnose_plugin_audio_buses(Some("surround_5_1".to_string()), None);
+        assert_eq!(surr.configuration_id, "surround_5_1");
+        assert_eq!(surr.total_input_channels, 6);
+        assert_eq!(surr.total_output_channels, 6);
+        assert_eq!(surr.speaker_arrangement, "5.1 Surround (L, R, C, LFE, Ls, Rs)");
     }
 }
 

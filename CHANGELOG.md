@@ -1,5 +1,21 @@
 # CHANGELOG: VST Monster
 
+## [0.6.3] - Channel Audio Bus Configuration & I/O Routing Matrix (Sidechain & Multi-Out)
+- Defined `AudioBusChannel`, `AudioBusConfig`, and `AudioBusDiagnosisResult` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `diagnose_plugin_audio_buses(configuration_type: Option<String>, category: Option<String>) -> AudioBusDiagnosisResult` in `client/src-tauri/src/installer.rs`:
+  - Analyzes audio routing topology across standard bus layouts: Standard Stereo (2-in / 2-out), Stereo with External Sidechain Aux Key (4-in / 2-out), Multi-Out Synthesizer / Drum Sampler (0-in / 16-out across 8 stereo stem pairs), 5.1 Cinema Surround (6-in / 6-out: L, R, C, LFE, Ls, Rs), and Mono (1-in / 1-out).
+  - Automatically infers recommended bus arrangement based on catalog plugin category (`synth`, `dynamics`, `spatial`, etc.) when no override is selected.
+  - Generates detailed DAW routing compatibility guidance (Bitwig, REAPER, Ableton Live, FL Studio, Cubase, Nuendo, Pro Tools).
+- Added comprehensive unit tests in `installer.rs`: `test_diagnose_plugin_audio_buses_defaults`, `test_diagnose_plugin_audio_buses_category_inference`, and `test_diagnose_plugin_audio_buses_surround` (5 total passing unit tests).
+- Registered `diagnose_plugin_audio_buses` command in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "CHANNEL AUDIO BUS CONFIGURATION & I/O ROUTING MATRIX" card within the "Filesystem & DAW" tab in `client/src/routes/+page.svelte`:
+  - Bus layout profile dropdown (Auto-Detect from Category, Standard Stereo, Stereo + Sidechain, Multi-Out Instrument, 5.1 Cinema Surround, Mono).
+  - "🔀 Inspect I/O Topology" trigger button invoking native Tauri analysis.
+  - Visual summary banner with speaker arrangement badge, input/output channel tallies, Sidechain Key Ready tag, Multi-Stem Synth tag, and DAW compatibility advice.
+  - Responsive bus cards with direction badges (INPUT/OUTPUT), channel counts, and individual channel pin pills with tooltips (Stereo Left/Right, Aux Key Left/Right, Master, Stems, LFE, etc.).
+- Verified full test suite (`cargo test`, 5 unit tests passing), Svelte checks (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_audio_bus_computed.png`).
+- Bumped ecosystem version to `v0.6.3`.
+
 ## [0.6.2] - Latency & Buffer Diagnostic Simulation Matrix (PDC Analysis)
 - Defined `BufferDiagnosticPoint` and `LatencyDiagnosticResult` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `diagnose_plugin_latency(sample_rate: Option<u32>, dsp_latency_samples: Option<u32>) -> LatencyDiagnosticResult` in `client/src-tauri/src/installer.rs`:
