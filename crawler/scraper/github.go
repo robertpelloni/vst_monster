@@ -49,9 +49,17 @@ func fetchGitHubReleaseDownloadURL(owner, repo string) string {
 		return ""
 	}
 
+	// Prioritize LV2 specific bundles, then tar.gz, zip, deb, dmg
 	for _, asset := range release.Assets {
 		lowerURL := strings.ToLower(asset.BrowserDownloadURL)
-		if strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".tar.gz") {
+		if strings.Contains(lowerURL, "lv2") && (strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".tar.gz")) {
+			return asset.BrowserDownloadURL
+		}
+	}
+
+	for _, asset := range release.Assets {
+		lowerURL := strings.ToLower(asset.BrowserDownloadURL)
+		if strings.HasSuffix(lowerURL, ".tar.gz") || strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".deb") || strings.HasSuffix(lowerURL, ".dmg") {
 			return asset.BrowserDownloadURL
 		}
 	}
@@ -81,12 +89,29 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 			}
 
 			downloadURL := fetchGitHubReleaseDownloadURL(dev, name)
+			formats := parser.ExtractFormats(desc)
+
+			// If URL or repo description implies LV2 format, ensure LV2 is registered
+			lowerDesc := strings.ToLower(desc)
+			lowerURL := strings.ToLower(downloadURL)
+			if strings.Contains(lowerDesc, "lv2") || strings.Contains(lowerURL, "lv2") {
+				hasLV2 := false
+				for _, f := range formats {
+					if strings.EqualFold(f, "LV2") {
+						hasLV2 = true
+						break
+					}
+				}
+				if !hasLV2 {
+					formats = append(formats, "LV2")
+				}
+			}
 
 			results <- parser.StandardPlugin{
 				Name:        name,
 				Developer:   dev,
 				Version:     "Latest",
-				Formats:     parser.ExtractFormats(desc),
+				Formats:     formats,
 				DownloadURL: downloadURL,
 				License:     "opensource",
 				Source:      "GitHub",

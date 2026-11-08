@@ -1103,11 +1103,17 @@
               {/if}
 
               {#if previewInferredFormat.includes('LV2') || (previewInstalled?.format.toLowerCase() === 'lv2')}
-                <div class="lv2-spec-banner" use:tooltip={"LV2 Open Audio Standard with Turtle (TTL) manifest graph"}>
+                <div class="lv2-spec-banner" use:tooltip={"LV2 Open Audio Standard with Turtle (TTL) manifest graph & Atom/State extensions"}>
                   <span class="lv2-icon">🎛️</span>
                   <div class="lv2-content">
                     <strong>LV2 Open Audio Standard Detected</strong>
-                    <p>Includes Turtle graph definitions (<code>manifest.ttl</code>). Supported across Linux audio workstations (Ardour, Carla, Reaper, Qtractor) with sample-accurate parameter automation and dynamic port discovery.</p>
+                    <p>Includes RDF Turtle graph definitions (<code>manifest.ttl</code>). Supported natively across Linux and cross-platform DAWs (Ardour, Carla, REAPER, Qtractor, Bitwig) with atom event ports, state serialization (<code>lv2:state</code>), and dynamic DSP port discovery.</p>
+                    <div class="lv2-spec-features">
+                      <span class="lv2-pill" use:tooltip={"Atom event port for sample-accurate MIDI and expressive events"}>atom:AtomPort</span>
+                      <span class="lv2-pill" use:tooltip={"Key-value preset and state persistence via Turtle RDF"}>state:State</span>
+                      <span class="lv2-pill" use:tooltip={"Flexible UI embedding interfaces (X11, GTK, Qt, Cocoa)"}>ui:UIEmbedding</span>
+                      <span class="lv2-pill" use:tooltip={"Multi-threading worker extensions for offloading heavy DSP compute"}>worker:schedule</span>
+                    </div>
                   </div>
                 </div>
               {/if}
@@ -2610,7 +2616,23 @@
     color: #94a3b8;
     font-size: 0.75rem;
     line-height: 1.4;
-    margin: 0;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .lv2-spec-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .lv2-pill {
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.3);
   }
 
   .btn-dir {

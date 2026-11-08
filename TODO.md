@@ -61,4 +61,5 @@
 - [x] LV2 manifest Turtle (`.ttl`) version & URI extraction with expanded Windows VST2 discovery & legacy architecture callouts (v0.5.5).
 - [x] Native DAW preset export engine & preset storage inspector integration (v0.5.6).
 - [x] Multi-format audio capabilities detection & host feature matrix inspector (v0.5.7).
+- [x] Dedicated LV2 GitHub scraper topics, release asset prioritization, and manifest architecture badges (v0.5.8).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

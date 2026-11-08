@@ -1,5 +1,13 @@
 # CHANGELOG: VST Monster
 
+## [0.5.8] - Dedicated LV2 Scraper Topics, Release Priority & Audio Architecture Manifest Badges
+- Added dedicated scraping of GitHub topics `https://github.com/topics/lv2` and `https://github.com/topics/lv2-plugin` in `crawler/main.go`.
+- Upgraded GitHub release asset parsing in `crawler/scraper/github.go` to prioritize LV2 distribution packages (`.lv2.zip`, `.lv2.tar.gz`, `.deb`, `.dmg`, `.zip`, `.tar.gz`) and auto-register the `LV2` format.
+- Seeded popular staple open-source LV2 plugins in `crawler/main.go`: Dragonfly Early Reflections Reverb (Michael Willis) and Helm Polyphonic Synthesizer (Matt Tytel).
+- Enriched the LV2 Open Audio Standard specification banner in `client/src/routes/+page.svelte` with interactive badging for `atom:AtomPort`, `state:State`, `ui:UIEmbedding`, and `worker:schedule` with contextual audio engineering tooltips.
+- Verified test suites across Go (`go build ./...`), Rust (`cargo test`), Svelte (`npm run check`, `npm run build`), and visual Playwright testing (`ui_lv2_spec_active.png`).
+- Bumped ecosystem version to `v0.5.8`.
+
 ## [0.5.7] - Multi-Format Audio Capabilities Detection & Host Feature Matrix Inspector
 - Added native audio capability introspection (`check_binary_capabilities`) in `client/src-tauri/src/installer.rs`, inspecting binary signatures and Turtle RDF descriptors for MIDI controller support, MIDI Polyphonic Expression (MPE), sidechain multi-bus architecture, surround/spatial audio processing, latency compensation (PDC), and native preset state serialization.
 - Extended `BundleValidationResult` with `capabilities: Vec<String>` returning detected audio DSP and host communication features.

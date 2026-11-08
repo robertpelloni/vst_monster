@@ -97,6 +97,10 @@ func main() {
 	log.Println("Crawling GitHub VST topics...")
 	githubCollector.Visit("https://github.com/topics/vst-plugin")
 
+	log.Println("Crawling GitHub LV2 topics...")
+	githubCollector.Visit("https://github.com/topics/lv2")
+	githubCollector.Visit("https://github.com/topics/lv2-plugin")
+
 	var wg sync.WaitGroup
 
 	// Run Bedroom Producers Blog scraper with WaitGroup tracking
@@ -195,6 +199,26 @@ func seedStaplePlugins(pipeline *queue.Pipeline) {
 			License:     "opensource",
 			Source:      "Seed Manifest",
 			Metadata:    map[string]interface{}{"description": "Physical modeling analog reel-to-reel tape machine saturation and hysteresis effect.", "source": "github", "category": "effect"},
+		},
+		{
+			Name:        "Dragonfly Early Reflections Reverb",
+			Developer:   "Michael Willis",
+			Version:     "3.2.10",
+			Formats:     []string{"LV2", "VST3"},
+			DownloadURL: "https://github.com/michaelwillis/dragonfly-reverb/releases/download/3.2.10/dragonfly-reverb-linux-x86_64-3.2.10.tar.gz",
+			License:     "opensource",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "Concert hall and studio room acoustic algorithmic reverb suite in native LV2 bundle format.", "source": "github", "category": "effect"},
+		},
+		{
+			Name:        "Helm Polyphonic Synthesizer",
+			Developer:   "Matt Tytel",
+			Version:     "0.9.0",
+			Formats:     []string{"LV2", "VST3", "AU"},
+			DownloadURL: "https://github.com/mtytel/helm/releases/download/v0.9.0/helm-0.9.0-x86_64.tar.gz",
+			License:     "opensource",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "Free polyphonic synthesizer running as standalone or LV2/VST3 plugin with visual modulation.", "source": "github", "category": "synth"},
 		},
 	}
 
