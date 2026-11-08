@@ -1017,6 +1017,43 @@ pub async fn open_presets_directory(_app: AppHandle) -> Result<String, String> {
     Ok(format!("Opened presets directory {:?}", presets_dir))
 }
 
+#[tauri::command]
+pub async fn export_plugin_preset(
+    plugin_name: String,
+    preset_name: String,
+    content: String,
+) -> Result<String, String> {
+    let sanitized_plugin: String = plugin_name.chars().filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-').collect();
+    let sanitized_preset: String = preset_name.chars().filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-' || *c == '.').collect();
+
+    if sanitized_plugin.is_empty() || sanitized_preset.is_empty() {
+        return Err("Invalid plugin or preset filename".to_string());
+    }
+
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_else(|_| ".".to_string());
+    let home_path = PathBuf::from(home);
+
+    #[cfg(target_os = "linux")]
+    let base_dir = home_path.join(".vst3").join("presets");
+
+    #[cfg(target_os = "macos")]
+    let base_dir = home_path.join("Library/Audio/Presets");
+
+    #[cfg(target_os = "windows")]
+    let base_dir = home_path.join("Documents/VST3 Presets");
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let base_dir = env::temp_dir().join("vst_monster_presets");
+
+    let plugin_preset_dir = base_dir.join(&sanitized_plugin);
+    fs::create_dir_all(&plugin_preset_dir).map_err(|e| format!("Failed to create preset folder: {}", e))?;
+
+    let file_path = plugin_preset_dir.join(&sanitized_preset);
+    fs::write(&file_path, content.as_bytes()).map_err(|e| format!("Failed to write preset file: {}", e))?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
 fn extract_zip_archive(zip_path: &Path, plugin_name: &str) -> Result<(), io::Error> {
     let file = fs::File::open(zip_path)?;
     let mut archive = ZipArchive::new(file)

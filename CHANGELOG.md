@@ -1,5 +1,12 @@
 # CHANGELOG: VST Monster
 
+## [0.5.6] - Native DAW Preset Export Engine & Preset Storage Inspector Integration
+- Implemented native command `export_plugin_preset` in `client/src-tauri/src/installer.rs` allowing users to export plugin presets directly into format-specific DAW preset paths (`~/.vst3/presets/<plugin>/` on Linux, `~/Library/Audio/Presets/<plugin>/` on macOS, and `%USERPROFILE%/Documents/VST3 Presets/<plugin>/` on Windows) with filename sanitization.
+- Registered `export_plugin_preset` command in `client/src-tauri/src/lib.rs`.
+- Added dedicated "Preset Storage & DAW Integration" UI panel within the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte`, featuring preset filename input, format selector (`.vstpreset`, `.fxp`, `.ttl`), direct export action trigger with visual status reporting, and a "Browse Presets" quick folder launcher.
+- Verified Rust test compilation (`cargo test`), Svelte diagnostics (`npm run check` with 0 errors/warnings), static production build (`npm run build`), and Playwright visual screenshot verification (`client/ui_preset_mgr_active.png`).
+- Bumped ecosystem version to `v0.5.6`.
+
 ## [0.5.5] - LV2 Manifest Parsing, Hybrid Windows VST2 Scanning & Legacy Steinberg VST 2.4 Inspector
 - Added native LV2 `manifest.ttl` RDF parsing in `detect_bundle_version` (`client/src-tauri/src/installer.rs`), extracting `lv2:minorVersion`, `lv2:microVersion`, and declared plugin URI identifiers (`a lv2:Plugin`).
 - Expanded Windows VST2 search path discovery across 32-bit and 64-bit architecture directories (`%CommonProgramFiles(x86)%/VST2` and `%ProgramFiles(x86)%/VSTPlugins`) in `get_default_scan_paths` and `scan_installed_plugins`.

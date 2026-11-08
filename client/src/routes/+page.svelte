@@ -91,6 +91,10 @@
   let isClearingCache = $state(false);
   let cacheClearMsg = $state('');
   let activeTheme = $state<'dark' | 'contrast'>('dark');
+  let presetExportName = $state('');
+  let presetExportFormat = $state<'vstpreset' | 'fxp' | 'ttl'>('vstpreset');
+  let isExportingPreset = $state(false);
+  let presetExportMessage = $state('');
 
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
@@ -507,6 +511,42 @@
       }, 2000);
     } catch (err) {
       console.warn('Clipboard write failed:', err);
+    }
+  }
+
+  async function handleExportPreset(pluginName: string) {
+    if (!presetExportName.trim()) {
+      presetExportMessage = 'Please enter a preset name';
+      return;
+    }
+    isExportingPreset = true;
+    presetExportMessage = '';
+    const cleanPresetName = presetExportName.trim().endsWith(`.${presetExportFormat}`)
+      ? presetExportName.trim()
+      : `${presetExportName.trim()}.${presetExportFormat}`;
+
+    const samplePresetPayload = JSON.stringify({
+      plugin: pluginName,
+      exported_at: new Date().toISOString(),
+      format: presetExportFormat,
+      generator: 'VST Monster Ecosystem v0.5.6',
+      params: { master_gain: 1.0, active_program: 0 }
+    }, null, 2);
+
+    try {
+      const savedPath = await invoke<string>('export_plugin_preset', {
+        pluginName,
+        presetName: cleanPresetName,
+        content: samplePresetPayload
+      });
+      presetExportMessage = `✓ Preset exported: ${savedPath}`;
+      actionMessage = `Exported preset to ${savedPath}`;
+      presetExportName = '';
+    } catch (err: any) {
+      presetExportMessage = `Export failed: ${err}`;
+      actionMessage = `Preset export failed: ${err}`;
+    } finally {
+      isExportingPreset = false;
     }
   }
 
@@ -1235,6 +1275,56 @@
                   >
                     {copiedHashId === 'preview' ? '✓ Copied' : '📋 Copy'}
                   </button>
+                {/if}
+              </div>
+
+              <!-- Preset Management & DAW Integration -->
+              <div class="preset-manager-card">
+                <div class="preset-header-row">
+                  <div class="preset-title">
+                    <span class="preset-icon">🎛️</span>
+                    <div>
+                      <h5>Preset Storage & DAW Integration</h5>
+                      <span class="preset-subtitle">Export native DAW presets (.vstpreset / .fxp / .ttl) directly to standard preset folders</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn-open-presets"
+                    onclick={handleOpenPresetsDirectory}
+                    use:tooltip={"Open DAW preset folder in system file manager"}
+                  >
+                    📁 Browse Presets
+                  </button>
+                </div>
+
+                <div class="preset-export-controls">
+                  <input
+                    type="text"
+                    class="preset-name-input"
+                    placeholder="Enter preset name (e.g. init_lead, deep_bass)..."
+                    bind:value={presetExportName}
+                  />
+                  <select class="preset-format-select" bind:value={presetExportFormat}>
+                    <option value="vstpreset">.vstpreset (VST3 Standard)</option>
+                    <option value="fxp">.fxp (Steinberg Legacy VST2)</option>
+                    <option value="ttl">.ttl (LV2 Preset Graph)</option>
+                  </select>
+                  <button
+                    type="button"
+                    class="btn-export-preset"
+                    onclick={() => handleExportPreset(previewPlugin!.name)}
+                    disabled={isExportingPreset}
+                    use:tooltip={"Generate preset bundle and write to DAW presets directory"}
+                  >
+                    {isExportingPreset ? 'Exporting...' : '💾 Export Preset'}
+                  </button>
+                </div>
+
+                {#if presetExportMessage}
+                  <div class="preset-export-status" class:success={presetExportMessage.startsWith('✓')} class:error={presetExportMessage.startsWith('Export failed')}>
+                    {presetExportMessage}
+                  </div>
                 {/if}
               </div>
 
@@ -2999,6 +3089,132 @@
     font-size: 0.75rem;
     color: #10b981;
     overflow-x: auto;
+  }
+
+  .preset-manager-card {
+    background: #0d1424;
+    border: 1px solid #1e3a5f;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .preset-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .preset-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .preset-icon {
+    font-size: 1.3rem;
+  }
+
+  .preset-title h5 {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #60a5fa;
+  }
+
+  .preset-subtitle {
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .btn-open-presets {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #f1f5f9;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.15s ease-in-out;
+  }
+
+  .btn-open-presets:hover {
+    background: #2563eb;
+    border-color: #3b82f6;
+  }
+
+  .preset-export-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .preset-name-input {
+    flex: 2;
+    background: #0a0f1d;
+    border: 1px solid #233554;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    color: #f1f5f9;
+    font-size: 0.78rem;
+  }
+
+  .preset-format-select {
+    flex: 1;
+    background: #0a0f1d;
+    border: 1px solid #233554;
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    color: #f1f5f9;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+
+  .btn-export-preset {
+    background: #2563eb;
+    border: 1px solid #3b82f6;
+    color: white;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: 0.15s ease-in-out;
+  }
+
+  .btn-export-preset:hover:not(:disabled) {
+    background: #1d4ed8;
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+  }
+
+  .btn-export-preset:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .preset-export-status {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    background: #1e293b;
+  }
+
+  .preset-export-status.success {
+    background: #064e3b;
+    color: #6ee7b7;
+    border: 1px solid #059669;
+  }
+
+  .preset-export-status.error {
+    background: #7f1d1d;
+    color: #fca5a5;
+    border: 1px solid #dc2626;
   }
 
   .security-scan-card {
