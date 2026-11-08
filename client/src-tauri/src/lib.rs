@@ -89,6 +89,7 @@ pub fn run() {
             installer::open_plugin_directory,
             installer::open_presets_directory,
             installer::verify_installed_plugin,
+            installer::test_plugin_bundle_integrity,
             stop_servers,
             quit_app
         ])

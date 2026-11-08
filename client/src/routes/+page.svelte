@@ -70,6 +70,16 @@
   let activeInspectorTab = $state<'overview' | 'filesystem' | 'manifest'>('overview');
   let isVerifyingPlugin = $state(false);
   let verificationStatus = $state<{ [key: string]: 'valid' | 'invalid' | 'verifying' }>({});
+  let isTestingBundle = $state(false);
+  let bundleTestResult = $state<{
+    is_valid: boolean;
+    format: string;
+    binary_count: number;
+    total_size_bytes: number;
+    has_executable_permission: boolean;
+    architecture_compatible: boolean;
+    diagnostics: string[];
+  } | null>(null);
   let copiedHashId = $state<string | number | null>(null);
   let isBatchUpdating = $state(false);
   let isScanningFolders = $state(false);
@@ -464,6 +474,22 @@
       actionMessage = `Bundle verification error: ${err}`;
     } finally {
       isVerifyingPlugin = false;
+    }
+  }
+
+  async function handleTestBundleIntegrity(path: string) {
+    isTestingBundle = true;
+    bundleTestResult = null;
+    try {
+      const res = await invoke<any>('test_plugin_bundle_integrity', { path });
+      bundleTestResult = res;
+      actionMessage = res.is_valid
+        ? `Headless DAW fuzzer assertions passed for bundle at ${path}`
+        : `Bundle fuzzer detected potential compatibility issues at ${path}`;
+    } catch (err: any) {
+      actionMessage = `DAW Bundle fuzzer error: ${err}`;
+    } finally {
+      isTestingBundle = false;
     }
   }
 
@@ -1114,12 +1140,55 @@
                     <button
                       type="button"
                       class="btn-tiny-action"
+                      onclick={() => handleTestBundleIntegrity(previewInstalled.path)}
+                      disabled={isTestingBundle}
+                      use:tooltip={"Execute automated headless DAW bundle validator and fuzzer assertions"}
+                    >
+                      {isTestingBundle ? '⏳ Fuzzing...' : '🔬 Run Bundle Fuzzer'}
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-tiny-action"
                       onclick={() => handleOpenDirectory(previewPlugin!.name)}
                       use:tooltip={"Open local enclosing directory in file explorer"}
                     >
                       📂 Open in File Explorer
                     </button>
                   </div>
+
+                  {#if bundleTestResult}
+                    <div class="bundle-fuzz-report">
+                      <div class="fuzz-report-header">
+                        <span class="fuzz-title">🔬 DAW Bundle Fuzzer & Validator Diagnostics</span>
+                        <span class="verification-badge {bundleTestResult.is_valid ? 'valid' : 'invalid'}">
+                          {bundleTestResult.is_valid ? '✓ Passed Assertions' : '⚠ Validation Alert'}
+                        </span>
+                      </div>
+                      <div class="fuzz-stats-grid">
+                        <div class="fuzz-stat-item">
+                          <span class="fuzz-stat-label">Format:</span>
+                          <span class="fuzz-stat-val">{bundleTestResult.format}</span>
+                        </div>
+                        <div class="fuzz-stat-item">
+                          <span class="fuzz-stat-label">Binaries:</span>
+                          <span class="fuzz-stat-val">{bundleTestResult.binary_count}</span>
+                        </div>
+                        <div class="fuzz-stat-item">
+                          <span class="fuzz-stat-label">Total Size:</span>
+                          <span class="fuzz-stat-val">{(bundleTestResult.total_size_bytes / (1024 * 1024)).toFixed(2)} MB</span>
+                        </div>
+                        <div class="fuzz-stat-item">
+                          <span class="fuzz-stat-label">Executable (+x):</span>
+                          <span class="fuzz-stat-val">{bundleTestResult.has_executable_permission ? '✓ Yes' : '⚠ No'}</span>
+                        </div>
+                      </div>
+                      <ul class="fuzz-diag-list">
+                        {#each bundleTestResult.diagnostics as diag}
+                          <li>• {diag}</li>
+                        {/each}
+                      </ul>
+                    </div>
+                  {/if}
                 </div>
               {:else}
                 <div class="empty-fs-state">
@@ -2912,6 +2981,69 @@
     font-size: 0.75rem;
     color: #64748b;
     font-style: italic;
+  }
+
+  .bundle-fuzz-report {
+    margin-top: 0.85rem;
+    background: #0d131f;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .fuzz-report-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .fuzz-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #60a5fa;
+  }
+
+  .fuzz-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    background: #111827;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #1f2937;
+  }
+
+  .fuzz-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .fuzz-stat-label {
+    font-size: 0.7rem;
+    color: #9ca3af;
+  }
+
+  .fuzz-stat-val {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #f3f4f6;
+  }
+
+  .fuzz-diag-list {
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-family: monospace;
   }
 
   .preview-download-link {

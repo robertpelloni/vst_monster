@@ -55,4 +55,6 @@
 - [x] Implement dynamic DAW theme switching (Dark Studio vs High-Contrast DAW) in header (v0.5.0).
 - [x] Implement deep audio bundle structural inspection & audit diagnostics (v0.5.1).
 - [x] Implement CLAP open architecture specification callouts and inspector badging (v0.5.2).
-- [ ] Headless automated DAW plugin bundle fuzzing and validation test suite.
+- [x] Headless automated DAW plugin bundle fuzzing and validation test suite (v0.5.3).
+- [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
+- [ ] Community preset sharing repository and user preset export manager.
