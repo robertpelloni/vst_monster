@@ -67,4 +67,6 @@
 - [x] Wine & Yabridge host synchronization and Windows DLL/VST3 bridge compatibility engine (v0.6.1).
 - [x] Latency & buffer diagnostic simulation matrix with sample rate & DSP lookahead PDC analysis (v0.6.2).
 - [x] Channel audio bus configuration & I/O routing matrix inspection (v0.6.3).
+- [x] Binary architecture & SIMD instruction inspection engine with security protections (v0.6.4).
+- [ ] Automated VST/CLAP headless diagnostic benchmark & memory profiler (v0.6.5).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

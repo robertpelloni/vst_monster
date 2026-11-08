@@ -57,6 +57,8 @@
 - [x] Wine & Yabridge host synchronization and Windows DLL/VST3 bridge compatibility engine (v0.6.1).
 - [x] DAW Buffer & DSP Latency Diagnostic Simulation Matrix (v0.6.2).
 - [x] Channel Audio Bus Configuration & I/O Routing Matrix (v0.6.3).
+- [x] Binary Architecture & SIMD Instruction Inspection Engine (v0.6.4).
+- [ ] Automated VST/CLAP Headless Diagnostic Benchmark & Memory Profiler (v0.6.5).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

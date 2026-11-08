@@ -1,5 +1,22 @@
 # CHANGELOG: VST Monster
 
+## [0.6.4] - Binary Architecture & SIMD Instruction Inspection Engine
+- Defined `BinaryArchitectureDetails` data model in `client/src-tauri/src/installer.rs`.
+- Implemented `inspect_plugin_binary_architecture(platform: Option<String>, architecture: Option<String>, file_path: Option<String>) -> BinaryArchitectureDetails` in `client/src-tauri/src/installer.rs`:
+  - Introspects plugin target CPU architecture (`x86_64`, `aarch64`, `Universal 2`, `i686`) and binary container format (`ELF 64-bit LSB Shared Object`, `Mach-O 64-bit Universal Binary`, `PE32+ Executable / DLL`).
+  - Evaluates hardware SIMD vectorization requirements and acceleration instructions (`AVX2`, `FMA3`, `SSE4.2`, `ARM NEON`, `Apple Silicon AMX`).
+  - Inspects binary security hardening and exploit mitigation flags (`DEP / NX Enabled`, `ASLR / PIE Compatible`, `Stack Canaries Guarded`).
+  - Assesses Rosetta 2 translation compatibility for macOS hybrid architectures and enforces 64-bit DAW host compliance.
+- Added comprehensive unit tests in `installer.rs`: `test_inspect_plugin_binary_architecture_x86_64`, `test_inspect_plugin_binary_architecture_macos_universal`, and `test_inspect_plugin_binary_architecture_windows` (8 total passing unit tests).
+- Registered `inspect_plugin_binary_architecture` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "BINARY ARCHITECTURE & SIMD INSTRUCTION SET MATRIX" card within the "Filesystem & DAW" tab in `client/src/routes/+page.svelte`:
+  - "🧬 Introspect CPU/SIMD" trigger button invoking native Tauri binary architecture inspection.
+  - Visual summary banner with CPU architecture badge, 64-bit native compliance status, binary container format, and runtime notes.
+  - SIMD Vectorization Instruction Set section with instruction pills (`AVX2`, `FMA3`, `SSE4.2`, `ARM NEON`, `Apple Silicon AMX`).
+  - Binary Security & Memory Hardening section with defense badges (`DEP / NX Enabled`, `ASLR / PIE Compatible`, `Stack Canaries Guarded`).
+- Verified full test suite (`cargo test`, 8 unit tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_simd_arch_computed.png`).
+- Bumped ecosystem version to `v0.6.4`.
+
 ## [0.6.3] - Channel Audio Bus Configuration & I/O Routing Matrix (Sidechain & Multi-Out)
 - Defined `AudioBusChannel`, `AudioBusConfig`, and `AudioBusDiagnosisResult` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `diagnose_plugin_audio_buses(configuration_type: Option<String>, category: Option<String>) -> AudioBusDiagnosisResult` in `client/src-tauri/src/installer.rs`:

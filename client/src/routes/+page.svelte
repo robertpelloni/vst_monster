@@ -158,6 +158,19 @@
   let audioBusDiagnosisResult = $state<AudioBusDiagnosisResultItem | null>(null);
   let isDiagnosingAudioBuses = $state(false);
 
+  interface BinaryArchitectureDetailsItem {
+    target_cpu_arch: string;
+    binary_container_type: string;
+    is_64bit: boolean;
+    simd_instruction_sets: string[];
+    rosetta2_compatible: boolean;
+    min_os_version: string;
+    binary_security_flags: string[];
+    architecture_summary: string;
+  }
+  let binaryArchDetails = $state<BinaryArchitectureDetailsItem | null>(null);
+  let isInspectingArch = $state(false);
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -641,6 +654,22 @@
       console.warn('Audio bus calculation failed:', err);
     } finally {
       isDiagnosingAudioBuses = false;
+    }
+  }
+
+  async function inspectBinaryArchitecture() {
+    isInspectingArch = true;
+    try {
+      const res: BinaryArchitectureDetailsItem = await invoke('inspect_plugin_binary_architecture', {
+        platform: previewPlugin?.platform || null,
+        architecture: previewPlugin?.architecture || null,
+        filePath: previewPlugin?.download_url || null,
+      });
+      binaryArchDetails = res;
+    } catch (err: any) {
+      console.warn('Binary architecture inspection failed:', err);
+    } finally {
+      isInspectingArch = false;
     }
   }
 
@@ -1711,6 +1740,75 @@
                           </div>
                         </div>
                       {/each}
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <!-- Binary Architecture & SIMD Instruction Inspection Matrix -->
+            <div class="preview-section">
+              <div class="binary-arch-matrix-card">
+                <div class="arch-matrix-header">
+                  <div class="arch-matrix-title">
+                    <span class="arch-matrix-icon">💻</span>
+                    <div>
+                      <strong>BINARY ARCHITECTURE & SIMD INSTRUCTION SET MATRIX</strong>
+                      <span class="arch-matrix-subtitle">Analyze CPU instruction sets, vectorization acceleration, 64-bit compliance, and runtime requirements</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn-latency-calc"
+                    onclick={() => inspectBinaryArchitecture()}
+                    disabled={isInspectingArch}
+                    use:tooltip={"Inspect CPU architecture, SIMD vectorization, and OS minimum runtime"}
+                  >
+                    {isInspectingArch ? '⏳ Inspecting...' : '🔬 Introspect CPU/SIMD'}
+                  </button>
+                </div>
+
+                {#if binaryArchDetails}
+                  <div class="arch-results-container">
+                    <div class="arch-summary-banner">
+                      <div class="arch-banner-top">
+                        <span class="arch-cpu-badge">{binaryArchDetails.target_cpu_arch}</span>
+                        <span class="arch-bitness-badge {binaryArchDetails.is_64bit ? 'is-64' : 'is-32'}">
+                          {binaryArchDetails.is_64bit ? '64-bit Native' : '⚠️ 32-bit Legacy'}
+                        </span>
+                        {#if binaryArchDetails.rosetta2_compatible}
+                          <span class="arch-rosetta-badge">✓ Rosetta 2 Intel Emulation</span>
+                        {/if}
+                        <span class="arch-container-type">{binaryArchDetails.binary_container_type}</span>
+                      </div>
+                      <div class="arch-summary-text">
+                        📌 {binaryArchDetails.architecture_summary}
+                      </div>
+                    </div>
+
+                    <div class="arch-details-grid">
+                      <div class="arch-detail-box">
+                        <span class="arch-box-title">⚡ SIMD Vectorization Instruction Sets:</span>
+                        <div class="arch-tag-pills">
+                          {#each binaryArchDetails.simd_instruction_sets as simd}
+                            <span class="simd-pill" use:tooltip={"Hardware accelerated vector processing"}>⚡ {simd}</span>
+                          {/each}
+                        </div>
+                      </div>
+
+                      <div class="arch-detail-box">
+                        <span class="arch-box-title">🛡️ Binary Security & Memory Hardening:</span>
+                        <div class="arch-tag-pills">
+                          {#each binaryArchDetails.binary_security_flags as flag}
+                            <span class="sec-pill" use:tooltip={"Exploit mitigation & safe memory execution"}>🛡️ {flag}</span>
+                          {/each}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="arch-os-box">
+                      <span class="arch-os-label">Minimum Host OS Environment:</span>
+                      <span class="arch-os-val">{binaryArchDetails.min_os_version}</span>
                     </div>
                   </div>
                 {/if}
@@ -4251,6 +4349,185 @@
 
   .bus-pin-pill small {
     color: #94a3b8;
+  }
+
+  .binary-arch-matrix-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+  }
+
+  .arch-matrix-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .arch-matrix-title {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .arch-matrix-title strong {
+    display: block;
+    font-size: 0.88rem;
+    color: #38bdf8;
+  }
+
+  .arch-matrix-subtitle {
+    display: block;
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .arch-matrix-icon {
+    font-size: 1.4rem;
+  }
+
+  .arch-results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .arch-summary-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: #082f49;
+    border: 1px solid #0284c7;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+  }
+
+  .arch-banner-top {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .arch-cpu-badge {
+    background: #0284c7;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .arch-bitness-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+  }
+
+  .arch-bitness-badge.is-64 {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid #10b981;
+    color: #6ee7b7;
+  }
+
+  .arch-bitness-badge.is-32 {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid #f59e0b;
+    color: #fcd34d;
+  }
+
+  .arch-rosetta-badge {
+    background: rgba(139, 92, 246, 0.2);
+    border: 1px solid #8b5cf6;
+    color: #c4b5fd;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+  }
+
+  .arch-container-type {
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .arch-summary-text {
+    font-size: 0.73rem;
+    color: #bae6fd;
+    line-height: 1.4;
+  }
+
+  .arch-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  .arch-detail-box {
+    background: #090e17;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .arch-box-title {
+    font-size: 0.72rem;
+    color: #cbd5e1;
+    font-weight: 600;
+  }
+
+  .arch-tag-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .simd-pill {
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #7dd3fc;
+    font-size: 0.68rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .sec-pill {
+    background: rgba(52, 211, 153, 0.15);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    color: #6ee7b7;
+    font-size: 0.68rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+  }
+
+  .arch-os-box {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #090e17;
+    border: 1px solid #1e293b;
+    padding: 0.45rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+  }
+
+  .arch-os-label {
+    color: #94a3b8;
+  }
+
+  .arch-os-val {
+    color: #f1f5f9;
+    font-weight: 600;
   }
 
   .bundle-fuzz-report {

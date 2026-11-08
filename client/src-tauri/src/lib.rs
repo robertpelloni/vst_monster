@@ -96,6 +96,7 @@ pub fn run() {
             installer::sync_yabridge,
             installer::diagnose_plugin_latency,
             installer::diagnose_plugin_audio_buses,
+            installer::inspect_plugin_binary_architecture,
             stop_servers,
             quit_app
         ])
