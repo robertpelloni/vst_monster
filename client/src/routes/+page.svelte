@@ -113,6 +113,25 @@
   let isSyncingYabridge = $state(false);
   let yabridgeMessage = $state('');
 
+  // Audio Latency & Buffer Diagnostic State
+  interface LatencyPoint {
+    buffer_size: number;
+    latency_ms: number;
+    roundtrip_estimate_ms: number;
+    daw_workflow_category: string;
+  }
+  interface LatencyResult {
+    sample_rate: number;
+    reported_dsp_latency_samples: number;
+    dsp_latency_ms: number;
+    buffer_points: LatencyPoint[];
+    recommendation: string;
+  }
+  let latencySampleRate = $state<number>(48000);
+  let latencyDspSamples = $state<number>(0);
+  let latencyDiagnosticResult = $state<LatencyResult | null>(null);
+  let isDiagnosingLatency = $state(false);
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -565,6 +584,21 @@
       yabridgeMessage = `Yabridge error: ${err}`;
     } finally {
       isSyncingYabridge = false;
+    }
+  }
+
+  async function calculateLatencyDiagnostics() {
+    isDiagnosingLatency = true;
+    try {
+      const res: LatencyResult = await invoke('diagnose_plugin_latency', {
+        sampleRate: latencySampleRate,
+        dspLatencySamples: latencyDspSamples,
+      });
+      latencyDiagnosticResult = res;
+    } catch (err: any) {
+      console.warn('Latency calculation failed:', err);
+    } finally {
+      isDiagnosingLatency = false;
     }
   }
 
@@ -1486,6 +1520,79 @@
                 {#if yabridgeMessage}
                   <div class="yabridge-message-box" class:error={yabridgeMessage.includes('error') || yabridgeMessage.includes('not installed')}>
                     <pre>{yabridgeMessage}</pre>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Latency & Buffer Diagnostic Matrix -->
+              <div class="latency-diagnostic-card">
+                <div class="latency-card-header">
+                  <div class="latency-icon">⏱️</div>
+                  <div class="latency-card-title">
+                    <h4>DAW Buffer & DSP Latency Diagnostic Matrix</h4>
+                    <p>Simulate roundtrip audio latency across standard DAW buffer configurations (PDC analysis)</p>
+                  </div>
+                  <div class="latency-actions">
+                    <button
+                      type="button"
+                      class="btn-latency-calc"
+                      onclick={calculateLatencyDiagnostics}
+                      disabled={isDiagnosingLatency}
+                      use:tooltip={"Compute real-time DSP roundtrip latency across 64 to 1024 sample buffers"}
+                    >
+                      {isDiagnosingLatency ? 'Calculating...' : '⚡ Compute Matrix'}
+                    </button>
+                  </div>
+                </div>
+
+                <div class="latency-controls-row">
+                  <div class="latency-control-group">
+                    <label for="sample-rate-select">Sample Rate:</label>
+                    <select id="sample-rate-select" bind:value={latencySampleRate} onchange={calculateLatencyDiagnostics}>
+                      <option value={44100}>44.1 kHz (CD Standard)</option>
+                      <option value={48000}>48.0 kHz (Studio Video/DAW)</option>
+                      <option value={88200}>88.2 kHz (High-Res 2x)</option>
+                      <option value={96000}>96.0 kHz (High-Res Mastering)</option>
+                    </select>
+                  </div>
+                  <div class="latency-control-group">
+                    <label for="dsp-samples-input">Reported DSP Lookahead:</label>
+                    <input
+                      id="dsp-samples-input"
+                      type="number"
+                      min="0"
+                      max="4096"
+                      step="1"
+                      bind:value={latencyDspSamples}
+                      oninput={calculateLatencyDiagnostics}
+                      placeholder="0 samples"
+                    />
+                  </div>
+                </div>
+
+                {#if latencyDiagnosticResult}
+                  <div class="latency-results-container">
+                    <div class="latency-recommendation-banner">
+                      <span class="latency-badge">{latencyDiagnosticResult.dsp_latency_ms} ms Plugin Delay</span>
+                      <span class="latency-rec-text">{latencyDiagnosticResult.recommendation}</span>
+                    </div>
+
+                    <div class="latency-grid">
+                      <div class="latency-grid-header">
+                        <span>Buffer Size</span>
+                        <span>One-Way</span>
+                        <span>Est. Roundtrip</span>
+                        <span>DAW Target Workflow</span>
+                      </div>
+                      {#each latencyDiagnosticResult.buffer_points as pt}
+                        <div class="latency-grid-row">
+                          <span class="buffer-cell"><strong>{pt.buffer_size}</strong> spls</span>
+                          <span class="time-cell">{pt.latency_ms} ms</span>
+                          <span class="time-cell roundtrip">~{pt.roundtrip_estimate_ms} ms</span>
+                          <span class="workflow-cell">{pt.daw_workflow_category}</span>
+                        </div>
+                      {/each}
+                    </div>
                   </div>
                 {/if}
               </div>
@@ -3670,6 +3777,169 @@
 
   .yabridge-message-box.error pre {
     color: #f87171;
+  }
+
+  .latency-diagnostic-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+  }
+
+  .latency-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .latency-icon {
+    font-size: 1.4rem;
+  }
+
+  .latency-card-title h4 {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #38bdf8;
+  }
+
+  .latency-card-title p {
+    margin: 0;
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .latency-actions {
+    display: flex;
+  }
+
+  .btn-latency-calc {
+    background: #0369a1;
+    border: 1px solid #0284c7;
+    color: #f0f9ff;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.15s ease-in-out;
+    white-space: nowrap;
+  }
+
+  .btn-latency-calc:hover:not(:disabled) {
+    background: #0284c7;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+  }
+
+  .latency-controls-row {
+    display: flex;
+    gap: 1.25rem;
+    background: #090e17;
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    border: 1px solid #1e293b;
+  }
+
+  .latency-control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .latency-control-group label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+
+  .latency-control-group select,
+  .latency-control-group input {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .latency-results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .latency-recommendation-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #091e36;
+    border: 1px solid #0369a1;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+  }
+
+  .latency-badge {
+    background: #0284c7;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .latency-rec-text {
+    font-size: 0.75rem;
+    color: #bae6fd;
+  }
+
+  .latency-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    background: #090e17;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .latency-grid-header {
+    display: grid;
+    grid-template-columns: 90px 80px 100px 1fr;
+    background: #1e293b;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #cbd5e1;
+  }
+
+  .latency-grid-row {
+    display: grid;
+    grid-template-columns: 90px 80px 100px 1fr;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.72rem;
+    border-top: 1px solid #1e293b;
+    align-items: center;
+  }
+
+  .buffer-cell {
+    color: #38bdf8;
+  }
+
+  .time-cell {
+    color: #cbd5e1;
+  }
+
+  .time-cell.roundtrip {
+    color: #facc15;
+    font-weight: 600;
+  }
+
+  .workflow-cell {
+    color: #94a3b8;
   }
 
   .bundle-fuzz-report {

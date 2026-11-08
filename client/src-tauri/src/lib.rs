@@ -94,6 +94,7 @@ pub fn run() {
             installer::test_plugin_bundle_integrity,
             installer::check_yabridge_status,
             installer::sync_yabridge,
+            installer::diagnose_plugin_latency,
             stop_servers,
             quit_app
         ])

@@ -1,5 +1,21 @@
 # CHANGELOG: VST Monster
 
+## [0.6.2] - Latency & Buffer Diagnostic Simulation Matrix (PDC Analysis)
+- Defined `BufferDiagnosticPoint` and `LatencyDiagnosticResult` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `diagnose_plugin_latency(sample_rate: Option<u32>, dsp_latency_samples: Option<u32>) -> LatencyDiagnosticResult` in `client/src-tauri/src/installer.rs`:
+  - Simulates one-way and estimated roundtrip audio latencies across industry standard buffer sizes (64, 128, 256, 512, 1024 samples) and sample rates (44.1 kHz, 48.0 kHz, 88.2 kHz, 96.0 kHz, 192.0 kHz).
+  - Integrates reported plugin DSP lookahead / processing delay (Plug-in Delay Compensation / PDC) and hardware converter overhead (~1.0 ms).
+  - Automatically calculates recommended DAW workflow classifications per buffer tier: Realtime Tracking / Ultra-Low Latency (<= 4ms), Live Tracking / Balanced Performance (<= 8ms), Standard Production / Safe Buffering (<= 15ms), Heavy Mixing / Multi-Track Arranging (<= 25ms), and Mastering & Stem Rendering (DSP Heavy).
+  - Computes global workflow guidance recommendations based on total roundtrip at standard 256 sample buffer.
+- Added comprehensive unit tests in `installer.rs`: `test_diagnose_plugin_latency_defaults` and `test_diagnose_plugin_latency_with_dsp`.
+- Registered `diagnose_plugin_latency` command in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "DAW BUFFER & DSP LATENCY DIAGNOSTIC MATRIX" card within the "Filesystem & DAW" tab in `client/src/routes/+page.svelte`:
+  - Sample Rate selector dropdown (44.1 kHz to 192.0 kHz) and DSP lookahead sample input.
+  - "⚡ Compute Matrix" trigger button invoking native Tauri latency calculation.
+  - Live recommendation banner and 5-row responsive diagnostic simulation table (Buffer Size, One-Way ms, Est. Roundtrip ms, DAW Target Workflow).
+- Verified full test suite (`cargo test`, 12 tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_latency_matrix_computed.png`).
+- Bumped ecosystem version to `v0.6.2`.
+
 ## [0.6.1] - Wine & Yabridge Host Synchronization and Compatibility Engine
 - Defined `YabridgeStatus` in `client/src-tauri/src/installer.rs` returning detection state (`installed`), binary version string (`version`), and currently configured plugin sync directories (`configured_paths`).
 - Implemented `check_yabridge_status` command in `client/src-tauri/src/installer.rs`:

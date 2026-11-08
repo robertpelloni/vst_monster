@@ -912,6 +912,98 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
     })
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct LatencyDiagnosticPoint {
+    pub buffer_size: u32,
+    pub latency_ms: f64,
+    pub roundtrip_estimate_ms: f64,
+    pub daw_workflow_category: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct LatencyDiagnosticResult {
+    pub sample_rate: u32,
+    pub reported_dsp_latency_samples: u32,
+    pub dsp_latency_ms: f64,
+    pub buffer_points: Vec<LatencyDiagnosticPoint>,
+    pub recommendation: String,
+}
+
+#[tauri::command]
+pub fn diagnose_plugin_latency(sample_rate: Option<u32>, dsp_latency_samples: Option<u32>) -> LatencyDiagnosticResult {
+    let rate = sample_rate.unwrap_or(48000).max(8000);
+    let dsp_samples = dsp_latency_samples.unwrap_or(0);
+    let dsp_ms = (dsp_samples as f64 / rate as f64) * 1000.0;
+
+    let standard_buffers = [64, 128, 256, 512, 1024];
+    let mut points = Vec::new();
+
+    for &buf in &standard_buffers {
+        let one_way_ms = (buf as f64 / rate as f64) * 1000.0;
+        // Total roundtrip = In Buffer + Out Buffer + Plugin DSP latency + ~1.0ms driver/host overhead
+        let roundtrip_ms = (one_way_ms * 2.0) + dsp_ms + 1.0;
+        let category = match buf {
+            64 => "Ultra-low Latency (Live Monitoring / Real-Time MIDI Tracking)",
+            128 => "Low Latency (Interactive Tracking & Guitar Amp Simulators)",
+            256 => "Balanced (Standard DAW Composition & Arrangement)",
+            512 => "Mixing (High Track Count & Polyphonic Reverbs/Synths)",
+            1024 => "Mastering / High-Load DSP (Maximum CPU Buffer Headroom)",
+            _ => "Custom Buffer Size",
+        }.to_string();
+
+        points.push(LatencyDiagnosticPoint {
+            buffer_size: buf,
+            latency_ms: (one_way_ms * 100.0).round() / 100.0,
+            roundtrip_estimate_ms: (roundtrip_ms * 100.0).round() / 100.0,
+            daw_workflow_category: category,
+        });
+    }
+
+    let recommendation = if dsp_samples > 512 {
+        "High DSP latency reported (PDC required). Recommended for mixing/mastering passes rather than live recording.".to_string()
+    } else if dsp_samples > 0 {
+        "Moderate DSP lookahead/internal buffer. Host DAW will apply delay compensation (PDC).".to_string()
+    } else {
+        "Zero reported DSP latency. Safe for real-time tracking, live monitoring, and low-latency MIDI playing.".to_string()
+    };
+
+    LatencyDiagnosticResult {
+        sample_rate: rate,
+        reported_dsp_latency_samples: dsp_samples,
+        dsp_latency_ms: (dsp_ms * 100.0).round() / 100.0,
+        buffer_points: points,
+        recommendation,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_diagnose_plugin_latency_defaults() {
+        let result = diagnose_plugin_latency(None, None);
+        assert_eq!(result.sample_rate, 48000);
+        assert_eq!(result.reported_dsp_latency_samples, 0);
+        assert_eq!(result.dsp_latency_ms, 0.0);
+        assert_eq!(result.buffer_points.len(), 5);
+        // 64 samples @ 48000Hz = 1.33ms one-way
+        let p64 = &result.buffer_points[0];
+        assert_eq!(p64.buffer_size, 64);
+        assert!((p64.latency_ms - 1.33).abs() < 0.02);
+        assert!(result.recommendation.contains("Zero reported DSP latency"));
+    }
+
+    #[test]
+    fn test_diagnose_plugin_latency_with_dsp() {
+        let result = diagnose_plugin_latency(Some(44100), Some(256));
+        assert_eq!(result.sample_rate, 44100);
+        assert_eq!(result.reported_dsp_latency_samples, 256);
+        assert!(result.dsp_latency_ms > 5.0);
+        assert!(result.recommendation.contains("Moderate DSP lookahead"));
+    }
+}
+
 #[tauri::command]
 pub async fn verify_installed_plugin(_app: AppHandle, path: String) -> Result<bool, String> {
     let p = PathBuf::from(&path);
