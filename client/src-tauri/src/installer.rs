@@ -415,9 +415,16 @@ pub fn get_default_scan_paths() -> Vec<String> {
             plugin_dirs.push(PathBuf::from(&prog_files).join("CLAP"));
             plugin_dirs.push(PathBuf::from(&prog_files).join("VST2"));
         }
+        if let Ok(prog_files_x86) = env::var("CommonProgramFiles(x86)") {
+            plugin_dirs.push(PathBuf::from(&prog_files_x86).join("VST2"));
+        }
         if let Ok(prog_files) = env::var("ProgramFiles") {
             plugin_dirs.push(PathBuf::from(&prog_files).join("VSTPlugins"));
             plugin_dirs.push(PathBuf::from(&prog_files).join("Steinberg/VSTPlugins"));
+        }
+        if let Ok(prog_files_x86) = env::var("ProgramFiles(x86)") {
+            plugin_dirs.push(PathBuf::from(&prog_files_x86).join("VSTPlugins"));
+            plugin_dirs.push(PathBuf::from(&prog_files_x86).join("Steinberg/VSTPlugins"));
         }
     }
 
@@ -465,9 +472,16 @@ pub async fn scan_installed_plugins(_app: AppHandle, extra_paths: Option<Vec<Str
             plugin_dirs.push(PathBuf::from(&prog_files).join("CLAP"));
             plugin_dirs.push(PathBuf::from(&prog_files).join("VST2"));
         }
+        if let Ok(prog_files_x86) = env::var("CommonProgramFiles(x86)") {
+            plugin_dirs.push(PathBuf::from(&prog_files_x86).join("VST2"));
+        }
         if let Ok(prog_files) = env::var("ProgramFiles") {
             plugin_dirs.push(PathBuf::from(&prog_files).join("VSTPlugins"));
             plugin_dirs.push(PathBuf::from(&prog_files).join("Steinberg/VSTPlugins"));
+        }
+        if let Ok(prog_files_x86) = env::var("ProgramFiles(x86)") {
+            plugin_dirs.push(PathBuf::from(&prog_files_x86).join("VSTPlugins"));
+            plugin_dirs.push(PathBuf::from(&prog_files_x86).join("Steinberg/VSTPlugins"));
         }
     }
 
@@ -589,6 +603,8 @@ fn detect_bundle_version(path: &Path) -> Option<String> {
     let version_file = path.join("VERSION");
     let version_txt = path.join("version.txt");
     let pkg_json = path.join("package.json");
+    let lv2_manifest = path.join("manifest.ttl");
+
     if version_file.exists() {
         if let Ok(v) = fs::read_to_string(&version_file) {
             return Some(v.trim().to_string());
@@ -602,6 +618,26 @@ fn detect_bundle_version(path: &Path) -> Option<String> {
             if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&v) {
                 if let Some(ver) = parsed.get("version").and_then(|val| val.as_str()) {
                     return Some(ver.to_string());
+                }
+            }
+        }
+    } else if lv2_manifest.exists() {
+        // Parse LV2 Turtle RDF manifest for revision/version information
+        if let Ok(content) = fs::read_to_string(&lv2_manifest) {
+            for line in content.lines() {
+                let lower = line.to_lowercase();
+                if lower.contains("doap:revision") || lower.contains("lv2:microversion") || lower.contains("lv2:minorversion") {
+                    let parts: Vec<&str> = line.split('"').collect();
+                    if parts.len() >= 2 {
+                        return Some(parts[1].trim().to_string());
+                    }
+                    let words: Vec<&str> = line.split_whitespace().collect();
+                    if words.len() >= 2 {
+                        let candidate = words[words.len() - 1].trim_matches(';').trim_matches('.').trim();
+                        if !candidate.is_empty() {
+                            return Some(candidate.to_string());
+                        }
+                    }
                 }
             }
         }
@@ -712,6 +748,20 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
             detected_format = "LV2".to_string();
             diagnostics.push("LV2 RDF Turtle manifest.ttl verified".to_string());
             exported_symbols.push("LV2 RDF Turtle Manifest Graph".to_string());
+
+            // Extract declared plugin URI from Turtle manifest
+            if let Ok(manifest_content) = fs::read_to_string(&lv2_manifest) {
+                for line in manifest_content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with('<') && trimmed.contains("http") {
+                        if let Some(end_idx) = trimmed.find('>') {
+                            let uri = &trimmed[1..end_idx];
+                            diagnostics.push(format!("LV2 Plugin URI: {}", uri));
+                            break;
+                        }
+                    }
+                }
+            }
         } else if vst3_contents.exists() {
             detected_format = "VST3".to_string();
             diagnostics.push("VST3 bundle Contents/ architecture tree verified".to_string());

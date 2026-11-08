@@ -1,5 +1,13 @@
 # CHANGELOG: VST Monster
 
+## [0.5.5] - LV2 Manifest Parsing, Hybrid Windows VST2 Scanning & Legacy Steinberg VST 2.4 Inspector
+- Added native LV2 `manifest.ttl` RDF parsing in `detect_bundle_version` (`client/src-tauri/src/installer.rs`), extracting `lv2:minorVersion`, `lv2:microVersion`, and declared plugin URI identifiers (`a lv2:Plugin`).
+- Expanded Windows VST2 search path discovery across 32-bit and 64-bit architecture directories (`%CommonProgramFiles(x86)%/VST2` and `%ProgramFiles(x86)%/VSTPlugins`) in `get_default_scan_paths` and `scan_installed_plugins`.
+- Added a dedicated "Legacy Steinberg VST 2.4 Specification Architecture" callout banner with amber/gold styling in the Audio Format & Host Compatibility Matrix (`client/src/routes/+page.svelte`).
+- Detailed bridging mechanisms (Yabridge, JBridge) and compatibility sandboxing required for running legacy VST 2.4 binaries on modern 64-bit DAWs (Bitwig, REAPER, Cubase, FL Studio, Ableton Live).
+- Verified Rust test compilation (`cargo test`), Svelte diagnostics (`npm run check` with 0 errors), static production build (`npm run build`), and automated Playwright visual screenshot verification (`ui_inspector_v055.png`).
+- Bumped ecosystem version to `v0.5.5`.
+
 ## [0.5.4] - Native Windows Zip Extraction & Exported DAW Entry Point Symbol Inspection
 - Implemented native Windows Zip archive extraction in `client/src-tauri/src/installer.rs`, detecting VST2 (`.dll`), CLAP (`.clap`), and VST3 payloads and dynamically routing extraction to `%CommonProgramFiles%/VST3`, `%CommonProgramFiles%/VST2`, `%CommonProgramFiles%/CLAP`, or user document fallbacks (`Documents/VST3`, `Documents/VST`).
 - Implemented exported entry point symbol verification within `test_plugin_bundle_integrity` in `client/src-tauri/src/installer.rs`, inspecting binary byte slices for standard DAW host entry points: `GetPluginFactory` (VST3), `clap_entry` (CLAP), `lv2_descriptor` (LV2), and `VSTPluginMain` / `main` (VST2).

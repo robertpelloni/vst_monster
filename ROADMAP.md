@@ -48,6 +48,7 @@
 - [x] Headless automated DAW plugin bundle fuzzing and validation test suite (v0.5.3).
 - [x] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files (v0.5.4).
 - [x] Exported DAW host entry point symbol verification (`GetPluginFactory`, `clap_entry`, `lv2_descriptor`, `VSTPluginMain`) (v0.5.4).
+- [x] LV2 manifest Turtle (`.ttl`) version & URI extraction with expanded Windows VST2 discovery & legacy architecture callouts (v0.5.5).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

@@ -1080,6 +1080,16 @@
                   </div>
                 </div>
               {/if}
+
+              {#if previewInferredFormat.includes('VST2') || isLegacyPlugin(previewPlugin) || (previewInstalled?.format.toLowerCase() === 'vst2')}
+                <div class="vst2-spec-banner" use:tooltip={"Legacy Steinberg VST 2.4 Specification Architecture"}>
+                  <span class="vst2-icon">🎚️</span>
+                  <div class="vst2-content">
+                    <strong>Legacy Steinberg VST 2.4 Specification Architecture</strong>
+                    <p>Classic audio plugin standard (.dll / .so). Modern 64-bit DAWs (Cubase 12+, Bitwig) require bit-bridging solutions (Yabridge, JBridge) or compatibility sandboxing for full integration.</p>
+                  </div>
+                </div>
+              {/if}
             </div>
 
           {:else if activeInspectorTab === 'filesystem'}
@@ -2905,6 +2915,36 @@
     padding: 1px 4px;
     border-radius: 3px;
     color: #6ee7b7;
+  }
+
+  .vst2-spec-banner {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .vst2-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .vst2-content strong {
+    display: block;
+    color: #fbbf24;
+    font-size: 0.82rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .vst2-content p {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    margin: 0;
   }
 
   .btn-copy-hash {
