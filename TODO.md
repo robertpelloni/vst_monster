@@ -60,4 +60,5 @@
 - [x] Exported DAW host entry point symbol verification (`GetPluginFactory`, `clap_entry`, `lv2_descriptor`, `VSTPluginMain`) (v0.5.4).
 - [x] LV2 manifest Turtle (`.ttl`) version & URI extraction with expanded Windows VST2 discovery & legacy architecture callouts (v0.5.5).
 - [x] Native DAW preset export engine & preset storage inspector integration (v0.5.6).
+- [x] Multi-format audio capabilities detection & host feature matrix inspector (v0.5.7).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

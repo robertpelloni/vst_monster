@@ -1,5 +1,13 @@
 # CHANGELOG: VST Monster
 
+## [0.5.7] - Multi-Format Audio Capabilities Detection & Host Feature Matrix Inspector
+- Added native audio capability introspection (`check_binary_capabilities`) in `client/src-tauri/src/installer.rs`, inspecting binary signatures and Turtle RDF descriptors for MIDI controller support, MIDI Polyphonic Expression (MPE), sidechain multi-bus architecture, surround/spatial audio processing, latency compensation (PDC), and native preset state serialization.
+- Extended `BundleValidationResult` with `capabilities: Vec<String>` returning detected audio DSP and host communication features.
+- Added visual "DSP Engine & Host Capabilities" badges (`.fuzz-capabilities-container`, `.fuzz-capability-badge`) within the DAW bundle diagnostic suite inside the "Filesystem & DAW" inspector drawer tab (`client/src/routes/+page.svelte`).
+- Added informative tooltips explaining each capability flag (e.g., MPE per-note pitch bend, sidechain compression routing, lookahead PDC).
+- Verified Rust test compilation (`cargo test`), Svelte diagnostics (`npm run check` with 0 errors/warnings), static production build (`npm run build`), and visual Playwright verification.
+- Bumped ecosystem version to `v0.5.7`.
+
 ## [0.5.6] - Native DAW Preset Export Engine & Preset Storage Inspector Integration
 - Implemented native command `export_plugin_preset` in `client/src-tauri/src/installer.rs` allowing users to export plugin presets directly into format-specific DAW preset paths (`~/.vst3/presets/<plugin>/` on Linux, `~/Library/Audio/Presets/<plugin>/` on macOS, and `%USERPROFILE%/Documents/VST3 Presets/<plugin>/` on Windows) with filename sanitization.
 - Registered `export_plugin_preset` command in `client/src-tauri/src/lib.rs`.

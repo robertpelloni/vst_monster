@@ -79,6 +79,7 @@
     has_executable_permission: boolean;
     architecture_compatible: boolean;
     exported_symbols?: string[];
+    capabilities?: string[];
     diagnostics: string[];
   } | null>(null);
   let copiedHashId = $state<string | number | null>(null);
@@ -1241,6 +1242,19 @@
                             {#each bundleTestResult.exported_symbols as sym}
                               <span class="fuzz-symbol-badge" use:tooltip={"Exported entry point verified for native DAW host loading and dynamic linking"}>
                                 ⚡ {sym}
+                              </span>
+                            {/each}
+                          </div>
+                        </div>
+                      {/if}
+
+                      {#if bundleTestResult.capabilities && bundleTestResult.capabilities.length > 0}
+                        <div class="fuzz-capabilities-container">
+                          <span class="fuzz-symbols-label">DSP Engine & Host Capabilities:</span>
+                          <div class="fuzz-capabilities-badges">
+                            {#each bundleTestResult.capabilities as cap}
+                              <span class="fuzz-capability-badge" use:tooltip={"Audio DSP capability and host bus structure detected in binary payload"}>
+                                🎚️ {cap}
                               </span>
                             {/each}
                           </div>
@@ -3335,6 +3349,32 @@
     color: #38bdf8;
     background: rgba(56, 189, 248, 0.12);
     border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+
+  .fuzz-capabilities-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    background: #090e17;
+    padding: 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #1e293b;
+  }
+
+  .fuzz-capabilities-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .fuzz-capability-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.12);
+    border: 1px solid rgba(167, 139, 250, 0.3);
     border-radius: 4px;
     padding: 2px 6px;
   }

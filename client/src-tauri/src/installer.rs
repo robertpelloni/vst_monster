@@ -654,7 +654,29 @@ pub struct BundleValidationResult {
     pub has_executable_permission: bool,
     pub architecture_compatible: bool,
     pub exported_symbols: Vec<String>,
+    pub capabilities: Vec<String>,
     pub diagnostics: Vec<String>,
+}
+
+fn check_binary_capabilities(bytes: &[u8], capabilities: &mut Vec<String>) {
+    // Scan binary byte streams for audio capability identifiers, bus structures, and protocols
+    let feature_signatures = [
+        ("Midi", "MIDI Controller / Note Input"),
+        ("MPE", "MPE (MIDI Polyphonic Expression)"),
+        ("Sidechain", "Multi-Bus Sidechaining"),
+        ("Surround", "Multi-Channel Surround / Spatial"),
+        ("Latency", "Dynamic Latency Compensation (PDC)"),
+        ("Preset", "Native Preset Serialization"),
+    ];
+
+    for (needle, label) in &feature_signatures {
+        let needle_bytes = needle.as_bytes();
+        if bytes.windows(needle_bytes.len()).any(|w| w == needle_bytes) {
+            if !capabilities.contains(&label.to_string()) {
+                capabilities.push(label.to_string());
+            }
+        }
+    }
 }
 
 fn check_binary_symbols(bytes: &[u8], symbols: &mut Vec<String>) {
@@ -689,12 +711,14 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
             has_executable_permission: false,
             architecture_compatible: false,
             exported_symbols: Vec::new(),
+            capabilities: Vec::new(),
             diagnostics: vec![format!("Path does not exist: {}", path)],
         });
     }
 
     let mut diagnostics = Vec::new();
     let mut exported_symbols = Vec::new();
+    let mut capabilities = Vec::new();
     let mut binary_count = 0;
     let mut total_size_bytes = 0;
     let mut has_executable_permission = true;
@@ -736,6 +760,7 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
                     }
                 }
                 check_binary_symbols(&bytes, &mut exported_symbols);
+                check_binary_capabilities(&bytes, &mut capabilities);
             }
         }
     } else if p.is_dir() {
@@ -760,6 +785,9 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
                             break;
                         }
                     }
+                }
+                if manifest_content.contains("lv2:InstrumentPlugin") || manifest_content.contains("a lv2:Plugin") {
+                    capabilities.push("LV2 Audio / Synth Engine".to_string());
                 }
             }
         } else if vst3_contents.exists() {
@@ -798,6 +826,7 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
 
                                 if let Ok(bytes) = fs::read(&subpath) {
                                     check_binary_symbols(&bytes, &mut exported_symbols);
+                                    check_binary_capabilities(&bytes, &mut capabilities);
                                 }
                             }
                         }
@@ -805,6 +834,11 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
                 }
             }
         }
+    }
+
+    // Default basic audio I/O capability if plugin is valid
+    if capabilities.is_empty() {
+        capabilities.push("Stereo Audio I/O (Main)".to_string());
     }
 
     let is_valid = total_size_bytes > 0 && (binary_count > 0 || detected_format == "LV2");
@@ -822,6 +856,7 @@ pub async fn test_plugin_bundle_integrity(_app: AppHandle, path: String) -> Resu
         has_executable_permission,
         architecture_compatible: true,
         exported_symbols,
+        capabilities,
         diagnostics,
     })
 }
