@@ -52,4 +52,5 @@
 - [x] Add Audio Unit (AU) discoverability chip, reactive count badges, and CoreAudio compatibility banner (v0.4.8).
 - [x] Implement pre-flight sandboxed ClamAV antivirus scanner before unpacking binaries (v0.4.9).
 - [x] Add Cryptographic Verification & Antivirus Scan Card in Inspector Drawer (v0.4.9).
-- [ ] Implement dark/light theme toggle in header.
+- [x] Implement dynamic DAW theme switching (Dark Studio vs High-Contrast DAW) in header (v0.5.0).
+- [ ] Headless automated DAW plugin bundle fuzzing and validation test suite.

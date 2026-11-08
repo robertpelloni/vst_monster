@@ -42,6 +42,7 @@
 - [x] Local Scan Metadata Caching, Rescan Acceleration & Cache Flush Integration.
 - [x] Audio Unit (AU) Discoverability Chip & CoreAudio Compatibility Integration (v0.4.8).
 - [x] Pre-Flight Antivirus Sandbox Scanner & Cryptographic Verification UI (v0.4.9).
+- [x] Dynamic DAW Theme Switching & UI Color Profiles (v0.5.0).
 - [ ] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files.
 - [ ] Headless automated DAW plugin bundle fuzzing and validation test suite.
 

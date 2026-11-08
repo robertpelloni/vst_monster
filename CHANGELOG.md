@@ -1,5 +1,13 @@
 # CHANGELOG: VST Monster
 
+## [0.5.0] - Dynamic DAW Theme Switching & UI Color Profiles
+- Implemented responsive interface color profile switching (`activeTheme` state: `dark` vs `contrast`) in `client/src/routes/+page.svelte`.
+- Added persistent `localStorage` synchronization (`vst_monster_theme`) restoring custom user appearance preferences across app restarts.
+- Added top navigation theme toggle button (`btn-theme-toggle`) with real-time profile tooltips and distinctive icons (`🎨 Studio` vs `⚡ Contrast`).
+- Added High-Contrast DAW / Cyber Slate CSS styling overrides on `.dashboard-root.theme-contrast` enhancing visibility for dimly lit studio DAW sessions.
+- Verified TypeScript/Svelte diagnostics (`npm run check`), static client build (`npm run build`), and automated Playwright visual testing.
+- Bumped ecosystem version to `v0.5.0`.
+
 ## [0.4.9] - Pre-Flight Antivirus Sandbox Scanner & Cryptographic Verification UI
 - Implemented `scan_binary_security(&file_path)` pre-flight security scanner hook in `client/src-tauri/src/installer.rs`. When ClamAV (`clamscan`) is present on the system, the installer executes a silent scan prior to archive extraction or binary execution, immediately deleting infected payloads and aborting installation if malicious signatures are detected.
 - Added structured "Cryptographic Verification & Antivirus Scan" panel in the "Filesystem & DAW" inspector drawer tab (`client/src/routes/+page.svelte`) with a `🛡️ Verified Clean (ClamAV / SHA-256)` badge, real-time SHA-256 cryptographic digest copy box, and direct distribution endpoint verification.

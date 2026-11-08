@@ -79,6 +79,14 @@
   let newCustomPath = $state('');
   let isClearingCache = $state(false);
   let cacheClearMsg = $state('');
+  let activeTheme = $state<'dark' | 'contrast'>('dark');
+
+  function toggleTheme() {
+    activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
+    try {
+      localStorage.setItem('vst_monster_theme', activeTheme);
+    } catch {}
+  }
 
   // New plugin form state
   let newPlugin = $state({
@@ -603,6 +611,12 @@
   );
 
   onMount(() => {
+    try {
+      const savedTheme = localStorage.getItem('vst_monster_theme');
+      if (savedTheme === 'contrast' || savedTheme === 'dark') {
+        activeTheme = savedTheme;
+      }
+    } catch {}
     loadScanPaths();
     fetchDashboardData();
     let unlistenProgress: (() => void) | null = null;
@@ -630,7 +644,7 @@
   });
 </script>
 
-<div class="dashboard-root">
+<div class="dashboard-root theme-{activeTheme}">
   <!-- Top Global Header / Command Bar -->
   <header class="top-nav">
     <div class="brand">
@@ -670,6 +684,10 @@
 
       <button class="btn-folder-action" onclick={() => (showScanPathsModal = true)} use:tooltip={"Configure and audit local audio plugin scan paths"}>
         ⚙️ Paths
+      </button>
+
+      <button class="btn-theme-toggle" onclick={toggleTheme} use:tooltip={`Switch interface color profile (Currently: ${activeTheme === 'dark' ? 'Dark Studio' : 'High-Contrast DAW'})`}>
+        {activeTheme === 'dark' ? '🎨 Studio' : '⚡ Contrast'}
       </button>
 
       <button class="btn-success-outline" onclick={() => (showAddPluginModal = !showAddPluginModal)} use:tooltip={"Register a plugin manifest directly into PostgreSQL"}>
@@ -1833,6 +1851,60 @@
     border-radius: 4px;
     font-size: 0.75rem;
     font-weight: 700;
+  }
+
+  .btn-theme-toggle {
+    background: #1e293b;
+    color: #38bdf8;
+    border: 1px solid #334155;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .btn-theme-toggle:hover {
+    background: #334155;
+    border-color: #38bdf8;
+    color: #7dd3fc;
+  }
+
+  /* High-Contrast DAW / Cyber Slate Theme Overrides */
+  .dashboard-root.theme-contrast {
+    background-color: #030712;
+    color: #f9fafb;
+  }
+
+  .dashboard-root.theme-contrast .top-nav {
+    background: #0b0f19;
+    border-bottom: 2px solid #3b82f6;
+  }
+
+  .dashboard-root.theme-contrast .command-card {
+    background: #0f172a;
+    border: 1px solid #334155;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  }
+
+  .dashboard-root.theme-contrast .plugin-card {
+    background: #0b0f19;
+    border: 1px solid #2563eb;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.12);
+  }
+
+  .dashboard-root.theme-contrast .filter-chip {
+    border-color: #475569;
+  }
+
+  .dashboard-root.theme-contrast .filter-chip.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #60a5fa;
   }
 
   .btn-danger-outline {
