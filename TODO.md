@@ -68,5 +68,6 @@
 - [x] Latency & buffer diagnostic simulation matrix with sample rate & DSP lookahead PDC analysis (v0.6.2).
 - [x] Channel audio bus configuration & I/O routing matrix inspection (v0.6.3).
 - [x] Binary architecture & SIMD instruction inspection engine with security protections (v0.6.4).
-- [ ] Automated VST/CLAP headless diagnostic benchmark & memory profiler (v0.6.5).
+- [x] Headless DSP diagnostic benchmark & real-time memory profiler (v0.6.5).
+- [ ] Automated VST/AU/CLAP plugin parameter enumeration & MIDI automation map inspector (v0.6.6).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

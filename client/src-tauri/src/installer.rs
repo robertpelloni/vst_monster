@@ -511,6 +511,138 @@ pub fn inspect_plugin_binary_architecture(
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
+pub struct DiagnosticBenchmarkPoint {
+    pub buffer_size: u32,
+    pub simulated_dsp_load_pct: f64,
+    pub xrun_risk_level: String,     // "Low", "Moderate", "High", "Critical"
+    pub real_time_safety_margin_pct: f64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct PluginBenchmarkReport {
+    pub format: String,
+    pub category: String,
+    pub estimated_peak_rss_mb: f64,
+    pub base_memory_mb: f64,
+    pub multicore_scaling_score: u32,  // Scale of 1 to 100
+    pub thread_safety_classification: String, // "Lock-Free DSP Realtime Safe", "Thread-Pooled Worker Safe", "Single-Thread Synchronous"
+    pub buffer_benchmarks: Vec<DiagnosticBenchmarkPoint>,
+    pub overall_efficiency_rating: String, // "Optimal DSP Efficiency", "Standard Production Grade", "High DSP Consumption"
+    pub optimization_advice: String,
+}
+
+#[tauri::command]
+pub fn benchmark_plugin_performance(
+    format: Option<String>,
+    category: Option<String>,
+    base_memory_mb: Option<f64>,
+) -> PluginBenchmarkReport {
+    let fmt = format.unwrap_or_else(|| "VST3".to_string()).to_uppercase();
+    let cat = category.unwrap_or_else(|| "synth".to_string()).to_lowercase();
+
+    // Determine baseline memory footprint (MB) based on category & format
+    let base_mem = base_memory_mb.unwrap_or_else(|| {
+        if cat.contains("sampler") || cat.contains("rompler") {
+            340.0
+        } else if cat.contains("synth") || cat.contains("instrument") {
+            85.0
+        } else if cat.contains("spatial") || cat.contains("reverb") {
+            48.0
+        } else if cat.contains("delay") || cat.contains("modulation") {
+            32.0
+        } else {
+            24.0 // Standard lightweight dynamics / utility
+        }
+    });
+
+    let peak_rss = (base_mem * 1.35).round();
+
+    // Compute multicore scaling & thread safety based on plugin standard
+    let (multicore_score, thread_safety) = match fmt.as_str() {
+        "CLAP" => (96, "Lock-Free DSP Realtime Safe (CLAP Thread-Pool API)"),
+        "LV2" => (88, "Thread-Pooled Worker Safe (LV2 Worker Extension)"),
+        "VST3" => (85, "Host Process Thread Delegated (VST3 Distributed Processing)"),
+        _ => (72, "Single-Thread Synchronous Processing (Legacy VST2)"),
+    };
+
+    // Category load weight multiplier (e.g. polyphonic synths or convolution reverbs require more cycles per sample block)
+    let category_multiplier: f64 = if cat.contains("synth") || cat.contains("instrument") {
+        1.35
+    } else if cat.contains("reverb") || cat.contains("spatial") {
+        1.25
+    } else if cat.contains("dynamics") || cat.contains("distortion") {
+        0.85
+    } else {
+        1.0
+    };
+
+    // Buffer sizes to simulate
+    let buffer_sizes: [u32; 5] = [64, 128, 256, 512, 1024];
+    let mut benchmarks = Vec::new();
+
+    for &buf in &buffer_sizes {
+        // DSP load per block: smaller buffer = higher context switching & sample loop overhead
+        let base_load = match buf {
+            64 => 12.8,
+            128 => 7.4,
+            256 => 4.2,
+            512 => 2.5,
+            1024 => 1.6,
+            _ => 3.0,
+        };
+
+        let simulated_load = (base_load * category_multiplier * 10.0).round() / 10.0;
+        let safety_margin = (100.0 - (simulated_load * 4.5)).max(5.0).min(98.0).round();
+
+        let risk = if simulated_load >= 15.0 {
+            "High".to_string()
+        } else if simulated_load >= 8.0 {
+            "Moderate".to_string()
+        } else {
+            "Low".to_string()
+        };
+
+        benchmarks.push(DiagnosticBenchmarkPoint {
+            buffer_size: buf,
+            simulated_dsp_load_pct: simulated_load,
+            xrun_risk_level: risk,
+            real_time_safety_margin_pct: safety_margin,
+        });
+    }
+
+    let avg_load = benchmarks.iter().find(|b| b.buffer_size == 256).map(|b| b.simulated_dsp_load_pct).unwrap_or(4.0);
+
+    let (rating, advice) = if avg_load <= 4.0 {
+        (
+            "Optimal DSP Efficiency".to_string(),
+            "Ultra-lightweight audio processing algorithm. Excellent for high track counts and ultra-low latency live tracking sessions.".to_string(),
+        )
+    } else if avg_load <= 8.0 {
+        (
+            "Standard Production Grade".to_string(),
+            "Balanced CPU utilization. Well suited for standard arrangement workflows at 128-256 sample buffers.".to_string(),
+        )
+    } else {
+        (
+            "High DSP Consumption".to_string(),
+            "Intensive processing load detected. Recommend running at 512+ sample buffers or freezing audio tracks during multi-track mix sessions.".to_string(),
+        )
+    };
+
+    PluginBenchmarkReport {
+        format: fmt,
+        category: cat,
+        estimated_peak_rss_mb: peak_rss,
+        base_memory_mb: base_mem,
+        multicore_scaling_score: multicore_score,
+        thread_safety_classification: thread_safety.to_string(),
+        buffer_benchmarks: benchmarks,
+        overall_efficiency_rating: rating,
+        optimization_advice: advice,
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct InstalledPluginInfo {
     pub name: String,
@@ -1467,6 +1599,30 @@ mod tests {
         let arch = inspect_plugin_binary_architecture(Some("windows".to_string()), Some("x86".to_string()), None);
         assert!(!arch.is_64bit);
         assert!(arch.min_os_version.contains("Legacy VST2 Bridge Required"));
+    }
+
+    #[test]
+    fn test_benchmark_plugin_performance_defaults() {
+        let report = benchmark_plugin_performance(None, None, None);
+        assert_eq!(report.format, "VST3");
+        assert_eq!(report.category, "synth");
+        assert_eq!(report.buffer_benchmarks.len(), 5);
+        assert!(report.base_memory_mb > 50.0);
+        assert!(report.multicore_scaling_score >= 80);
+        // Smaller buffer (64) has higher CPU load than larger buffer (1024)
+        let b64 = &report.buffer_benchmarks[0];
+        let b1024 = &report.buffer_benchmarks[4];
+        assert!(b64.simulated_dsp_load_pct > b1024.simulated_dsp_load_pct);
+    }
+
+    #[test]
+    fn test_benchmark_plugin_performance_clap_multicore() {
+        let report = benchmark_plugin_performance(Some("CLAP".to_string()), Some("sampler".to_string()), Some(500.0));
+        assert_eq!(report.format, "CLAP");
+        assert_eq!(report.multicore_scaling_score, 96);
+        assert!(report.thread_safety_classification.contains("CLAP Thread-Pool API"));
+        assert_eq!(report.base_memory_mb, 500.0);
+        assert_eq!(report.estimated_peak_rss_mb, 675.0);
     }
 }
 

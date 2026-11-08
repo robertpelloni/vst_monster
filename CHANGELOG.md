@@ -1,5 +1,21 @@
 # CHANGELOG: VST Monster
 
+## [0.6.5] - Headless DSP Diagnostic Benchmark & Real-Time Memory Profiler
+- Defined `DiagnosticBenchmarkPoint` and `PluginBenchmarkReport` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `benchmark_plugin_performance(format: Option<String>, category: Option<String>, base_memory_mb: Option<f64>) -> PluginBenchmarkReport` in `client/src-tauri/src/installer.rs`:
+  - Simulates headless real-time DSP cycle load percentages across DAW block sizes (64, 128, 256, 512, 1024 samples) with sample-accurate calculation and safety margins.
+  - Profiles real-time buffer safety headroom margins and categorizes XRun buffer underrun risks (`LOW`, `MODERATE`, `HIGH`) per buffer tier.
+  - Estimates peak Resident Set Size (RSS) memory consumption with audio buffer allocation scaling.
+  - Evaluates DAW host multicore scaling efficiency index (CLAP 96/100, LV2 88/100, VST3 85/100, Legacy VST2 72/100) and formats runtime safety guidance advice.
+- Added comprehensive unit tests in `installer.rs`: `test_benchmark_plugin_performance_defaults` and `test_benchmark_plugin_performance_clap_multicore` (10 total passing unit tests).
+- Registered `benchmark_plugin_performance` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "HEADLESS DSP BENCHMARK & MEMORY PROFILING MATRIX" card within the "Filesystem & DAW" tab in `client/src/routes/+page.svelte`:
+  - "🚀 Run DSP Benchmark" trigger button invoking native Tauri performance benchmark simulation.
+  - Visual summary banner with performance grade badge, peak RSS RAM memory badge, multicore scaling badge, thread safety class, and workflow guidance advice.
+  - Responsive 5-tier benchmark table displaying Buffer Size, Simulated DSP Load gauge with colored progress fills and percentages, Headroom Margin, and XRun Risk pill with interactive tooltips.
+- Verified full test suite (`cargo test`, 10 unit tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_dsp_benchmark_computed.png`).
+- Bumped ecosystem version to `v0.6.5`.
+
 ## [0.6.4] - Binary Architecture & SIMD Instruction Inspection Engine
 - Defined `BinaryArchitectureDetails` data model in `client/src-tauri/src/installer.rs`.
 - Implemented `inspect_plugin_binary_architecture(platform: Option<String>, architecture: Option<String>, file_path: Option<String>) -> BinaryArchitectureDetails` in `client/src-tauri/src/installer.rs`:

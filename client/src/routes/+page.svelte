@@ -171,6 +171,26 @@
   let binaryArchDetails = $state<BinaryArchitectureDetailsItem | null>(null);
   let isInspectingArch = $state(false);
 
+  interface DiagnosticBenchmarkPointItem {
+    buffer_size: number;
+    simulated_dsp_load_pct: number;
+    xrun_risk_level: string;
+    real_time_safety_margin_pct: number;
+  }
+  interface PluginBenchmarkReportItem {
+    format: string;
+    category: string;
+    estimated_peak_rss_mb: number;
+    base_memory_mb: number;
+    multicore_scaling_score: number;
+    thread_safety_classification: string;
+    buffer_benchmarks: DiagnosticBenchmarkPointItem[];
+    overall_efficiency_rating: string;
+    optimization_advice: string;
+  }
+  let benchmarkReport = $state<PluginBenchmarkReportItem | null>(null);
+  let isBenchmarking = $state(false);
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -670,6 +690,24 @@
       console.warn('Binary architecture inspection failed:', err);
     } finally {
       isInspectingArch = false;
+    }
+  }
+
+  async function runDspBenchmark() {
+    isBenchmarking = true;
+    try {
+      const format = previewPlugin ? inferCatalogFormat(previewPlugin) : 'VST3';
+      const category = previewPlugin?.category || 'synth';
+      const res: PluginBenchmarkReportItem = await invoke('benchmark_plugin_performance', {
+        format,
+        category,
+        baseMemoryMb: null,
+      });
+      benchmarkReport = res;
+    } catch (err: any) {
+      console.warn('DSP benchmark execution failed:', err);
+    } finally {
+      isBenchmarking = false;
     }
   }
 
@@ -1663,6 +1701,85 @@
                           <span class="workflow-cell">{pt.daw_workflow_category}</span>
                         </div>
                       {/each}
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Headless DSP Benchmark & Memory Profiler Card -->
+              <div class="dsp-benchmark-card">
+                <div class="benchmark-header">
+                  <div class="benchmark-title">
+                    <span class="benchmark-icon">🚀</span>
+                    <div>
+                      <strong>HEADLESS DSP BENCHMARK & MEMORY PROFILING MATRIX</strong>
+                      <span class="benchmark-subtitle">Simulate real-time DSP cycle load, buffer underrun (XRun) safety margins, and peak RSS memory footprints</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn-benchmark-run"
+                    onclick={() => runDspBenchmark()}
+                    disabled={isBenchmarking}
+                    use:tooltip={"Execute simulated headless DSP cycle benchmark and memory consumption profiler"}
+                  >
+                    {isBenchmarking ? '⏳ Profiling DSP...' : '⚡ Run DSP Benchmark'}
+                  </button>
+                </div>
+
+                {#if benchmarkReport}
+                  <div class="benchmark-results-container">
+                    <div class="benchmark-summary-banner">
+                      <div class="benchmark-banner-badges">
+                        <span class="benchmark-rating-badge">{benchmarkReport.overall_efficiency_rating}</span>
+                        <span class="benchmark-mem-badge" use:tooltip={"Estimated peak resident set size memory allocation"}>
+                          RAM: {benchmarkReport.base_memory_mb} MB (Peak: {benchmarkReport.estimated_peak_rss_mb} MB)
+                        </span>
+                        <span class="benchmark-multicore-badge" use:tooltip={"DAW multicore DSP worker thread pool efficiency score (1-100)"}>
+                          Multicore Scaling: {benchmarkReport.multicore_scaling_score}/100
+                        </span>
+                      </div>
+                      <div class="benchmark-safety-desc">
+                        🔒 <strong>Safety Class:</strong> {benchmarkReport.thread_safety_classification}
+                      </div>
+                      <div class="benchmark-advice-text">
+                        💡 {benchmarkReport.optimization_advice}
+                      </div>
+                    </div>
+
+                    <!-- Buffer benchmark table -->
+                    <div class="benchmark-table-wrapper">
+                      <table class="benchmark-table">
+                        <thead>
+                          <tr>
+                            <th use:tooltip={"Audio host buffer size in samples"}>Buffer Size</th>
+                            <th use:tooltip={"Estimated percentage of CPU core allocated for real-time DSP calculation"}>Simulated DSP Load</th>
+                            <th use:tooltip={"Real-time safety margin before audio glitch / buffer underrun occurs"}>Headroom Margin</th>
+                            <th use:tooltip={"Risk level of audio stutter or XRun buffer underruns at this block size"}>XRun Risk</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {#each benchmarkReport.buffer_benchmarks as point}
+                            <tr>
+                              <td class="bench-col-buf"><strong>{point.buffer_size}</strong> samples</td>
+                              <td class="bench-col-load">
+                                <div class="load-bar-wrap">
+                                  <div class="load-bar-fill" style="width: {Math.min(point.simulated_dsp_load_pct * 4, 100)}%"></div>
+                                  <span class="load-val">{point.simulated_dsp_load_pct}%</span>
+                                </div>
+                              </td>
+                              <td class="bench-col-margin">
+                                <span class="margin-val">{point.real_time_safety_margin_pct}%</span>
+                              </td>
+                              <td class="bench-col-risk">
+                                <span class="xrun-risk-pill risk-{point.xrun_risk_level.toLowerCase()}">
+                                  {point.xrun_risk_level}
+                                </span>
+                              </td>
+                            </tr>
+                          {/each}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 {/if}
@@ -5319,6 +5436,231 @@
   .btn-cache-flush:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  /* DSP Benchmark & Profiler Styles */
+  .dsp-benchmark-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+  }
+
+  .benchmark-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .benchmark-title {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .benchmark-title strong {
+    display: block;
+    font-size: 0.88rem;
+    color: #a855f7;
+  }
+
+  .benchmark-subtitle {
+    display: block;
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .benchmark-icon {
+    font-size: 1.4rem;
+  }
+
+  .btn-benchmark-run {
+    padding: 0.45rem 0.85rem;
+    background: #7e22ce;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+  }
+
+  .btn-benchmark-run:hover:not(:disabled) {
+    background: #9333ea;
+  }
+
+  .btn-benchmark-run:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .benchmark-results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .benchmark-summary-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: #3b0764;
+    border: 1px solid #7e22ce;
+    padding: 0.55rem 0.75rem;
+    border-radius: 6px;
+  }
+
+  .benchmark-banner-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .benchmark-rating-badge {
+    background: #10b981;
+    color: #064e3b;
+    font-weight: 700;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .benchmark-mem-badge {
+    background: #0284c7;
+    color: #f0f9ff;
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+  }
+
+  .benchmark-multicore-badge {
+    background: #6366f1;
+    color: #eef2ff;
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+  }
+
+  .benchmark-safety-desc {
+    font-size: 0.75rem;
+    color: #e9d5ff;
+  }
+
+  .benchmark-advice-text {
+    font-size: 0.72rem;
+    color: #d8b4fe;
+    font-style: italic;
+  }
+
+  .benchmark-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid #334155;
+    border-radius: 6px;
+  }
+
+  .benchmark-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    text-align: left;
+  }
+
+  .benchmark-table th {
+    background: #1e293b;
+    color: #cbd5e1;
+    padding: 0.45rem 0.65rem;
+    border-bottom: 1px solid #334155;
+  }
+
+  .benchmark-table td {
+    padding: 0.45rem 0.65rem;
+    border-bottom: 1px solid #1e293b;
+    color: #f1f5f9;
+  }
+
+  .bench-col-buf {
+    white-space: nowrap;
+    width: 130px;
+  }
+
+  .bench-col-load {
+    width: 180px;
+  }
+
+  .load-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    background: #090d16;
+    border-radius: 4px;
+    padding: 2px 4px;
+    box-sizing: border-box;
+  }
+
+  .load-bar-fill {
+    height: 8px;
+    background: linear-gradient(90deg, #10b981 0%, #eab308 60%, #ef4444 100%);
+    border-radius: 3px;
+    min-width: 4px;
+    transition: width 0.3s ease;
+  }
+
+  .load-val {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-left: auto;
+  }
+
+  .bench-col-margin {
+    width: 110px;
+  }
+
+  .margin-val {
+    color: #34d399;
+    font-weight: 600;
+  }
+
+  .bench-col-risk {
+    width: 90px;
+  }
+
+  .xrun-risk-pill {
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .risk-low {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border: 1px solid #059669;
+  }
+
+  .risk-moderate {
+    background: rgba(234, 179, 8, 0.2);
+    color: #fde047;
+    border: 1px solid #ca8a04;
+  }
+
+  .risk-high {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid #dc2626;
   }
 
   @media (max-width: 1024px) {
