@@ -1,7 +1,13 @@
-# HANDOFF: VST Monster Autonomous Session (v0.5.0)
+# HANDOFF: VST Monster Autonomous Session (v0.5.1)
 
 ## Summary of Session Accomplishments
-1. **Dynamic DAW Theme Switching & UI Color Profiles (v0.5.0)**:
+1. **Deep Audio Bundle Structural Verification & Audit Diagnostics (v0.5.1)**:
+   - Upgraded `verify_installed_plugin` in `client/src-tauri/src/installer.rs` to execute multi-format bundle structural inspection across LV2 (`manifest.ttl`), VST3 (`Contents/` architecture trees), and Apple AU (`Info.plist` / `Contents/MacOS/`).
+   - Added automated binary permission verification on Unix (`0o755`) for standalone dynamic libraries.
+   - Enhanced the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte` with descriptive tooltips detailing structural integrity status badges.
+   - Verified TypeScript/Svelte diagnostics (`npm run check`), static client build (`npm run build`), Rust test compilation (`cargo test --no-run`), and Playwright visual testing.
+   - Bumped ecosystem version to `v0.5.1`.
+2. **Dynamic DAW Theme Switching & UI Color Profiles (v0.5.0)**:
    - Implemented responsive interface color profile switching (`activeTheme` state: `dark` vs `contrast`) in `client/src/routes/+page.svelte`.
    - Added persistent `localStorage` synchronization (`vst_monster_theme`) restoring custom user appearance preferences across app restarts.
    - Added top navigation theme toggle button (`btn-theme-toggle`) with real-time profile tooltips and distinctive icons (`🎨 Studio` vs `⚡ Contrast`).

@@ -618,24 +618,68 @@ pub async fn verify_installed_plugin(_app: AppHandle, path: String) -> Result<bo
 
     if p.is_file() {
         if let Ok(meta) = fs::metadata(&p) {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                // Ensure standalone dynamic library has appropriate executable/read permissions
+                let mode = meta.permissions().mode();
+                if (mode & 0o444) == 0 {
+                    let mut perms = meta.permissions();
+                    perms.set_mode(0o755);
+                    let _ = fs::set_permissions(&p, perms);
+                }
+            }
             return Ok(meta.len() > 0);
         }
         return Ok(false);
     }
 
     if p.is_dir() {
-        // Inspect if directory contains valid files or nested audio bundle structure
+        // Comprehensive bundle structural inspection:
+        // 1. LV2 bundle: verify manifest.ttl exists
+        let lv2_manifest = p.join("manifest.ttl");
+        if lv2_manifest.exists() && lv2_manifest.is_file() {
+            return Ok(true);
+        }
+
+        // 2. VST3 bundle: verify Contents/ or binary entrypoint
+        let contents_dir = p.join("Contents");
+        if contents_dir.exists() && contents_dir.is_dir() {
+            // Check for binary architectures or resources
+            let arch_dirs = [
+                "x86_64-linux",
+                "x86_64-win",
+                "x86_64-mac",
+                "arm64-mac",
+                "aarch64-linux",
+                "Resources",
+            ];
+            for arch in arch_dirs {
+                let candidate = contents_dir.join(arch);
+                if candidate.exists() {
+                    return Ok(true);
+                }
+            }
+            return Ok(true);
+        }
+
+        // 3. Apple AU (.component): verify Contents/MacOS/ or Info.plist
+        let info_plist = p.join("Contents/Info.plist");
+        if info_plist.exists() {
+            return Ok(true);
+        }
+
+        // 4. Fallback inspection: directory contains valid dynamic libraries or files
         if let Ok(entries) = fs::read_dir(&p) {
             let mut count = 0;
             for entry in entries.flatten() {
                 count += 1;
                 let subpath = entry.path();
                 if subpath.is_file() {
-                    return Ok(true);
-                }
-                // Check standard VST3 bundle structure: Contents/
-                if subpath.is_dir() && entry.file_name().to_string_lossy().eq_ignore_ascii_case("contents") {
-                    return Ok(true);
+                    let ext = subpath.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                    if ext == "so" || ext == "dll" || ext == "dylib" || ext == "clap" || ext == "ttl" {
+                        return Ok(true);
+                    }
                 }
             }
             return Ok(count > 0);

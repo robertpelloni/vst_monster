@@ -1067,13 +1067,19 @@
                     <span class="fs-label">Bundle Verification:</span>
                     <span class="fs-value">
                       {#if verificationStatus[previewPlugin.name] === 'valid'}
-                        <span class="verification-badge valid">✓ Valid Binary Structure</span>
+                        <span class="verification-badge valid" use:tooltip={"Valid audio bundle entrypoint, manifest graph, architecture tree, and binary permissions"}>
+                          ✓ Verified Structural Integrity
+                        </span>
                       {:else if verificationStatus[previewPlugin.name] === 'verifying'}
-                        <span class="verification-badge verifying">⏳ Verifying bundle integrity...</span>
+                        <span class="verification-badge verifying">⏳ Inspecting bundle architecture & entrypoints...</span>
                       {:else if verificationStatus[previewPlugin.name] === 'invalid'}
-                        <span class="verification-badge invalid">⚠ Missing Binary or Corrupt Bundle</span>
+                        <span class="verification-badge invalid" use:tooltip={"Bundle missing entrypoint, architecture folder, or valid binary"}>
+                          ⚠ Missing Binary or Corrupt Bundle
+                        </span>
                       {:else}
-                        <span class="verification-badge">Unverified</span>
+                        <span class="verification-badge" use:tooltip={"Click 'Run Deep Verification' to audit local bundle integrity"}>
+                          Unverified
+                        </span>
                       {/if}
                     </span>
                   </div>
