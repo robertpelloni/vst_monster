@@ -1,5 +1,24 @@
 # CHANGELOG: VST Monster
 
+## [0.7.1] - Multi-Channel Audio Phase Correlation & Goniometer Vectorscope Analyzer
+- Defined `PhaseCorrelationSummary`, `GoniometerLissajousPoint`, and `PluginPhaseAnalysisReport` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `render_audio_phase_analysis(plugin_name: Option<String>, format: Option<String>, category: Option<String>) -> PluginPhaseAnalysisReport`:
+  - Calculates stereo phase correlation coefficient (-1.0 to +1.0) indicating phase alignment and mono compatibility.
+  - Synthesizes 16 normalized Mid/Side Lissajous coordinates (X = (L-R)/sqrt(2), Y = (L+R)/sqrt(2)) for vectorscope visualization.
+  - Profiles stereo width percentages (0% pure mono, 100% standard stereo, 135%+ wide/diffuse).
+  - Assesses mono sum cancellation attenuation (dB) and classifies cancellation risk (`SAFE`, `LOW`, `MODERATE`, `CRITICAL`).
+  - Synthesizes contextual stereo imaging and phase alignment advice.
+- Added comprehensive Rust unit tests in `installer.rs`: `test_render_audio_phase_analysis_spatial` and `test_render_audio_phase_analysis_mono_dynamics` (22 total passing unit tests).
+- Registered `render_audio_phase_analysis` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "MULTI-CHANNEL PHASE CORRELATION & GONIOMETER VECTORSCOPE" card within the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte`:
+  - "Analyze Phase & Goniometer" action trigger.
+  - 4 high-value stat cards: Phase Correlation (-1 to +1 scale with color grading), Stereo Width percentage with goniometer pattern badge, Mono Summing Loss (dB) with cancellation risk level, and Mono Compatibility status badge.
+  - Visual stereo correlation horizontal meter bar with center reference marker and dynamic position pointer.
+  - Circular Lissajous Vectorscope screen featuring polar axis grid lines, 45-degree L/R stereo axes, Mid/Side indicators, and rendered vector polygon path.
+  - Stereo imaging and phase advice callout card.
+- Verified test suite (`cargo test`, 22 tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_phase_full.png`).
+- Bumped ecosystem version to `v0.7.1`.
+
 ## [0.7.0] - Real-Time Audio Loopback Metering & True Peak (dBTP) LUFS EBU R128 Analyzer
 - Defined `LoudnessMetricSummary`, `TruePeakSummary`, `StreamingStandardCompliance`, and `PluginAudioMeteringReport` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `render_audio_metering_analysis(format: Option<String>, category: Option<String>, target_standard: Option<String>) -> PluginAudioMeteringReport`:

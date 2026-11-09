@@ -1686,6 +1686,106 @@ pub fn render_audio_metering_analysis(
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct PhaseCorrelationSummary {
+    pub correlation_coefficient: f64, // -1.0 (anti-phase / cancellation) to +1.0 (perfect mono)
+    pub mono_compatibility_score: String, // "PERFECT_MONO", "WIDE_STEREO_SAFE", "PHASE_RISK", "CRITICAL_CANCELLATION"
+    pub stereo_width_percent: f64, // 0% (mono) to 100% (balanced stereo) to 150%+ (hyperspread)
+    pub mono_sum_loss_db: f64, // attenuation in dB when summed to mono (L+R - 6dB)
+    pub phase_cancellation_risk: String, // "SAFE", "LOW", "MODERATE", "CRITICAL"
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct GoniometerLissajousPoint {
+    pub sample_index: u32,
+    pub x: f64, // Mid / Side horizontal axis: (L - R) / sqrt(2)
+    pub y: f64, // Sum vertical axis: (L + R) / sqrt(2)
+    pub intensity: f64, // 0.0 to 1.0 magnitude
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct PluginPhaseAnalysisReport {
+    pub plugin_name: String,
+    pub format: String,
+    pub category: String,
+    pub correlation: PhaseCorrelationSummary,
+    pub goniometer_pattern: String, // "VERTICAL_LINE_MONO", "ELLIPTICAL_STEREO", "CIRCULAR_DIFFUSE", "HORIZONTAL_INVERTED"
+    pub lissajous_points: Vec<GoniometerLissajousPoint>,
+    pub imaging_advice: String,
+}
+
+#[tauri::command]
+pub fn render_audio_phase_analysis(
+    plugin_name: Option<String>,
+    format: Option<String>,
+    category: Option<String>,
+) -> PluginPhaseAnalysisReport {
+    let p_name = plugin_name.unwrap_or_else(|| "Surge XT".to_string());
+    let fmt = format.unwrap_or_else(|| "VST3".to_string()).to_uppercase();
+    let cat = category.unwrap_or_else(|| "spatial".to_string()).to_lowercase();
+
+    // Stereophonic attributes derived from DSP category
+    let (corr, width, sum_loss, pattern, risk, comp_score): (f64, f64, f64, &str, &str, &str) = if cat.contains("spatial") || cat.contains("reverb") {
+        (0.35, 135.0, -2.8, "CIRCULAR_DIFFUSE", "MODERATE", "WIDE_STEREO_SAFE")
+    } else if cat.contains("synth") {
+        (0.72, 95.0, -0.9, "ELLIPTICAL_STEREO", "SAFE", "WIDE_STEREO_SAFE")
+    } else if cat.contains("dynamics") || cat.contains("utility") {
+        (0.96, 20.0, -0.1, "VERTICAL_LINE_MONO", "SAFE", "PERFECT_MONO")
+    } else {
+        (0.55, 110.0, -1.5, "ELLIPTICAL_STEREO", "LOW", "WIDE_STEREO_SAFE")
+    };
+
+    // Synthesize 16 representative Lissajous vectorscope points
+    let mut points: Vec<GoniometerLissajousPoint> = Vec::new();
+    let point_count = 16;
+    for i in 0..point_count {
+        let phase_rad = (i as f64) * (std::f64::consts::PI * 2.0 / (point_count as f64));
+        let width_factor = width / 100.0;
+        let left = phase_rad.sin();
+        let right = (phase_rad + (1.0 - corr) * std::f64::consts::FRAC_PI_2).sin();
+
+        // Standard goniometer rotation: X = (L - R) / sqrt(2), Y = (L + R) / sqrt(2)
+        let sqrt2 = 2.0_f64.sqrt();
+        let raw_x = ((left - right) / sqrt2) * width_factor;
+        let raw_y = (left + right) / sqrt2;
+
+        let clamped_x = ((raw_x * 100.0).round() / 100.0).clamp(-1.0, 1.0);
+        let clamped_y = ((raw_y * 100.0).round() / 100.0).clamp(-1.0, 1.0);
+        let mag = (((clamped_x * clamped_x + clamped_y * clamped_y).sqrt() / sqrt2) * 100.0).round() / 100.0;
+
+        points.push(GoniometerLissajousPoint {
+            sample_index: i,
+            x: clamped_x,
+            y: clamped_y,
+            intensity: mag.min(1.0),
+        });
+    }
+
+    let advice = if corr < 0.0 {
+        format!("CRITICAL: Phase correlation is negative ({:.2}). Destructive phase cancellation will occur in mono playback. Check polarity or collapse bass below 120 Hz.", corr)
+    } else if corr < 0.4 {
+        format!("CAUTION: Wide stereo spread detected (Correlation: {:.2}, Width: {:.0}%). Modest mono sum attenuation ({:.1} dB). Ensure lead elements remain mono-compatible.", corr, width, sum_loss)
+    } else {
+        format!("EXCELLENT: Strong phase alignment (Correlation: {:.2}, Width: {:.0}%). Mono sum loss is minimal ({:.1} dB). Safe for club/broadcast mono playback systems.", corr, width, sum_loss)
+    };
+
+    PluginPhaseAnalysisReport {
+        plugin_name: p_name,
+        format: fmt,
+        category: cat,
+        correlation: PhaseCorrelationSummary {
+            correlation_coefficient: corr,
+            mono_compatibility_score: comp_score.to_string(),
+            stereo_width_percent: width,
+            mono_sum_loss_db: sum_loss,
+            phase_cancellation_risk: risk.to_string(),
+        },
+        goniometer_pattern: pattern.to_string(),
+        lissajous_points: points,
+        imaging_advice: advice,
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct InstalledPluginInfo {
     pub name: String,
     pub version: Option<String>,
@@ -2820,6 +2920,37 @@ mod tests {
         assert_eq!(report.target_compliance.target_integrated_lufs, -14.0);
         assert_eq!(report.target_compliance.compliance_status, "UNDER_TARGET");
         assert!(report.mastering_advice.contains("Gain headroom available"));
+    }
+
+    #[test]
+    fn test_render_audio_phase_analysis_spatial() {
+        let report = render_audio_phase_analysis(
+            Some("Dragonfly Reverb".to_string()),
+            Some("LV2".to_string()),
+            Some("spatial".to_string()),
+        );
+        assert_eq!(report.plugin_name, "Dragonfly Reverb");
+        assert_eq!(report.format, "LV2");
+        assert_eq!(report.correlation.correlation_coefficient, 0.35);
+        assert_eq!(report.correlation.stereo_width_percent, 135.0);
+        assert_eq!(report.correlation.mono_compatibility_score, "WIDE_STEREO_SAFE");
+        assert_eq!(report.goniometer_pattern, "CIRCULAR_DIFFUSE");
+        assert_eq!(report.lissajous_points.len(), 16);
+        assert!(report.imaging_advice.contains("Wide stereo spread detected"));
+    }
+
+    #[test]
+    fn test_render_audio_phase_analysis_mono_dynamics() {
+        let report = render_audio_phase_analysis(
+            Some("RoughRider3".to_string()),
+            Some("VST3".to_string()),
+            Some("dynamics".to_string()),
+        );
+        assert_eq!(report.plugin_name, "RoughRider3");
+        assert_eq!(report.correlation.correlation_coefficient, 0.96);
+        assert_eq!(report.correlation.mono_compatibility_score, "PERFECT_MONO");
+        assert_eq!(report.goniometer_pattern, "VERTICAL_LINE_MONO");
+        assert!(report.imaging_advice.contains("Strong phase alignment"));
     }
 }
 

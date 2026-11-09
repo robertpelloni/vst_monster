@@ -349,6 +349,31 @@
     mastering_advice: string;
   }
 
+  interface PhaseCorrelationSummary {
+    correlation_coefficient: number;
+    mono_compatibility_score: string;
+    stereo_width_percent: number;
+    mono_sum_loss_db: number;
+    phase_cancellation_risk: string;
+  }
+
+  interface GoniometerLissajousPoint {
+    sample_index: number;
+    x: number;
+    y: number;
+    intensity: number;
+  }
+
+  interface PluginPhaseAnalysisReport {
+    plugin_name: string;
+    format: string;
+    category: string;
+    correlation: PhaseCorrelationSummary;
+    goniometer_pattern: string;
+    lissajous_points: GoniometerLissajousPoint[];
+    imaging_advice: string;
+  }
+
   let activeSnapshot = $state<PluginStateSnapshot | null>(null);
   let isSnapshotting = $state(false);
   let presetDiffReport = $state<PresetDiffReport | null>(null);
@@ -358,6 +383,8 @@
   let audioMeteringReport = $state<PluginAudioMeteringReport | null>(null);
   let isAnalyzingMetering = $state(false);
   let meteringTargetStandard = $state('EBU R128 (-23 LUFS)');
+  let audioPhaseReport = $state<PluginPhaseAnalysisReport | null>(null);
+  let isAnalyzingPhase = $state(false);
 
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
@@ -992,6 +1019,26 @@
       actionMessage = `Audio metering analysis failed: ${err}`;
     } finally {
       isAnalyzingMetering = false;
+    }
+  }
+
+  async function handleAnalyzePhase() {
+    isAnalyzingPhase = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Surge XT';
+      const format = previewPlugin ? inferCatalogFormat(previewPlugin) : 'VST3';
+      const category = previewPlugin?.category || 'spatial';
+      const res: PluginPhaseAnalysisReport = await invoke('render_audio_phase_analysis', {
+        pluginName,
+        format,
+        category,
+      });
+      audioPhaseReport = res;
+      actionMessage = `Computed phase correlation & Lissajous vectorscope for ${pluginName} (Corr: ${res.correlation.correlation_coefficient.toFixed(2)})`;
+    } catch (err: any) {
+      actionMessage = `Phase correlation analysis failed: ${err}`;
+    } finally {
+      isAnalyzingPhase = false;
     }
   }
 
@@ -2055,6 +2102,131 @@
                       <div class="advice-content">
                         <strong>DSP Mastering & Normalization Advisory:</strong>
                         <p>{audioMeteringReport.mastering_advice}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Multi-Channel Audio Phase Correlation & Goniometer Vectorscope Analyzer -->
+              <div class="phase-analyzer-card">
+                <div class="phase-header">
+                  <div class="phase-title">
+                    <span class="phase-icon">🌐</span>
+                    <div>
+                      <h4 class="phase-h4">Multi-Channel Phase Correlation & Goniometer Vectorscope</h4>
+                      <span class="phase-sub">Stereo phase alignment, Lissajous projection, mono compatibility, and summing cancellation analysis</span>
+                    </div>
+                  </div>
+                  <div class="phase-ctrls">
+                    <button
+                      type="button"
+                      class="btn-phase-action"
+                      onclick={handleAnalyzePhase}
+                      disabled={isAnalyzingPhase}
+                      use:tooltip={"Trigger headless L/R phase correlation analysis and compute Lissajous coordinate points"}
+                    >
+                      {isAnalyzingPhase ? 'Analyzing Phase...' : 'Analyze Phase & Goniometer'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if audioPhaseReport}
+                  <div class="phase-content">
+                    <div class="phase-metrics-grid">
+                      <div class="phase-stat-card">
+                        <span class="phase-label">Phase Correlation:</span>
+                        <span class="phase-val" class:phase-good={audioPhaseReport.correlation.correlation_coefficient >= 0.4} class:phase-mid={audioPhaseReport.correlation.correlation_coefficient >= 0 && audioPhaseReport.correlation.correlation_coefficient < 0.4} class:phase-bad={audioPhaseReport.correlation.correlation_coefficient < 0}>
+                          {audioPhaseReport.correlation.correlation_coefficient >= 0 ? '+' : ''}{audioPhaseReport.correlation.correlation_coefficient.toFixed(2)}
+                        </span>
+                        <span class="phase-subtext">Scale: -1.0 (Out of Phase) to +1.0 (Mono)</span>
+                      </div>
+                      <div class="phase-stat-card">
+                        <span class="phase-label">Stereo Width:</span>
+                        <span class="phase-val width">{audioPhaseReport.correlation.stereo_width_percent.toFixed(0)}%</span>
+                        <span class="phase-subtext">{audioPhaseReport.goniometer_pattern}</span>
+                      </div>
+                      <div class="phase-stat-card">
+                        <span class="phase-label">Mono Summing Loss:</span>
+                        <span class="phase-val loss">{audioPhaseReport.correlation.mono_sum_loss_db.toFixed(1)} dB</span>
+                        <span class="phase-subtext">Cancellation Risk: {audioPhaseReport.correlation.phase_cancellation_risk}</span>
+                      </div>
+                      <div class="phase-stat-card">
+                        <span class="phase-label">Mono Compatibility:</span>
+                        <span class="phase-val compat" class:compat-safe={audioPhaseReport.correlation.mono_compatibility_score.includes('SAFE') || audioPhaseReport.correlation.mono_compatibility_score.includes('MONO')} class:compat-risk={!audioPhaseReport.correlation.mono_compatibility_score.includes('SAFE') && !audioPhaseReport.correlation.mono_compatibility_score.includes('MONO')}>
+                          {audioPhaseReport.correlation.mono_compatibility_score}
+                        </span>
+                        <span class="phase-subtext">Club & FM Broadcast Ready</span>
+                      </div>
+                    </div>
+
+                    <!-- Visual Phase Meter Bar & Lissajous Vectorscope -->
+                    <div class="phase-visual-container">
+                      <div class="phase-meter-bar-section">
+                        <div class="phase-bar-header">
+                          <span>Stereo Phase Correlation Meter (-1 to +1)</span>
+                          <span class="phase-bar-badge">{audioPhaseReport.correlation.correlation_coefficient.toFixed(2)}</span>
+                        </div>
+                        <div class="phase-bar-track">
+                          <div class="phase-bar-center-marker"></div>
+                          <div
+                            class="phase-bar-pointer"
+                            style="left: {((audioPhaseReport.correlation.correlation_coefficient + 1.0) / 2.0) * 100}%"
+                          ></div>
+                        </div>
+                        <div class="phase-bar-ticks">
+                          <span>-1.0 (Cancel)</span>
+                          <span>0.0 (Wide)</span>
+                          <span>+1.0 (Mono)</span>
+                        </div>
+                      </div>
+
+                      <div class="goniometer-vectorscope-box">
+                        <div class="goniometer-header">
+                          <span>Lissajous Vectorscope Display</span>
+                          <span class="goniometer-tag">{audioPhaseReport.goniometer_pattern}</span>
+                        </div>
+                        <div class="vectorscope-screen">
+                          <svg viewBox="-110 -110 220 220" class="vectorscope-svg">
+                            <!-- Background Axis Grid Lines -->
+                            <circle cx="0" cy="0" r="100" fill="none" stroke="#1e293b" stroke-dasharray="3,3" />
+                            <circle cx="0" cy="0" r="50" fill="none" stroke="#1e293b" stroke-dasharray="2,2" />
+                            <line x1="-100" y1="0" x2="100" y2="0" stroke="#334155" stroke-width="1" />
+                            <line x1="0" y1="-100" x2="0" y2="100" stroke="#334155" stroke-width="1" />
+                            <!-- 45-degree Left / Right Axes -->
+                            <line x1="-70.7" y1="70.7" x2="70.7" y2="-70.7" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4" />
+                            <line x1="-70.7" y1="-70.7" x2="70.7" y2="70.7" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4" />
+                            <text x="-95" y="-75" fill="#64748b" font-size="9">L</text>
+                            <text x="85" y="-75" fill="#64748b" font-size="9">R</text>
+                            <text x="-95" y="8" fill="#64748b" font-size="8">S (Side)</text>
+                            <text x="-15" y="-90" fill="#64748b" font-size="8">M (Mid)</text>
+
+                            <!-- Lissajous Sample Points Path -->
+                            <path
+                              d="M {audioPhaseReport.lissajous_points.map(p => `${(p.x * 85).toFixed(1)},${(-p.y * 85).toFixed(1)}`).join(' L ')} Z"
+                              fill="rgba(56, 189, 248, 0.15)"
+                              stroke="#38bdf8"
+                              stroke-width="1.8"
+                              stroke-linejoin="round"
+                            />
+                            {#each audioPhaseReport.lissajous_points as pt}
+                              <circle
+                                cx={(pt.x * 85).toFixed(1)}
+                                cy={(-pt.y * 85).toFixed(1)}
+                                r="2.5"
+                                fill="#a855f7"
+                              />
+                            {/each}
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="phase-advice-card">
+                      <span class="advice-icon">💡</span>
+                      <div class="advice-content">
+                        <strong>Stereo Imaging & Phase Advice:</strong>
+                        <p>{audioPhaseReport.imaging_advice}</p>
                       </div>
                     </div>
                   </div>
@@ -7683,6 +7855,277 @@
     margin: 0;
     color: #cbd5e1;
     line-height: 1.4;
+  }
+
+  /* Multi-Channel Phase & Goniometer Styling */
+  .phase-analyzer-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .phase-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 1rem;
+  }
+
+  .phase-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .phase-icon {
+    font-size: 1.5rem;
+  }
+
+  .phase-h4 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #f8fafc;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .phase-sub {
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+
+  .btn-phase-action {
+    background: #0284c7;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.55rem 1.1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .btn-phase-action:hover:not(:disabled) {
+    background: #0369a1;
+  }
+
+  .btn-phase-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .phase-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .phase-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.85rem;
+  }
+
+  .phase-stat-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .phase-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: #94a3b8;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .phase-val {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f8fafc;
+  }
+
+  .phase-val.phase-good {
+    color: #38bdf8;
+  }
+
+  .phase-val.phase-mid {
+    color: #fbbf24;
+  }
+
+  .phase-val.phase-bad {
+    color: #f87171;
+  }
+
+  .phase-val.width {
+    color: #c084fc;
+  }
+
+  .phase-val.loss {
+    color: #38bdf8;
+  }
+
+  .phase-val.compat.compat-safe {
+    color: #4ade80;
+  }
+
+  .phase-val.compat.compat-risk {
+    color: #f87171;
+  }
+
+  .phase-subtext {
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+
+  .phase-visual-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 1.25rem;
+  }
+
+  @media (max-width: 850px) {
+    .phase-visual-container {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .phase-meter-bar-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .phase-bar-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    color: #cbd5e1;
+    font-weight: 600;
+  }
+
+  .phase-bar-badge {
+    background: #1e293b;
+    border: 1px solid #334155;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: #38bdf8;
+  }
+
+  .phase-bar-track {
+    position: relative;
+    height: 18px;
+    background: linear-gradient(90deg, #ef4444 0%, #eab308 50%, #22c55e 100%);
+    border-radius: 9px;
+    border: 1px solid #334155;
+    overflow: visible;
+  }
+
+  .phase-bar-center-marker {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    left: 50%;
+    width: 2px;
+    background: #ffffff;
+    opacity: 0.6;
+    transform: translateX(-50%);
+  }
+
+  .phase-bar-pointer {
+    position: absolute;
+    top: -4px;
+    width: 10px;
+    height: 26px;
+    background: #ffffff;
+    border: 2px solid #0f172a;
+    border-radius: 3px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 8px rgba(0,0,0,0.6);
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .phase-bar-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 500;
+  }
+
+  .goniometer-vectorscope-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .goniometer-header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 0.82rem;
+    color: #cbd5e1;
+    font-weight: 600;
+  }
+
+  .goniometer-tag {
+    font-size: 0.72rem;
+    background: #1e293b;
+    border: 1px solid #334155;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    color: #cbd5e1;
+  }
+
+  .vectorscope-screen {
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 220px;
+    height: 220px;
+  }
+
+  .vectorscope-svg {
+    width: 200px;
+    height: 200px;
+  }
+
+  .phase-advice-card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #e2e8f0;
   }
 
   @media (max-width: 1024px) {

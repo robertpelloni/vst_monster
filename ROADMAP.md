@@ -64,6 +64,7 @@
 - [x] Headless Audio Loopback Rendering & Dynamic Frequency Response Spectrum Analyzer (v0.6.8).
 - [x] Automated Preset Bank Diffing & State Snapshot Manager (v0.6.9).
 - [x] Real-Time Audio Loopback Metering & True Peak (dBTP) LUFS EBU R128 Analyzer (v0.7.0).
+- [x] Multi-Channel Audio Phase Correlation & Goniometer Vectorscope Analyzer (v0.7.1).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

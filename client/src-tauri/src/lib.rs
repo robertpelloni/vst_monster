@@ -102,6 +102,7 @@ pub fn run() {
             installer::test_audio_thread_resilience,
             installer::render_audio_spectrum_analysis,
             installer::render_audio_metering_analysis,
+            installer::render_audio_phase_analysis,
             installer::snapshot_plugin_state,
             installer::diff_plugin_presets,
             stop_servers,
