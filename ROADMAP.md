@@ -60,6 +60,7 @@
 - [x] Binary Architecture & SIMD Instruction Inspection Engine (v0.6.4).
 - [x] Headless DSP Diagnostic Benchmark & Real-Time Memory Profiler (v0.6.5).
 - [x] Automated VST/AU/CLAP Plugin Parameter Enumeration & MIDI Automation Map Inspector (v0.6.6).
+- [x] Real-Time Audio Thread Stress Test & Headless Crash Recovery Inspector (v0.6.7).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

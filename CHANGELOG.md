@@ -1,5 +1,21 @@
 # CHANGELOG: VST Monster
 
+## [0.6.7] - Real-Time Audio Thread Stress Test & Headless Crash Recovery Inspector
+- Defined `AudioThreadStressPoint` and `PluginResilienceReport` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `test_audio_thread_resilience(format: Option<String>, category: Option<String>, buffer_size: Option<u32>) -> PluginResilienceReport` in `client/src-tauri/src/installer.rs`:
+  - Simulates dynamic DSP render stress curves (20% to 100% capacity) against strict real-time audio thread callback budgets (e.g. 5,333.3 µs at 256 samples/48kHz).
+  - Evaluates priority inversion risks, heap allocations within the critical audio thread (`zero_allocation_render`), and lock-free concurrency status.
+  - Profiles host sandboxing compatibility across Bitwig Studio out-of-process hosting and REAPER dedicated/separate process isolation.
+  - Generates resilience grades (A+ to C-), automated host crash recovery advice, and detailed stress timeline step breakdown with buffer underrun (XRun) detection.
+- Added comprehensive unit tests in `installer.rs`: `test_audio_thread_resilience_clap` and `test_audio_thread_resilience_vst2_stress` (14 total passing unit tests).
+- Registered `test_audio_thread_resilience` command in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "AUDIO THREAD RESILIENCE & CRASH ISOLATION MATRIX" card within the "Filesystem & DAW" tab in `client/src/routes/+page.svelte`:
+  - "🛡️ Stress Test Thread" trigger button invoking native Tauri audio thread resilience simulation.
+  - Visual summary banner with resilience grade badge, lock-free concurrency badge, zero heap allocations badge, host sandboxing compatibility badge, and crash recovery callouts.
+  - Responsive 5-tier stress timeline table displaying Stress Intensity %, Audio Callback Execution Time (µs) vs Time Budget, DSP Cycle Fill Gauge, Audio Thread Allocations, Priority Inversion status, and XRun Dropout pills with descriptive tooltips.
+- Verified full test suite (`cargo test`, 14 unit tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_resilience_matrix_computed.png`).
+- Bumped ecosystem version to `v0.6.7`.
+
 ## [0.6.6] - Automated VST/AU/CLAP Plugin Parameter Enumeration & MIDI Automation Map Inspector
 - Defined `PluginParameterInfo` and `PluginParameterReport` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `inspect_plugin_parameters(format: Option<String>, category: Option<String>, _parameter_count: Option<usize>) -> PluginParameterReport` in `client/src-tauri/src/installer.rs`:

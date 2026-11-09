@@ -70,4 +70,5 @@
 - [x] Binary architecture & SIMD instruction inspection engine with security protections (v0.6.4).
 - [x] Headless DSP diagnostic benchmark & real-time memory profiler (v0.6.5).
 - [x] Automated VST/AU/CLAP plugin parameter enumeration & MIDI automation map inspector (v0.6.6).
+- [x] Real-time audio thread stress test & headless crash recovery inspector (v0.6.7).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

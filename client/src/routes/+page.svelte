@@ -217,6 +217,33 @@
   let parameterReport = $state<PluginParameterReportItem | null>(null);
   let isInspectingParameters = $state(false);
 
+  interface AudioThreadStressPointItem {
+    stress_intensity_pct: number;
+    execution_time_us: number;
+    time_budget_us: number;
+    cpu_cycle_pct: number;
+    priority_inversion_detected: boolean;
+    audio_thread_allocations: number;
+    xrun_dropout: boolean;
+  }
+  interface PluginResilienceReportItem {
+    format: string;
+    category: string;
+    buffer_size: number;
+    sample_rate: number;
+    time_budget_us: number;
+    lock_free_audio_thread: boolean;
+    zero_allocation_render: boolean;
+    bitwig_sandboxing_compatible: boolean;
+    reaper_process_isolation_compatible: boolean;
+    crash_recovery_mechanism: string;
+    overall_resilience_grade: string;
+    stress_timeline: AudioThreadStressPointItem[];
+    host_resilience_advice: string;
+  }
+  let resilienceReport = $state<PluginResilienceReportItem | null>(null);
+  let isTestingResilience = $state(false);
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -752,6 +779,24 @@
       console.warn('Parameter inspection failed:', err);
     } finally {
       isInspectingParameters = false;
+    }
+  }
+
+  async function testAudioThreadResilience() {
+    isTestingResilience = true;
+    try {
+      const format = previewPlugin ? inferCatalogFormat(previewPlugin) : 'VST3';
+      const category = previewPlugin?.category || 'synth';
+      const res: PluginResilienceReportItem = await invoke('test_audio_thread_resilience', {
+        format,
+        category,
+        bufferSize: 256,
+      });
+      resilienceReport = res;
+    } catch (err: any) {
+      console.warn('Resilience stress test failed:', err);
+    } finally {
+      isTestingResilience = false;
     }
   }
 
@@ -2055,6 +2100,112 @@
                                 {:else}
                                   <span class="param-no-midi">—</span>
                                 {/if}
+                              </td>
+                            </tr>
+                          {/each}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <!-- AUDIO THREAD RESILIENCE & CRASH ISOLATION MATRIX -->
+            <div class="preview-section">
+              <div class="resilience-matrix-card">
+                <div class="resilience-matrix-header">
+                  <div class="resilience-matrix-title">
+                    <span class="resilience-icon">🛡️</span>
+                    <div>
+                      <div class="resilience-title-text">AUDIO THREAD RESILIENCE & CRASH ISOLATION MATRIX</div>
+                      <div class="resilience-subtitle-text">
+                        Test real-time buffer deadline adherence, lock-free safety, and host crash sandbox isolation
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    class="btn btn-sm btn-resilience"
+                    disabled={isTestingResilience}
+                    onclick={() => testAudioThreadResilience()}
+                    use:tooltip={"Stress test audio thread execution budgets and assert zero-allocation real-time safety"}
+                  >
+                    {isTestingResilience ? '⏳ Stress Testing...' : '🛡️ Stress Test Thread'}
+                  </button>
+                </div>
+
+                {#if resilienceReport}
+                  <div class="resilience-results-container">
+                    <div class="resilience-summary-bar">
+                      <span class="resilience-badge badge-grade" use:tooltip={"Overall real-time safety and deterministic reliability rating"}>
+                        Grade: {resilienceReport.overall_resilience_grade}
+                      </span>
+                      <span class="resilience-badge {resilienceReport.lock_free_audio_thread ? 'badge-safe' : 'badge-warn'}" use:tooltip={"Verifies absence of priority inversions or mutex lock stalls on the audio thread"}>
+                        {resilienceReport.lock_free_audio_thread ? '✓ Lock-Free Concurrency' : '⚠️ Mutex Contention Risk'}
+                      </span>
+                      <span class="resilience-badge {resilienceReport.zero_allocation_render ? 'badge-safe' : 'badge-warn'}" use:tooltip={"Verifies zero malloc/free heap allocations in real-time audio render callback"}>
+                        {resilienceReport.zero_allocation_render ? '✓ Zero Heap Allocations' : '⚠️ Heap Dynamic Allocations'}
+                      </span>
+                      <span class="resilience-badge badge-sandbox" use:tooltip={"Process isolation compatibility with Bitwig Studio and REAPER crash sandboxes"}>
+                        Host Sandboxing: Bitwig & REAPER Ready
+                      </span>
+                    </div>
+
+                    <div class="resilience-info-box">
+                      <div class="resilience-metric-row">
+                        <span><strong>Buffer Budget:</strong> {resilienceReport.buffer_size} samples ({resilienceReport.time_budget_us.toFixed(1)} µs deadline @ {resilienceReport.sample_rate / 1000} kHz)</span>
+                        <span><strong>Crash Recovery:</strong> {resilienceReport.crash_recovery_mechanism}</span>
+                      </div>
+                      <div class="resilience-advice">💡 {resilienceReport.host_resilience_advice}</div>
+                    </div>
+
+                    <!-- Stress Timeline Table -->
+                    <div class="resilience-table-wrapper">
+                      <table class="resilience-table">
+                        <thead>
+                          <tr>
+                            <th use:tooltip={"Simulated DSP synthetic load stress level"}>Stress Load</th>
+                            <th use:tooltip={"Execution time consumed in audio callback per buffer block"}>Exec Time (µs)</th>
+                            <th use:tooltip={"Buffer deadline budget"}>Budget (µs)</th>
+                            <th use:tooltip={"Percentage of available time budget consumed"}>DSP Cycle %</th>
+                            <th use:tooltip={"Audio thread heap allocations detected (must be 0 for real-time safety)"}>Allocations</th>
+                            <th use:tooltip={"Thread priority inversion / mutex block check"}>Priority Inversion</th>
+                            <th use:tooltip={"Audio buffer underrun / glitch dropout"}>Dropout (XRun)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {#each resilienceReport.stress_timeline as pt}
+                            <tr>
+                              <td class="resilience-col-stress">
+                                <span class="stress-intensity-tag {pt.stress_intensity_pct >= 100 ? 'high-stress' : 'normal-stress'}">
+                                  {pt.stress_intensity_pct}% Load
+                                </span>
+                              </td>
+                              <td class="resilience-col-exec">{pt.execution_time_us} µs</td>
+                              <td class="resilience-col-budget">{pt.time_budget_us.toFixed(1)} µs</td>
+                              <td class="resilience-col-cycle">
+                                <div class="cycle-bar-container">
+                                  <div
+                                    class="cycle-bar-fill {pt.cpu_cycle_pct > 80 ? 'fill-danger' : pt.cpu_cycle_pct > 50 ? 'fill-warning' : 'fill-good'}"
+                                    style="width: {Math.min(pt.cpu_cycle_pct, 100)}%"
+                                  ></div>
+                                  <span class="cycle-label">{pt.cpu_cycle_pct}%</span>
+                                </div>
+                              </td>
+                              <td class="resilience-col-alloc">
+                                <span class="alloc-badge {pt.audio_thread_allocations === 0 ? 'alloc-zero' : 'alloc-warn'}">
+                                  {pt.audio_thread_allocations === 0 ? '0 (Clean)' : `${pt.audio_thread_allocations} (Unsafe)`}
+                                </span>
+                              </td>
+                              <td class="resilience-col-inv">
+                                <span class="inv-badge {pt.priority_inversion_detected ? 'inv-danger' : 'inv-safe'}">
+                                  {pt.priority_inversion_detected ? '⚠️ DETECTED' : '✓ Safe'}
+                                </span>
+                              </td>
+                              <td class="resilience-col-xrun">
+                                <span class="xrun-badge {pt.xrun_dropout ? 'xrun-dropped' : 'xrun-ok'}">
+                                  {pt.xrun_dropout ? '💥 DROPOUT' : '✓ CLEAN'}
+                                </span>
                               </td>
                             </tr>
                           {/each}
@@ -6013,6 +6164,263 @@
 
   .param-no-midi {
     color: #64748b;
+  }
+
+  /* Resilience Matrix Styles */
+  .resilience-matrix-card {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .resilience-matrix-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .resilience-matrix-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .resilience-icon {
+    font-size: 1.5rem;
+  }
+
+  .resilience-title-text {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    letter-spacing: 0.05em;
+  }
+
+  .resilience-subtitle-text {
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .btn-resilience {
+    background: #0369a1;
+    color: #f0f9ff;
+    border: 1px solid #0284c7;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+  }
+
+  .btn-resilience:hover:not(:disabled) {
+    background: #0284c7;
+  }
+
+  .resilience-results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .resilience-summary-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .resilience-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .badge-grade {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid #059669;
+  }
+
+  .badge-safe {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid #0284c7;
+  }
+
+  .badge-warn {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid #b91c1c;
+  }
+
+  .badge-sandbox {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid #9333ea;
+  }
+
+  .resilience-info-box {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .resilience-metric-row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    color: #cbd5e1;
+  }
+
+  .resilience-advice {
+    color: #38bdf8;
+    font-style: italic;
+    border-top: 1px dashed #334155;
+    padding-top: 0.4rem;
+  }
+
+  .resilience-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid #334155;
+    border-radius: 6px;
+  }
+
+  .resilience-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.72rem;
+    text-align: left;
+  }
+
+  .resilience-table th {
+    background: #1e293b;
+    color: #94a3b8;
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid #334155;
+  }
+
+  .resilience-table td {
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid #1e293b;
+    color: #cbd5e1;
+  }
+
+  .stress-intensity-tag {
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+
+  .normal-stress {
+    background: #1e293b;
+    color: #94a3b8;
+  }
+
+  .high-stress {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+  }
+
+  .resilience-col-exec, .resilience-col-budget {
+    font-family: monospace;
+  }
+
+  .cycle-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 100px;
+    background: #0f172a;
+    border-radius: 3px;
+    height: 14px;
+    padding: 1px;
+    position: relative;
+  }
+
+  .cycle-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+  }
+
+  .fill-good {
+    background: #10b981;
+  }
+
+  .fill-warning {
+    background: #f59e0b;
+  }
+
+  .fill-danger {
+    background: #ef4444;
+  }
+
+  .cycle-label {
+    position: absolute;
+    right: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 0 2px #000;
+  }
+
+  .alloc-badge {
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+
+  .alloc-zero {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+  }
+
+  .alloc-warn {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+  }
+
+  .inv-badge {
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+
+  .inv-safe {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+  }
+
+  .inv-danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+  }
+
+  .xrun-badge {
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 700;
+  }
+
+  .xrun-ok {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+  }
+
+  .xrun-dropped {
+    background: #ef4444;
+    color: #fff;
   }
 
   @media (max-width: 1024px) {

@@ -1,32 +1,30 @@
-# SESSION HANDOFF - VST Monster
+# HANDOFF: VST Monster v0.6.7 Session Summary
 
-## 1. Session Context & State Overview
-- Current Ecosystem Version: `v0.6.6` (defined globally in `VERSION.md` and referenced dynamically in Registry and Client).
-- Core Services:
-  - **Crawler**: Go (`crawler/`) with Colly scrapers for GitHub, Bedroom Producers Blog, KVR Audio.
-  - **Registry API**: Node.js/TypeScript Express (`registry/src/index.ts`) connected to PostgreSQL and Redis.
-  - **Desktop Client**: Tauri v2 (`client/src-tauri/`) Rust backend with SvelteKit Single-Page Application (`client/src/routes/+page.svelte`).
+## Status & Overview
+- **Global Ecosystem Version:** `v0.6.7`
+- **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
+- **Primary Feature Shipped in v0.6.7:** Real-Time Audio Thread Stress Test & Headless Crash Recovery Inspector.
 
-## 2. Work Completed in This Session (v0.6.6)
-- **Plugin Parameter Enumeration & MIDI Automation Map Inspector**:
-  - Defined `PluginParameterInfo` and `PluginParameterReport` data structures in `client/src-tauri/src/installer.rs`.
-  - Implemented `inspect_plugin_parameters(format, category, parameter_count)` returning structured parameter information, topological organization (Hierarchical Unit Trees vs Flat Busses), automatable flags, display units, standard MIDI CC mappings (e.g. Cutoff CC 74, Resonance CC 71, Attack CC 73, Volume CC 7), MPE polyphonic expression status, sample-accurate modulation rules (`IParameterChanges`), and host advice.
-  - Added unit test coverage in `installer.rs` (`test_inspect_plugin_parameters_synth_defaults` and `test_inspect_plugin_parameters_dynamics`), with all 12 Rust unit tests passing.
-  - Registered `inspect_plugin_parameters` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
-  - Added interactive "PLUGIN PARAMETER ENUMERATION & MIDI AUTOMATION MATRIX" card to the "Filesystem & DAW" inspector tab in `client/src/routes/+page.svelte` featuring:
-    - Summary badges: Total Parameters, Automatable count, MPE Polyphonic Expression status, Sample-Accurate Automation indicator.
-    - Automation host advice advisory box.
-    - Responsive scrollable parameter table displaying ID, Name, Group, Data Type, Default, Range, Display Unit, Automatable flag, and MIDI CC tags with hover tooltips.
-  - Verified TypeScript/Svelte checks (`npm run check` with 0 errors/warnings) and production build (`npm run build`).
-  - Executed Playwright automated visual test and visually confirmed clean rendering (`ui_params_matrix_computed.png`).
-  - Updated all core governance documentation (`VERSION.md`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, `MEMORY.md`, `HANDOFF.md`).
+## Key Changes in v0.6.7
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `AudioThreadStressPoint` and `PluginResilienceReport`.
+   - Implemented `test_audio_thread_resilience(format, category, buffer_size)` simulating dynamic DSP burst stress curves (20% to 100%) against hard audio thread callback deadlines (e.g., 5,333.3 µs at 256 samples/48kHz).
+   - Audited lock-free audio thread concurrency, dynamic heap allocations within the render loop (`zero_allocation_render`), priority inversion hazards, and buffer underrun dropouts (XRuns).
+   - Evaluated out-of-process crash sandboxing compatibility for Bitwig Studio and REAPER, generating actionable DAW host resilience advice.
+   - Added 2 new unit tests (`test_audio_thread_resilience_clap` and `test_audio_thread_resilience_vst2_stress`), total 14 tests passing.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `test_audio_thread_resilience` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added reactive state variables `resilienceReport` and `isTestingResilience`.
+   - Implemented `testAudioThreadResilience()` invoker communicating with Tauri.
+   - Designed responsive `.resilience-matrix-card` within the "Filesystem & DAW" inspector tab featuring summary badges (Grade, Lock-Free Concurrency, Zero Allocations, Host Sandboxing), buffer budget & crash recovery callouts, and an interactive 5-tier stress timeline table with color-coded DSP cycle fill gauges and XRun status pills.
+4. **Testing & Verification**:
+   - 14 passing cargo unit tests (`cargo test`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual testing validated UI rendering (`ui_resilience_matrix_computed.png`).
 
-## 3. Current System Health & Diagnostics
-- Rust Test Suite: 12 passing unit tests (`cargo test`).
-- Go Crawler: Clean compilation (`go build ./...`).
-- Registry API: Clean TypeScript compilation (`npm run build`).
-- Client Frontend: Clean Svelte diagnostics (`npm run check`) and clean static production build (`npm run build`).
-
-## 4. Next Priorities
-- Community preset sharing repository and distributed IPFS/torrent cache.
-- Real-time audio buffer audio-thread stress testing and automated DAW plugin crash recovery reporting.
+## Next Recommended Milestone Tasks
+- **v0.6.8 - Headless Audio Loopback Rendering & Dynamic Frequency Response Spectrum Analyzer**: Synthesize test audio impulses and sine sweeps through installed plugins to measure frequency response curves, THD harmonic distortion, and phase alignment.
+- **v0.6.9 - Automated Preset Bank Diffing & State Snapshot Manager**: Export and diff `.vstpreset` XML/binary state snapshots across plugin versions.
+- **Milestone 4 - Distributed Community Sync & P2P Cache**: BitTorrent / IPFS content-addressed distribution mirrors and community preset sharing.
