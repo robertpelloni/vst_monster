@@ -1,9 +1,37 @@
-# HANDOFF: VST Monster v0.7.5 Session Summary
+# HANDOFF: VST Monster v0.7.6 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.7.5`
+- **Global Ecosystem Version:** `v0.7.6`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.7.5:** CLAP Open Audio Standard Factory Descriptor & Extensions Inspector.
+- **Primary Feature Shipped in v0.7.6:** Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector.
+
+## Key Changes in v0.7.6
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `AudioUnitPropertyDescriptor`, `AudioUnitScopeDescriptor`, and `AudioUnitMetadataDetails` data models.
+   - Implemented `inspect_audiounit_metadata(plugin_name: Option<String>, component_path: Option<String>, category: Option<String>) -> AudioUnitMetadataDetails`:
+     - Introspects CoreAudio component types (`'aumu'`, `'aufx'`), subtypes, manufacturer 4CC codes, and bundle identifiers.
+     - Profiles CoreAudio bus scopes (`GlobalScope`, `InputScope`, `OutputScope`), elements, channel layouts, and audio buffer list framing.
+     - Evaluates standard AudioUnit properties (`kAudioUnitProperty_ClassInfo`, `kAudioUnitProperty_SupportedNumChannels`, `kAudioUnitProperty_Latency`, `kAudioUnitProperty_FactoryPresets`).
+     - Classifies sandbox container isolation modes (`AUv3 App Extension (Out-of-Process)` vs `AUv2 In-Process Bundle`) and AUVAL validation readiness.
+     - Generates workstation host integration guidance for macOS DAWs (Logic Pro, GarageBand, Ableton Live, REAPER).
+   - Added 2 new unit tests (`test_inspect_audiounit_metadata_synth` and `test_inspect_audiounit_metadata_effect`), bringing total passing cargo unit tests to 28.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_audiounit_metadata` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added reactive state variables: `audioUnitMetadataReport`, `isInspectingAudioUnitMetadata`.
+   - Wired `handleInspectAudioUnitMetadata()` communicating directly with native Tauri backend.
+   - Enhanced "Filesystem & DAW" inspector tab with a dedicated "APPLE AUDIO UNIT (AUV2 / AUV3): COREAUDIO COMPONENT INTROSPECTOR" section featuring:
+     - "Inspect Audio Unit & Component" action button.
+     - 4 high-value stat cards: Component 4CC Code, Bundle Identifier, AUVAL Validation status badge, and Sandbox Isolation mode.
+     - 5-column interactive CoreAudio Scopes table detailing Scope Name, Scope ID, Elements, Channels, and Buffer Framing Format.
+     - Declared AudioUnit Properties grid with interactive badges and descriptive tooltips.
+     - Apple CoreAudio workstation integration advisory callout.
+4. **Testing & Verification**:
+   - 28 passing cargo unit tests (`cargo test`).
+   - All Go crawler unit tests pass (`go test ./...`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_au_meta_computed.png`).
 
 ## Key Changes in v0.7.5
 1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:

@@ -105,6 +105,7 @@ pub fn run() {
             installer::render_audio_phase_analysis,
             installer::inspect_lv2_graph,
             installer::inspect_clap_metadata,
+            installer::inspect_audiounit_metadata,
             installer::snapshot_plugin_state,
             installer::diff_plugin_presets,
             stop_servers,

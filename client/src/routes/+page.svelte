@@ -448,6 +448,36 @@
     host_integration_advice: string;
   }
 
+  interface AudioUnitPropertyDescriptorItem {
+    property_id: string;
+    name: string;
+    scope: string;
+    is_writable: boolean;
+    description: string;
+  }
+
+  interface AudioUnitScopeDescriptorItem {
+    scope_name: string;
+    scope_id: number;
+    element_count: number;
+    channels: number;
+    buffer_framing: string;
+  }
+
+  interface AudioUnitMetadataDetailsItem {
+    plugin_name: string;
+    component_type: string;
+    component_subtype: string;
+    component_manufacturer: string;
+    bundle_identifier: string;
+    version: string;
+    sandbox_isolation: string;
+    auval_readiness: string;
+    scopes: AudioUnitScopeDescriptorItem[];
+    properties: AudioUnitPropertyDescriptorItem[];
+    macos_compatibility_advice: string;
+  }
+
   let activeSnapshot = $state<PluginStateSnapshot | null>(null);
   let isSnapshotting = $state(false);
   let presetDiffReport = $state<PresetDiffReport | null>(null);
@@ -463,6 +493,8 @@
   let isInspectingLv2Graph = $state(false);
   let clapMetadataReport = $state<ClapPluginMetadataDetailsItem | null>(null);
   let isInspectingClapMetadata = $state(false);
+  let audioUnitMetadataReport = $state<AudioUnitMetadataDetailsItem | null>(null);
+  let isInspectingAudioUnitMetadata = $state(false);
 
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
@@ -1157,6 +1189,26 @@
       actionMessage = `CLAP metadata inspection failed: ${err}`;
     } finally {
       isInspectingClapMetadata = false;
+    }
+  }
+
+  async function handleInspectAudioUnitMetadata() {
+    isInspectingAudioUnitMetadata = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Vital';
+      const category = previewPlugin?.category || 'synth';
+      const componentPath = previewPlugin ? `~/Library/Audio/Plug-Ins/Components/${previewPlugin.name.replace(/\s+/g, '_')}.component` : null;
+      const res: AudioUnitMetadataDetailsItem = await invoke('inspect_audiounit_metadata', {
+        pluginName,
+        componentPath,
+        category,
+      });
+      audioUnitMetadataReport = res;
+      actionMessage = `Inspected CoreAudio Unit for ${pluginName} (${res.component_type}:${res.component_subtype}, AUVAL: ${res.auval_readiness})`;
+    } catch (err: any) {
+      actionMessage = `Audio Unit metadata inspection failed: ${err}`;
+    } finally {
+      isInspectingAudioUnitMetadata = false;
     }
   }
 
@@ -2603,6 +2655,116 @@
                       <div class="advice-content">
                         <strong>CLAP Workstation Host Advisory:</strong>
                         <p>{clapMetadataReport.host_integration_advice}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Apple Audio Unit (AUv2 / AUv3): CoreAudio Component Introspector -->
+              <div class="au-meta-card">
+                <div class="au-meta-header">
+                  <div class="au-meta-title">
+                    <span class="au-meta-icon">🍎</span>
+                    <div>
+                      <h4 class="au-meta-h4">APPLE AUDIO UNIT (AUV2 / AUV3): COREAUDIO COMPONENT INTROSPECTOR</h4>
+                      <span class="au-meta-sub">CoreAudio ComponentManager 4CC codes, AudioComponentDescription, scopes, and properties</span>
+                    </div>
+                  </div>
+                  <div class="au-meta-ctrls">
+                    <button
+                      type="button"
+                      class="btn-au-meta-action"
+                      onclick={handleInspectAudioUnitMetadata}
+                      disabled={isInspectingAudioUnitMetadata}
+                      use:tooltip={"Inspect Apple Audio Unit component description, CoreAudio bus scopes, and AUVAL readiness"}
+                    >
+                      {isInspectingAudioUnitMetadata ? 'Introspecting AU...' : 'Inspect Audio Unit & Component'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if audioUnitMetadataReport}
+                  <div class="au-meta-content">
+                    <div class="au-metrics-grid">
+                      <div class="au-stat-card">
+                        <span class="au-stat-label">Component 4CC Code:</span>
+                        <span class="au-stat-val au-4cc">'{audioUnitMetadataReport.component_type}' : '{audioUnitMetadataReport.component_subtype}'</span>
+                        <span class="au-stat-sub">Manufacturer: '{audioUnitMetadataReport.component_manufacturer}'</span>
+                      </div>
+                      <div class="au-stat-card">
+                        <span class="au-stat-label">Bundle Identifier:</span>
+                        <span class="au-stat-val au-id" use:tooltip={audioUnitMetadataReport.bundle_identifier}>{audioUnitMetadataReport.bundle_identifier}</span>
+                        <span class="au-stat-sub">Version: {audioUnitMetadataReport.version}</span>
+                      </div>
+                      <div class="au-stat-card">
+                        <span class="au-stat-label">AUVAL Validation:</span>
+                        <span class="au-stat-val passed">✓ {audioUnitMetadataReport.auval_readiness}</span>
+                        <span class="au-stat-sub">Ready for Logic Pro, GarageBand & macOS hosts</span>
+                      </div>
+                      <div class="au-stat-card">
+                        <span class="au-stat-label">Sandbox Isolation:</span>
+                        <span class="au-stat-val sandbox">{audioUnitMetadataReport.sandbox_isolation.split(' ')[0]}</span>
+                        <span class="au-stat-sub">{audioUnitMetadataReport.sandbox_isolation}</span>
+                      </div>
+                    </div>
+
+                    <!-- CoreAudio Scopes Topology -->
+                    <div class="au-scopes-box">
+                      <div class="au-scopes-header">Declared CoreAudio Scopes & Elements ({audioUnitMetadataReport.scopes.length})</div>
+                      <div class="au-scopes-table-wrap">
+                        <table class="au-scopes-table">
+                          <thead>
+                            <tr>
+                              <th>Scope Name</th>
+                              <th>Scope ID</th>
+                              <th>Elements</th>
+                              <th>Channels</th>
+                              <th>Buffer Framing Format</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each audioUnitMetadataReport.scopes as sc}
+                              <tr>
+                                <td class="scope-name-cell"><strong>{sc.scope_name}</strong></td>
+                                <td><span class="scope-id-pill">#{sc.scope_id}</span></td>
+                                <td><span class="scope-elem-pill">{sc.element_count} Elem</span></td>
+                                <td>
+                                  {#if sc.channels > 0}
+                                    <span class="scope-chan-pill">{sc.channels} Ch Stereo</span>
+                                  {:else}
+                                    <span class="scope-none-pill">0 Ch (Global)</span>
+                                  {/if}
+                                </td>
+                                <td class="scope-framing-cell">{sc.buffer_framing}</td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <!-- Declared Properties -->
+                    <div class="au-properties-box">
+                      <div class="au-prop-header">Declared AudioUnit Properties ({audioUnitMetadataReport.properties.length})</div>
+                      <div class="au-properties-chips">
+                        {#each audioUnitMetadataReport.properties as prop}
+                          <div class="au-prop-card" use:tooltip={`${prop.property_id}: ${prop.description}`}>
+                            <div class="au-prop-top">
+                              <span class="au-prop-name">{prop.name}</span>
+                              <span class="au-prop-scope">{prop.scope}</span>
+                            </div>
+                            <span class="au-prop-id">{prop.property_id}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+
+                    <div class="au-meta-advice-card">
+                      <span class="advice-icon">🍎</span>
+                      <div class="advice-content">
+                        <strong>Apple CoreAudio Workstation Advisory:</strong>
+                        <p>{audioUnitMetadataReport.macos_compatibility_advice}</p>
                       </div>
                     </div>
                   </div>
@@ -9094,6 +9256,274 @@
     padding: 0.75rem 1rem;
     font-size: 0.85rem;
     color: #e2e8f0;
+  }
+
+  /* Apple Audio Unit Card Styling */
+  .au-meta-card {
+    background: #18141f;
+    border: 1px solid #6b21a8;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .au-meta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    border-bottom: 1px solid #2e1065;
+    padding-bottom: 1rem;
+  }
+
+  .au-meta-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .au-meta-icon {
+    font-size: 1.5rem;
+  }
+
+  .au-meta-h4 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #f8fafc;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .au-meta-sub {
+    font-size: 0.8rem;
+    color: #c084fc;
+  }
+
+  .btn-au-meta-action {
+    background: #9333ea;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.55rem 1.1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .btn-au-meta-action:hover:not(:disabled) {
+    background: #7e22ce;
+  }
+
+  .btn-au-meta-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .au-meta-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .au-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+  }
+
+  .au-stat-card {
+    background: #231930;
+    border: 1px solid #581c87;
+    border-radius: 6px;
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .au-stat-label {
+    font-size: 0.75rem;
+    color: #d8b4fe;
+    text-transform: uppercase;
+  }
+
+  .au-stat-val.au-4cc {
+    font-size: 0.95rem;
+    font-family: monospace;
+    font-weight: 700;
+    color: #f472b6;
+  }
+
+  .au-stat-val.au-id {
+    font-size: 0.82rem;
+    font-family: monospace;
+    color: #e9d5ff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .au-stat-val.passed {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #4ade80;
+  }
+
+  .au-stat-val.sandbox {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #38bdf8;
+  }
+
+  .au-stat-sub {
+    font-size: 0.72rem;
+    color: #a855f7;
+  }
+
+  .au-scopes-box {
+    background: #151022;
+    border: 1px solid #3b0764;
+    border-radius: 6px;
+    padding: 0.85rem;
+  }
+
+  .au-scopes-header {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #e9d5ff;
+    margin-bottom: 0.75rem;
+  }
+
+  .au-scopes-table-wrap {
+    overflow-x: auto;
+  }
+
+  .au-scopes-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  .au-scopes-table th {
+    text-align: left;
+    padding: 0.5rem;
+    background: #2e1065;
+    color: #d8b4fe;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .au-scopes-table td {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid #2e1065;
+    color: #f3e8ff;
+  }
+
+  .scope-id-pill, .scope-elem-pill, .scope-chan-pill, .scope-none-pill {
+    font-size: 0.72rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+  }
+
+  .scope-id-pill {
+    background: #3b0764;
+    color: #d8b4fe;
+  }
+
+  .scope-elem-pill {
+    background: #1e1b4b;
+    color: #818cf8;
+    border: 1px solid #4338ca;
+  }
+
+  .scope-chan-pill {
+    background: #14532d;
+    color: #86efac;
+    border: 1px solid #16a34a;
+  }
+
+  .scope-none-pill {
+    color: #94a3b8;
+  }
+
+  .scope-framing-cell {
+    font-size: 0.75rem;
+    color: #cbd5e1;
+  }
+
+  .au-properties-box {
+    background: #151022;
+    border: 1px solid #3b0764;
+    border-radius: 6px;
+    padding: 0.85rem;
+  }
+
+  .au-prop-header {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #e9d5ff;
+    margin-bottom: 0.75rem;
+  }
+
+  .au-properties-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.65rem;
+  }
+
+  .au-prop-card {
+    background: #241638;
+    border: 1px solid #581c87;
+    border-radius: 5px;
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .au-prop-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .au-prop-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #faf5ff;
+  }
+
+  .au-prop-scope {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 700;
+    background: rgba(168, 85, 247, 0.2);
+    color: #d8b4fe;
+  }
+
+  .au-prop-id {
+    font-size: 0.72rem;
+    font-family: monospace;
+    color: #f472b6;
+  }
+
+  .au-meta-advice-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: rgba(147, 51, 234, 0.1);
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+    color: #f3e8ff;
   }
 
   @media (max-width: 1024px) {

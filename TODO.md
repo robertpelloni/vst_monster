@@ -79,4 +79,5 @@
 - [x] Multi-target crawler expansion (6 GitHub topics, KVR Audio newest effects) & Operations Hub UI (v0.7.3).
 - [x] KVR Audio categorization heuristics & enhanced metadata pipeline (v0.7.4).
 - [x] CLAP Open Audio Standard Factory Descriptor & Extensions Inspector (v0.7.5).
+- [x] Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector (v0.7.6).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

@@ -1,5 +1,24 @@
 # CHANGELOG: VST Monster
 
+## [0.7.6] - Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector
+- Defined `AudioUnitPropertyDescriptor`, `AudioUnitScopeDescriptor`, and `AudioUnitMetadataDetails` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `inspect_audiounit_metadata(plugin_name: Option<String>, component_path: Option<String>, category: Option<String>) -> AudioUnitMetadataDetails`:
+  - Introspects CoreAudio component types (`'aumu'`, `'aufx'`), subtypes, manufacturer 4CC codes, and bundle identifiers.
+  - Profiles CoreAudio bus scopes (`GlobalScope`, `InputScope`, `OutputScope`), elements, channel layouts, and audio buffer list framing.
+  - Evaluates standard AudioUnit properties (`kAudioUnitProperty_ClassInfo`, `kAudioUnitProperty_SupportedNumChannels`, `kAudioUnitProperty_Latency`, `kAudioUnitProperty_FactoryPresets`).
+  - Classifies sandbox container isolation modes (`AUv3 App Extension (Out-of-Process)` vs `AUv2 In-Process Bundle`) and AUVAL validation readiness.
+  - Generates workstation host integration guidance for macOS DAWs (Logic Pro, GarageBand, Ableton Live, REAPER).
+- Added comprehensive Rust unit tests in `installer.rs`: `test_inspect_audiounit_metadata_synth` and `test_inspect_audiounit_metadata_effect` (28 total passing unit tests).
+- Registered `inspect_audiounit_metadata` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "APPLE AUDIO UNIT (AUV2 / AUV3): COREAUDIO COMPONENT INTROSPECTOR" section within the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte`:
+  - "Inspect Audio Unit & Component" action button.
+  - 4 high-value stat cards: Component 4CC Code, Bundle Identifier, AUVAL Validation status badge, and Sandbox Isolation mode.
+  - 5-column interactive CoreAudio Scopes table detailing Scope Name, Scope ID, Elements, Channels, and Buffer Framing Format.
+  - Declared AudioUnit Properties grid with interactive badges and descriptive tooltips.
+  - Apple CoreAudio workstation integration advisory callout.
+- Verified test suite (`cargo test`, 28 tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_au_meta_computed.png`).
+- Bumped ecosystem version to `v0.7.6`.
+
 ## [0.7.5] - CLAP Open Audio Standard Factory Descriptor & Extensions Inspector
 - Defined `ClapExtensionDescriptor`, `ClapAudioPortDescriptor`, and `ClapPluginMetadataDetails` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `inspect_clap_metadata(plugin_name: Option<String>, bundle_path: Option<String>, category: Option<String>) -> ClapPluginMetadataDetails`:

@@ -69,6 +69,7 @@
 - [x] Multi-Target Crawler Expansion & Operations Hub UI (v0.7.3).
 - [x] KVR Audio Categorization Heuristics & Enhanced Metadata Pipeline (v0.7.4).
 - [x] CLAP Open Audio Standard Factory Descriptor & Extensions Inspector (v0.7.5).
+- [x] Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector (v0.7.6).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.
