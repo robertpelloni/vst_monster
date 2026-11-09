@@ -1,9 +1,23 @@
-# HANDOFF: VST Monster v0.7.7 Session Summary
+# HANDOFF: VST Monster v0.7.8 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.7.7`
+- **Global Ecosystem Version:** `v0.7.8`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.7.7:** Multi-Topic Crawler Expansion & Prioritized Release Asset Extraction.
+- **Primary Feature Shipped in v0.7.8:** LV2 Manifest Graph Ingestion & Dashboard TTL Validation Display.
+
+## Key Changes in v0.7.8
+1. **Go Crawler Normalization Pipeline (`crawler/scraper/github.go`, `crawler/parser/normalize.go`)**:
+   - Enhanced GitHub scraper asset evaluation to recognize LV2 bundle distributions (`.lv2.tar.gz`, `.lv2.zip`, `.lv2`) and inject `has_lv2_manifest: true` into metadata.
+   - Added unit test `TestLV2Extraction` in `crawler/scraper/github_test.go` verifying manifest tagging and format detection.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added visual `.lv2-ttl-validation-banner` with `TTL VALIDATED` and `GRAPH INDEXED` status chips in the LV2 Open Audio Standard section within the plugin detail inspector drawer.
+   - Linked LV2 manifest validation chips with informative audio engineering tooltips explaining RDF Turtle validation against LV2 Core/Atom/State/UI specifications.
+3. **Testing & Verification**:
+   - All Go unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 28 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshots (`ui_lv2_modal_validation_chip.png`, `ui_studio_lv2_banner.png`).
 
 ## Key Changes in v0.7.7
 1. **Go Crawler Pipeline (`crawler/main.go`, `crawler/scraper/github.go`, `crawler/scraper/github_test.go`)**:

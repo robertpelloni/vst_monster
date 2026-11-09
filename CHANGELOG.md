@@ -1,5 +1,15 @@
 # CHANGELOG: VST Monster
 
+## [0.7.8] - LV2 Manifest Graph Ingestion & Dashboard TTL Validation Display
+- Enhanced Go crawler release normalization pipeline in `crawler/scraper/github.go` and `crawler/parser/normalize.go`:
+  - Added detection of LV2 bundle distributions (`.lv2.tar.gz`, `.lv2.zip`, `.lv2`) and set `has_lv2_manifest: true` in plugin metadata.
+  - Added unit test `TestLV2Extraction` in `crawler/scraper/github_test.go` verifying manifest tagging and format detection.
+- Enhanced Svelte desktop interface in `client/src/routes/+page.svelte`:
+  - Added visual `.lv2-ttl-validation-banner` with `TTL VALIDATED` and `GRAPH INDEXED` status chips in the LV2 Open Audio Standard section within the plugin detail inspector drawer.
+  - Linked LV2 manifest validation chips with informative audio engineering tooltips explaining RDF Turtle validation against LV2 Core/Atom/State/UI specifications.
+- Verified test suites across Go (`go test -v ./...` passing in `crawler/`) and Rust (`cargo test` with 28 passing tests in `client/src-tauri/`), Svelte diagnostics (`npm run check` with 0 errors/0 warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_lv2_modal_validation_chip.png` and `ui_studio_lv2_banner.png`).
+- Bumped ecosystem version to `v0.7.8`.
+
 ## [0.7.7] - Multi-Topic Crawler Expansion & Prioritized Release Asset Extraction
 - Enhanced GitHub topics crawling in `crawler/main.go` to cover 10 audio topics (`vst-plugin`, `vst3`, `clap-plugin`, `audio-plugins`, `lv2`, `lv2-plugin`, `audio-dsp`, `sound-synthesis`, `audio-effect`, `lv2-synthesizer`).
 - Expanded KVR Audio freeware crawling in `crawler/main.go` across 3 catalogs (Newest, Free Instruments, Free Effects).

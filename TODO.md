@@ -81,4 +81,5 @@
 - [x] CLAP Open Audio Standard Factory Descriptor & Extensions Inspector (v0.7.5).
 - [x] Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector (v0.7.6).
 - [x] Multi-topic crawler expansion & prioritized release asset extraction (v0.7.7).
+- [x] LV2 manifest graph ingestion & dashboard TTL validation display (v0.7.8).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

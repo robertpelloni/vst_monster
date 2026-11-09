@@ -1,6 +1,7 @@
 package scraper
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gocolly/colly/v2"
@@ -40,5 +41,21 @@ func TestSelectBestReleaseAsset(t *testing.T) {
 	bestFallback := SelectBestReleaseAsset(assetsFallback)
 	if bestFallback != "https://github.com/user/repo/releases/download/v1.0/installer.msi" {
 		t.Errorf("Expected MSI installer, got '%s'", bestFallback)
+	}
+}
+
+func TestLV2Extraction(t *testing.T) {
+	desc := "Open-source reverb plugin for Linux workstations with native LV2 bundle support"
+	formats := parser.ExtractFormats(desc)
+
+	hasLV2 := false
+	for _, f := range formats {
+		if strings.EqualFold(f, "LV2") {
+			hasLV2 = true
+			break
+		}
+	}
+	if !hasLV2 {
+		t.Errorf("Expected LV2 in extracted formats, got %v", formats)
 	}
 }

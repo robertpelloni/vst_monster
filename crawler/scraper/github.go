@@ -108,7 +108,8 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 			// If URL or repo description implies LV2 format, ensure LV2 is registered
 			lowerDesc := strings.ToLower(desc)
 			lowerURL := strings.ToLower(downloadURL)
-			if strings.Contains(lowerDesc, "lv2") || strings.Contains(lowerURL, "lv2") {
+			isLV2 := strings.Contains(lowerDesc, "lv2") || strings.Contains(lowerURL, "lv2") || strings.Contains(lowerURL, ".lv2.")
+			if isLV2 {
 				hasLV2 := false
 				for _, f := range formats {
 					if strings.EqualFold(f, "LV2") {
@@ -128,6 +129,16 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 				category = "dynamics"
 			}
 
+			meta := map[string]interface{}{
+				"source":      "github",
+				"category":    category,
+				"description": desc,
+			}
+			if isLV2 {
+				meta["has_lv2_manifest"] = true
+				meta["manifest_format"] = "Turtle (.ttl)"
+			}
+
 			results <- parser.StandardPlugin{
 				Name:        name,
 				Developer:   dev,
@@ -136,7 +147,7 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 				DownloadURL: downloadURL,
 				License:     "opensource",
 				Source:      "GitHub",
-				Metadata:    map[string]interface{}{"source": "github", "category": category, "description": desc},
+				Metadata:    meta,
 			}
 			log.Printf("Extracted from GitHub: %s/%s", dev, name)
 		}
