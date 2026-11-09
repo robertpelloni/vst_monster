@@ -1,5 +1,15 @@
 # CHANGELOG: VST Monster
 
+## [0.7.7] - Multi-Topic Crawler Expansion & Prioritized Release Asset Extraction
+- Enhanced GitHub topics crawling in `crawler/main.go` to cover 10 audio topics (`vst-plugin`, `vst3`, `clap-plugin`, `audio-plugins`, `lv2`, `lv2-plugin`, `audio-dsp`, `sound-synthesis`, `audio-effect`, `lv2-synthesizer`).
+- Expanded KVR Audio freeware crawling in `crawler/main.go` across 3 catalogs (Newest, Free Instruments, Free Effects).
+- Refactored GitHub scraper in `crawler/scraper/github.go`:
+  - Implemented `SelectBestReleaseAsset` prioritizing dedicated plugin archives (`.lv2`, `.vst3`, `.clap`) over generic distributions, with support for `.AppImage`, `.msi`, and `.dmg`.
+  - Added unit test `TestSelectBestReleaseAsset` in `crawler/scraper/github_test.go` verifying asset selection and fallback behaviors.
+- Updated Crawler Operations Hub in `client/src/routes/+page.svelte` displaying `🐙 GitHub Audio Topics (10)` and `🎛️ KVR Freeware Catalog (3)` with descriptive tooltips.
+- Verified test suites across Go (`go test ./...` in `crawler/`) and Rust (`cargo test` in `client/src-tauri/`), Svelte diagnostics (`npm run check` with 0 errors/0 warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_crawler_topics_10.png`).
+- Bumped ecosystem version to `v0.7.7`.
+
 ## [0.7.6] - Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector
 - Defined `AudioUnitPropertyDescriptor`, `AudioUnitScopeDescriptor`, and `AudioUnitMetadataDetails` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `inspect_audiounit_metadata(plugin_name: Option<String>, component_path: Option<String>, category: Option<String>) -> AudioUnitMetadataDetails`:

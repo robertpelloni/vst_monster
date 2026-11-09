@@ -16,8 +16,37 @@ import (
 // GitHubRelease represents the subset of fields we need from the API response
 type GitHubRelease struct {
 	Assets []struct {
+		Name               string `json:"name"`
 		BrowserDownloadURL string `json:"browser_download_url"`
 	} `json:"assets"`
+}
+
+func SelectBestReleaseAsset(assets []struct {
+	Name               string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+}) string {
+	// 1. Prioritize dedicated audio bundle archives (.lv2, .vst3, .clap)
+	for _, asset := range assets {
+		lowerURL := strings.ToLower(asset.BrowserDownloadURL)
+		if strings.Contains(lowerURL, "lv2") || strings.Contains(lowerURL, "vst3") || strings.Contains(lowerURL, "clap") {
+			if strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".tar.gz") {
+				return asset.BrowserDownloadURL
+			}
+		}
+	}
+
+	// 2. Select standard multi-platform installer or archive formats
+	for _, asset := range assets {
+		lowerURL := strings.ToLower(asset.BrowserDownloadURL)
+		if strings.HasSuffix(lowerURL, ".tar.gz") || strings.HasSuffix(lowerURL, ".zip") ||
+			strings.HasSuffix(lowerURL, ".deb") || strings.HasSuffix(lowerURL, ".dmg") ||
+			strings.HasSuffix(lowerURL, ".msi") || strings.HasSuffix(lowerURL, ".exe") ||
+			strings.HasSuffix(lowerURL, ".appimage") {
+			return asset.BrowserDownloadURL
+		}
+	}
+
+	return ""
 }
 
 func fetchGitHubReleaseDownloadURL(owner, repo string) string {
@@ -49,22 +78,7 @@ func fetchGitHubReleaseDownloadURL(owner, repo string) string {
 		return ""
 	}
 
-	// Prioritize LV2 specific bundles, then tar.gz, zip, deb, dmg
-	for _, asset := range release.Assets {
-		lowerURL := strings.ToLower(asset.BrowserDownloadURL)
-		if strings.Contains(lowerURL, "lv2") && (strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".tar.gz")) {
-			return asset.BrowserDownloadURL
-		}
-	}
-
-	for _, asset := range release.Assets {
-		lowerURL := strings.ToLower(asset.BrowserDownloadURL)
-		if strings.HasSuffix(lowerURL, ".tar.gz") || strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".deb") || strings.HasSuffix(lowerURL, ".dmg") || strings.HasSuffix(lowerURL, ".msi") || strings.HasSuffix(lowerURL, ".exe") {
-			return asset.BrowserDownloadURL
-		}
-	}
-
-	return ""
+	return SelectBestReleaseAsset(release.Assets)
 }
 
 func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin) {

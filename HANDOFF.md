@@ -1,9 +1,24 @@
-# HANDOFF: VST Monster v0.7.6 Session Summary
+# HANDOFF: VST Monster v0.7.7 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.7.6`
+- **Global Ecosystem Version:** `v0.7.7`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.7.6:** Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector.
+- **Primary Feature Shipped in v0.7.7:** Multi-Topic Crawler Expansion & Prioritized Release Asset Extraction.
+
+## Key Changes in v0.7.7
+1. **Go Crawler Pipeline (`crawler/main.go`, `crawler/scraper/github.go`, `crawler/scraper/github_test.go`)**:
+   - Expanded GitHub topic crawling to 10 audio topics (`vst-plugin`, `vst3`, `clap-plugin`, `audio-plugins`, `lv2`, `lv2-plugin`, `audio-dsp`, `sound-synthesis`, `audio-effect`, `lv2-synthesizer`).
+   - Expanded KVR Audio freeware crawling to 3 catalogs (Newest, Free Instruments, Free Effects).
+   - Refactored `SelectBestReleaseAsset` prioritizing dedicated plugin archives (`.lv2`, `.vst3`, `.clap`) over generic distributions, with support for `.AppImage`, `.msi`, and `.dmg`.
+   - Added unit test `TestSelectBestReleaseAsset` in `crawler/scraper/github_test.go`.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub with `🐙 GitHub Audio Topics (10)` and `🎛️ KVR Freeware Catalog (3)` badges.
+3. **Testing & Verification**:
+   - All Go unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 28 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_topics_10.png`).
 
 ## Key Changes in v0.7.6
 1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:

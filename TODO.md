@@ -80,4 +80,5 @@
 - [x] KVR Audio categorization heuristics & enhanced metadata pipeline (v0.7.4).
 - [x] CLAP Open Audio Standard Factory Descriptor & Extensions Inspector (v0.7.5).
 - [x] Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector (v0.7.6).
+- [x] Multi-topic crawler expansion & prioritized release asset extraction (v0.7.7).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

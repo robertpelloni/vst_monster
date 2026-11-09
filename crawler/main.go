@@ -93,6 +93,7 @@ func main() {
 	// Start crawls
 	log.Println("Crawling KVR Audio...")
 	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/newest")
+	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/instruments/newest")
 	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/effects/newest")
 
 	log.Println("Crawling GitHub VST topics...")
@@ -104,6 +105,12 @@ func main() {
 	log.Println("Crawling GitHub LV2 topics...")
 	githubCollector.Visit("https://github.com/topics/lv2")
 	githubCollector.Visit("https://github.com/topics/lv2-plugin")
+
+	log.Println("Crawling GitHub DSP & Audio Effect topics...")
+	githubCollector.Visit("https://github.com/topics/audio-dsp")
+	githubCollector.Visit("https://github.com/topics/sound-synthesis")
+	githubCollector.Visit("https://github.com/topics/audio-effect")
+	githubCollector.Visit("https://github.com/topics/lv2-synthesizer")
 
 	var wg sync.WaitGroup
 
