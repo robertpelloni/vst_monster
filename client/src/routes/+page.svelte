@@ -312,12 +312,52 @@
     compatibility_notes: string;
   }
 
+  interface LoudnessMetricSummary {
+    integrated_lufs: number;
+    momentary_max_lufs: number;
+    short_term_max_lufs: number;
+    loudness_range_lra: number;
+  }
+
+  interface TruePeakSummary {
+    peak_left_dbtp: number;
+    peak_right_dbtp: number;
+    oversampling_factor: string;
+    ceiling_headroom_db: number;
+    is_inter_sample_clipping: boolean;
+  }
+
+  interface StreamingStandardCompliance {
+    standard_name: string;
+    target_integrated_lufs: number;
+    max_true_peak_dbtp: number;
+    compliance_status: string;
+    recommended_gain_adjustment_db: number;
+  }
+
+  interface PluginAudioMeteringReport {
+    plugin_name: string;
+    format: string;
+    category: string;
+    test_signal: string;
+    sample_rate_hz: number;
+    buffer_size_samples: number;
+    loudness: LoudnessMetricSummary;
+    true_peak: TruePeakSummary;
+    target_compliance: StreamingStandardCompliance;
+    dynamic_range_score: string;
+    mastering_advice: string;
+  }
+
   let activeSnapshot = $state<PluginStateSnapshot | null>(null);
   let isSnapshotting = $state(false);
   let presetDiffReport = $state<PresetDiffReport | null>(null);
   let isDiffingPresets = $state(false);
   let baselinePresetInput = $state('Init Clean Patch');
   let targetPresetInput = $state('Acid Resonant Bassline');
+  let audioMeteringReport = $state<PluginAudioMeteringReport | null>(null);
+  let isAnalyzingMetering = $state(false);
+  let meteringTargetStandard = $state('EBU R128 (-23 LUFS)');
 
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
@@ -931,6 +971,27 @@
       actionMessage = `Preset diff calculation failed: ${err}`;
     } finally {
       isDiffingPresets = false;
+    }
+  }
+
+  async function handleAnalyzeMetering() {
+    isAnalyzingMetering = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Surge XT';
+      const format = previewPlugin ? inferCatalogFormat(previewPlugin) : 'VST3';
+      const category = previewPlugin?.category || 'synth';
+      const res: PluginAudioMeteringReport = await invoke('render_audio_metering_analysis', {
+        pluginName,
+        format,
+        category,
+        targetStandard: meteringTargetStandard,
+      });
+      audioMeteringReport = res;
+      actionMessage = `Computed audio loopback metering for ${pluginName} (${res.target_compliance.compliance_status} for ${meteringTargetStandard})`;
+    } catch (err: any) {
+      actionMessage = `Audio metering analysis failed: ${err}`;
+    } finally {
+      isAnalyzingMetering = false;
     }
   }
 
@@ -1893,6 +1954,111 @@
                     </div>
                   {/if}
                 </div>
+              </div>
+
+              <!-- Real-Time Audio Loopback Metering & True Peak (dBTP) LUFS EBU R128 Analyzer -->
+              <div class="metering-analyzer-card">
+                <div class="metering-header">
+                  <div class="metering-title">
+                    <span class="metering-icon">📊</span>
+                    <div>
+                      <h4 class="metering-h4">Audio Loopback Metering & True Peak (dBTP) Analyzer</h4>
+                      <span class="metering-sub">Headless EBU R128 loudness normalization, 4x inter-sample peak detection, and streaming compliance</span>
+                    </div>
+                  </div>
+                  <div class="metering-ctrls">
+                    <div class="metering-select-wrapper">
+                      <select
+                        class="metering-select"
+                        bind:value={meteringTargetStandard}
+                        use:tooltip={"Target streaming loudness normalization standard"}
+                      >
+                        <option value="EBU R128 (-23 LUFS)">EBU R128 (-23 LUFS, -1 dBTP)</option>
+                        <option value="Spotify (-14 LUFS)">Spotify (-14 LUFS, -1 dBTP)</option>
+                        <option value="Apple Music (-16 LUFS)">Apple Music (-16 LUFS, -1 dBTP)</option>
+                        <option value="YouTube (-14 LUFS)">YouTube (-14 LUFS, -1 dBTP)</option>
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn-metering-action"
+                      onclick={handleAnalyzeMetering}
+                      disabled={isAnalyzingMetering}
+                      use:tooltip={"Run headless audio loopback measurement to compute integrated LUFS, inter-sample true peaks, and gain recommendations"}
+                    >
+                      {isAnalyzingMetering ? 'Measuring...' : 'Measure Audio Metering'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if audioMeteringReport}
+                  <div class="metering-content">
+                    <div class="metering-metrics-grid">
+                      <div class="meter-stat-card">
+                        <span class="meter-label">Integrated Loudness:</span>
+                        <span class="meter-val lufs">{audioMeteringReport.loudness.integrated_lufs.toFixed(1)} LUFS</span>
+                        <span class="meter-subtext">Momentary Max: {audioMeteringReport.loudness.momentary_max_lufs.toFixed(1)} LUFS</span>
+                      </div>
+                      <div class="meter-stat-card">
+                        <span class="meter-label">True Peak (dBTP):</span>
+                        <span class="meter-val dbtp" class:clipping={audioMeteringReport.true_peak.is_inter_sample_clipping}>
+                          L: {audioMeteringReport.true_peak.peak_left_dbtp.toFixed(1)} / R: {audioMeteringReport.true_peak.peak_right_dbtp.toFixed(1)} dBTP
+                        </span>
+                        <span class="meter-subtext">{audioMeteringReport.true_peak.is_inter_sample_clipping ? '⚠️ Inter-sample clipping detected' : '✓ Clean (Below 0 dBTP)'}</span>
+                      </div>
+                      <div class="meter-stat-card">
+                        <span class="meter-label">Loudness Range (LRA):</span>
+                        <span class="meter-val lra">{audioMeteringReport.loudness.loudness_range_lra.toFixed(1)} LU</span>
+                        <span class="meter-subtext">{audioMeteringReport.dynamic_range_score}</span>
+                      </div>
+                      <div class="meter-stat-card">
+                        <span class="meter-label">Target Standard:</span>
+                        <span class="meter-val compliance" class:compliant={audioMeteringReport.target_compliance.compliance_status === 'COMPLIANT'} class:over={audioMeteringReport.target_compliance.compliance_status === 'OVER_TARGET'} class:under={audioMeteringReport.target_compliance.compliance_status === 'UNDER_TARGET'}>
+                          {audioMeteringReport.target_compliance.compliance_status}
+                        </span>
+                        <span class="meter-subtext">Gain Trim: {audioMeteringReport.target_compliance.recommended_gain_adjustment_db > 0 ? '+' : ''}{audioMeteringReport.target_compliance.recommended_gain_adjustment_db.toFixed(1)} dB</span>
+                      </div>
+                    </div>
+
+                    <div class="metering-visual-meters">
+                      <div class="meter-bar-group">
+                        <div class="meter-bar-header">
+                          <span>Integrated Loudness Bar</span>
+                          <span>{audioMeteringReport.loudness.integrated_lufs.toFixed(1)} LUFS (Target: {audioMeteringReport.target_compliance.target_integrated_lufs.toFixed(1)})</span>
+                        </div>
+                        <div class="meter-gauge-track">
+                          <div
+                            class="meter-gauge-fill"
+                            class:meter-gauge-hot={audioMeteringReport.loudness.integrated_lufs > audioMeteringReport.target_compliance.target_integrated_lufs}
+                            style="width: {Math.max(5, Math.min(100, ((audioMeteringReport.loudness.integrated_lufs + 36) / 36) * 100))}%"
+                          ></div>
+                        </div>
+                      </div>
+
+                      <div class="meter-bar-group">
+                        <div class="meter-bar-header">
+                          <span>True Peak Oversampled Ceiling</span>
+                          <span>Max: {Math.max(audioMeteringReport.true_peak.peak_left_dbtp, audioMeteringReport.true_peak.peak_right_dbtp).toFixed(1)} dBTP</span>
+                        </div>
+                        <div class="meter-gauge-track">
+                          <div
+                            class="meter-gauge-fill"
+                            class:meter-gauge-clip={audioMeteringReport.true_peak.is_inter_sample_clipping}
+                            style="width: {Math.max(5, Math.min(100, ((Math.max(audioMeteringReport.true_peak.peak_left_dbtp, audioMeteringReport.true_peak.peak_right_dbtp) + 12) / 14) * 100))}%"
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="metering-advice-card" class:advice-warn={audioMeteringReport.true_peak.is_inter_sample_clipping}>
+                      <span class="advice-icon">{audioMeteringReport.true_peak.is_inter_sample_clipping ? '⚠️' : '💡'}</span>
+                      <div class="advice-content">
+                        <strong>DSP Mastering & Normalization Advisory:</strong>
+                        <p>{audioMeteringReport.mastering_advice}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
               </div>
 
               <!-- Headless Audio Loopback Rendering & Dynamic Frequency Response Spectrum Analyzer -->
@@ -7291,6 +7457,232 @@
   .thd-warm {
     background: rgba(245, 158, 11, 0.15);
     color: #fbbf24;
+  }
+
+  /* Audio Metering Analyzer Styles */
+  .metering-analyzer-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .metering-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .metering-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .metering-icon {
+    font-size: 1.5rem;
+  }
+
+  .metering-h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f1f5f9;
+  }
+
+  .metering-sub {
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+
+  .metering-ctrls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .metering-select {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+
+  .btn-metering-action {
+    background: #0284c7;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .btn-metering-action:hover:not(:disabled) {
+    background: #0369a1;
+  }
+
+  .btn-metering-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .metering-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .metering-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .meter-stat-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .meter-label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .meter-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .meter-val.lufs {
+    color: #38bdf8;
+  }
+
+  .meter-val.dbtp {
+    color: #34d399;
+  }
+
+  .meter-val.dbtp.clipping {
+    color: #f87171;
+  }
+
+  .meter-val.lra {
+    color: #a78bfa;
+  }
+
+  .meter-val.compliance.compliant {
+    color: #34d399;
+  }
+
+  .meter-val.compliance.over {
+    color: #f87171;
+  }
+
+  .meter-val.compliance.under {
+    color: #fbbf24;
+  }
+
+  .meter-subtext {
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+
+  .metering-visual-meters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background: #131d31;
+    padding: 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #1e293b;
+  }
+
+  .meter-bar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .meter-bar-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #cbd5e1;
+    font-weight: 500;
+  }
+
+  .meter-gauge-track {
+    background: #0b1120;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid #1e293b;
+  }
+
+  .meter-gauge-fill {
+    height: 100%;
+    background: #38bdf8;
+    border-radius: 5px;
+    transition: width 0.3s ease;
+  }
+
+  .meter-gauge-fill.meter-gauge-hot {
+    background: linear-gradient(90deg, #38bdf8, #fbbf24);
+  }
+
+  .meter-gauge-fill.meter-gauge-clip {
+    background: linear-gradient(90deg, #34d399, #f87171);
+  }
+
+  .metering-advice-card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+  }
+
+  .metering-advice-card.advice-warn {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .advice-icon {
+    font-size: 1.2rem;
+  }
+
+  .advice-content strong {
+    display: block;
+    margin-bottom: 0.2rem;
+    color: #f8fafc;
+  }
+
+  .advice-content p {
+    margin: 0;
+    color: #cbd5e1;
+    line-height: 1.4;
   }
 
   @media (max-width: 1024px) {

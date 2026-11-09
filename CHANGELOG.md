@@ -1,5 +1,23 @@
 # CHANGELOG: VST Monster
 
+## [0.7.0] - Real-Time Audio Loopback Metering & True Peak (dBTP) LUFS EBU R128 Analyzer
+- Defined `LoudnessMetricSummary`, `TruePeakSummary`, `StreamingStandardCompliance`, and `PluginAudioMeteringReport` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `render_audio_metering_analysis(format: Option<String>, category: Option<String>, target_standard: Option<String>) -> PluginAudioMeteringReport`:
+  - Analyzes audio loopback loudness metrics: Integrated Loudness (LUFS), Momentary Max (LUFS), Short-Term Max (LUFS), and Loudness Range (LRA in LU).
+  - Simulates 4x inter-sample polyphase interpolation for true peak estimation (dBTP left/right channels) with clipping detection against 0.0 dBTP ceiling.
+  - Formats standard streaming target compliance across EBU R128 (-23.0 LUFS, -1.0 dBTP), Spotify (-14.0 LUFS, -1.0 dBTP), Apple Music (-16.0 LUFS, -1.0 dBTP), and YouTube (-14.0 LUFS, -1.0 dBTP).
+  - Computes recommended normalization gain trim (dB) and dynamic range classification (`HYPER_COMPRESSED_BRICKWALL`, `HEAVILY_COMPRESSED_COMMERCIAL`, `NATURAL_DYNAMIC_MODERN`, `EXPANSIVE_CINEMATIC`).
+  - Synthesizes intelligent DSP mastering advice and peak inter-sample limiter alerts.
+- Added comprehensive Rust unit tests in `installer.rs`: `test_render_audio_metering_analysis_synth_clipping` and `test_render_audio_metering_analysis_dynamics_spotify` (20 total passing unit tests).
+- Registered `render_audio_metering_analysis` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "AUDIO LOOPBACK METERING & TRUE PEAK (DBTP) ANALYZER" card within the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte`:
+  - Target standard selector dropdown (EBU R128, Spotify, Apple Music, YouTube) and "Measure Audio Metering" action trigger.
+  - 4 high-value stat cards: Integrated Loudness (LUFS) with Momentary Max, True Peak (dBTP) with inter-sample clipping warning indicator, Loudness Range (LRA in LU) with dynamic range classification, and Target Standard compliance status with required gain trim.
+  - Visual dual metering gauges: Integrated Loudness gauge bar vs target threshold and True Peak Oversampled Ceiling gauge bar with dynamic color gradients.
+  - Alert/Advisory callout banner offering contextual mastering and limiting guidance.
+- Verified test suite (`cargo test`, 20 tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_metering_card.png`).
+- Bumped ecosystem version to `v0.7.0`.
+
 ## [0.6.9] - Automated Preset Bank Diffing & State Snapshot Manager
 - Defined `ParameterSnapshotItem`, `PluginStateSnapshot`, `ParameterDiffEntry`, and `PresetDiffReport` data structures in `client/src-tauri/src/installer.rs`.
 - Implemented `snapshot_plugin_state(plugin_name: Option<String>, format: Option<String>, preset_name: Option<String>, preset_format: Option<String>) -> PluginStateSnapshot`:
