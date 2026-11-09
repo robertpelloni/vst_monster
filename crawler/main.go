@@ -93,9 +93,13 @@ func main() {
 	// Start crawls
 	log.Println("Crawling KVR Audio...")
 	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/newest")
+	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/effects/newest")
 
 	log.Println("Crawling GitHub VST topics...")
 	githubCollector.Visit("https://github.com/topics/vst-plugin")
+	githubCollector.Visit("https://github.com/topics/vst3")
+	githubCollector.Visit("https://github.com/topics/clap-plugin")
+	githubCollector.Visit("https://github.com/topics/audio-plugins")
 
 	log.Println("Crawling GitHub LV2 topics...")
 	githubCollector.Visit("https://github.com/topics/lv2")

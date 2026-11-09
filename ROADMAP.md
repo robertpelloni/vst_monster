@@ -66,6 +66,7 @@
 - [x] Real-Time Audio Loopback Metering & True Peak (dBTP) LUFS EBU R128 Analyzer (v0.7.0).
 - [x] Multi-Channel Audio Phase Correlation & Goniometer Vectorscope Analyzer (v0.7.1).
 - [x] Deep LV2 RDF Manifest Graph Introspector & Port Topology Engine (v0.7.2).
+- [x] Multi-Target Crawler Expansion & Operations Hub UI (v0.7.3).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

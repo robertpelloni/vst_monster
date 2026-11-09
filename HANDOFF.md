@@ -1,9 +1,26 @@
-# HANDOFF: VST Monster v0.7.2 Session Summary
+# HANDOFF: VST Monster v0.7.3 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.7.2`
+- **Global Ecosystem Version:** `v0.7.3`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.7.2:** Deep LV2 RDF Manifest Graph Introspector & Port Topology Engine.
+- **Primary Feature Shipped in v0.7.3:** Expanded Multi-Target Crawler Engine & Operations Hub.
+
+## Key Changes in v0.7.3
+1. **Go Crawler Pipeline (`crawler/scraper/github.go` & `crawler/main.go`)**:
+   - Expanded GitHub release asset discovery to inspect Windows `.msi` and `.exe` releases alongside `.zip`, `.tar.gz`, `.deb`, and `.dmg`.
+   - Added automatic category heuristics inferring plugin category (`synth`, `dynamics`, `effect`) from repository descriptions and README metadata.
+   - Added scraping of GitHub topics: `vst-plugin`, `vst3`, `clap-plugin`, `audio-plugins`, `lv2`, and `lv2-plugin`.
+   - Added KVR Audio free effects directory scraping (`https://www.kvraudio.com/plugins/free/effects/newest`) alongside instrument catalogs.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub with multi-target source badges (`🐙 GitHub Topics (6)`, `🎛️ KVR Audio (Newest)`, `📰 BPB Freeware`).
+   - Added informative tooltips explaining the underlying scraping mechanisms and topic feeds.
+   - Styled source pills with responsive high-contrast dark theme tags.
+3. **Testing & Verification**:
+   - All Go crawler unit tests pass (`go test ./...`).
+   - All 24 Rust cargo unit tests pass (`cargo test`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_sources.png`).
 
 ## Key Changes in v0.7.2
 1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:

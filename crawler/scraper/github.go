@@ -59,7 +59,7 @@ func fetchGitHubReleaseDownloadURL(owner, repo string) string {
 
 	for _, asset := range release.Assets {
 		lowerURL := strings.ToLower(asset.BrowserDownloadURL)
-		if strings.HasSuffix(lowerURL, ".tar.gz") || strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".deb") || strings.HasSuffix(lowerURL, ".dmg") {
+		if strings.HasSuffix(lowerURL, ".tar.gz") || strings.HasSuffix(lowerURL, ".zip") || strings.HasSuffix(lowerURL, ".deb") || strings.HasSuffix(lowerURL, ".dmg") || strings.HasSuffix(lowerURL, ".msi") || strings.HasSuffix(lowerURL, ".exe") {
 			return asset.BrowserDownloadURL
 		}
 	}
@@ -107,6 +107,13 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 				}
 			}
 
+			category := "effect"
+			if strings.Contains(lowerDesc, "synth") || strings.Contains(lowerDesc, "instrument") || strings.Contains(lowerDesc, "generator") || strings.Contains(lowerDesc, "modular") {
+				category = "synth"
+			} else if strings.Contains(lowerDesc, "compressor") || strings.Contains(lowerDesc, "limiter") || strings.Contains(lowerDesc, "gate") || strings.Contains(lowerDesc, "tape") {
+				category = "dynamics"
+			}
+
 			results <- parser.StandardPlugin{
 				Name:        name,
 				Developer:   dev,
@@ -115,7 +122,7 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 				DownloadURL: downloadURL,
 				License:     "opensource",
 				Source:      "GitHub",
-				Metadata:    map[string]interface{}{"source": "github"},
+				Metadata:    map[string]interface{}{"source": "github", "category": category, "description": desc},
 			}
 			log.Printf("Extracted from GitHub: %s/%s", dev, name)
 		}

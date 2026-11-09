@@ -1,5 +1,21 @@
 # CHANGELOG: VST Monster
 
+## [0.7.3] - Expanded Target Source Crawler Engine & Multi-Source Operations Hub
+- Enhanced `crawler/scraper/github.go`:
+  - Expanded release asset discovery to inspect Windows `.msi` and `.exe` installer distributions alongside `.zip`, `.tar.gz`, `.deb`, and `.dmg`.
+  - Added intelligent category classification heuristics inferring plugin category (`synth`, `dynamics`, `effect`) from repository descriptions and README highlights.
+  - Added repository license extraction during scraping.
+- Enhanced `crawler/main.go`:
+  - Added multi-target GitHub topic scraping for `vst-plugin`, `vst3`, `clap-plugin`, `audio-plugins`, `lv2`, and `lv2-plugin`.
+  - Added KVR Audio free effects directory scraping (`https://www.kvraudio.com/plugins/free/effects/newest`) alongside instrument catalogs.
+  - Formatted enhanced logging during multi-source orchestration.
+- Enhanced Crawler Operations Hub in `client/src/routes/+page.svelte`:
+  - Added `.crawler-sources-row` displaying target source indicators (`🐙 GitHub Topics (6)`, `🎛️ KVR Audio (Newest)`, `📰 BPB Freeware`).
+  - Added interactive tooltip markers detailing the underlying scraper targets and topic tags.
+  - Added responsive CSS styling for source badges with dark slate backings and glowing borders.
+- Verified test suite (`go test ./...` passing in `crawler/`, `cargo test` with 24 tests passing in `client/src-tauri/`), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_crawler_sources.png`).
+- Bumped ecosystem version to `v0.7.3`.
+
 ## [0.7.2] - Deep LV2 RDF Manifest Graph Introspector & Port Topology Engine
 - Defined `Lv2PortDescriptor`, `Lv2ExtensionFeature`, and `Lv2PluginGraphDetails` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `inspect_lv2_graph(plugin_name: Option<String>, manifest_path: Option<String>, category: Option<String>) -> Lv2PluginGraphDetails`:

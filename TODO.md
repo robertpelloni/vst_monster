@@ -76,4 +76,5 @@
 - [x] Real-time audio loopback metering & true peak (dBTP) LUFS EBU R128 analyzer (v0.7.0).
 - [x] Multi-channel audio phase correlation & goniometer vectorscope analyzer (v0.7.1).
 - [x] Deep LV2 RDF manifest graph introspector & port topology engine (v0.7.2).
+- [x] Multi-target crawler expansion (6 GitHub topics, KVR Audio newest effects) & Operations Hub UI (v0.7.3).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.
