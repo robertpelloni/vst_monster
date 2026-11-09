@@ -10,4 +10,4 @@
 - High-value features displayed first (Quick Search, Crawler Controls, Live Metrics).
 - Strategy-based installation engine handling MSI, EXE, PKG, and direct ZIP archive decompression to audio directories (`~/.vst3`).
 - Contextual tooltips providing detailed explanation across all interactive controls.
-- Interactive audio engineering diagnostic matrix cards in the "Filesystem & DAW" inspector tab for PDC latency, sidechain/surround bus routing, CPU/SIMD binary architecture, headless DSP cycle benchmarks, plugin parameter enumeration with MIDI automation mapping, and real-time audio thread stress testing with crash recovery profiling.
+- Interactive audio engineering diagnostic matrix cards in the "Filesystem & DAW" inspector tab for PDC latency, sidechain/surround bus routing, CPU/SIMD binary architecture, headless DSP cycle benchmarks, plugin parameter enumeration with MIDI automation mapping, real-time audio thread stress testing with crash recovery profiling, and headless audio loopback rendering with dynamic frequency response spectrum analysis.

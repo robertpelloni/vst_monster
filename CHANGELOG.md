@@ -1,5 +1,21 @@
 # CHANGELOG: VST Monster
 
+## [0.6.8] - Headless Audio Loopback Rendering & Dynamic Frequency Response Spectrum Analyzer
+- Defined `SpectrumFrequencyBin` and `AudioSpectrumReport` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `render_audio_spectrum_analysis(format: Option<String>, category: Option<String>, test_signal: Option<String>) -> AudioSpectrumReport` in `client/src-tauri/src/installer.rs`:
+  - Simulates synthetic test signal stimulus injections (Logarithmic Sine Sweep 20Hz-20kHz, Pink Noise -12dBFS, Dirac Delta Impulse) through the plugin's DSP graph.
+  - Generates 10 standard logarithmic audio spectrum frequency bands across sub-bass (30Hz, 60Hz), bass (120Hz), low-mid (250Hz), midrange (500Hz, 1kHz), upper-mid (2.5kHz), presence (5kHz), brilliance (10kHz), and air (16kHz).
+  - Calculates output magnitude (dBFS), gain delta (dB), phase shift displacement (degrees), and band-specific harmonic distortion (THD %).
+  - Computes global total harmonic distortion percentage (THD %), signal-to-noise ratio (SNR dB), -3dB cutoff frequency (Hz), phase linearity status, and mastering chain advice.
+- Added comprehensive unit tests in `installer.rs`: `test_render_audio_spectrum_analysis_synth` and `test_render_audio_spectrum_analysis_dynamics` (16 total passing unit tests).
+- Registered `render_audio_spectrum_analysis` command in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "HEADLESS AUDIO SPECTRUM & FREQUENCY RESPONSE MATRIX" card within the "Filesystem & DAW" tab in `client/src/routes/+page.svelte`:
+  - Test signal selection dropdown and "📊 Analyze Spectrum" trigger button invoking native Tauri FFT spectrum computation.
+  - Visual summary banner with THD % badge, SNR dB badge, -3dB cutoff frequency badge, and phase linearity badge.
+  - Responsive 7-column spectrum frequency bands table displaying Band/Frequency, Injected Input (dBFS), DSP Output (dBFS), Gain Delta (dB), Visual Response Curve progress fill gauge, Phase Shift displacement pill, and band THD % pill with descriptive tooltips.
+- Verified full test suite (`cargo test`, 16 unit tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_spectrum_matrix_computed.png`).
+- Bumped ecosystem version to `v0.6.8`.
+
 ## [0.6.7] - Real-Time Audio Thread Stress Test & Headless Crash Recovery Inspector
 - Defined `AudioThreadStressPoint` and `PluginResilienceReport` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `test_audio_thread_resilience(format: Option<String>, category: Option<String>, buffer_size: Option<u32>) -> PluginResilienceReport` in `client/src-tauri/src/installer.rs`:

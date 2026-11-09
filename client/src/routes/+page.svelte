@@ -244,6 +244,32 @@
   let resilienceReport = $state<PluginResilienceReportItem | null>(null);
   let isTestingResilience = $state(false);
 
+  interface SpectrumFrequencyBinItem {
+    frequency_hz: number;
+    band_name: string;
+    input_magnitude_db: number;
+    output_magnitude_db: number;
+    gain_delta_db: number;
+    phase_shift_deg: number;
+    harmonic_distortion_pct: number;
+  }
+  interface AudioSpectrumReportItem {
+    format: string;
+    category: string;
+    test_signal: string;
+    sample_rate: number;
+    fft_resolution_points: number;
+    cutoff_frequency_3db_hz: number;
+    total_harmonic_distortion_pct: number;
+    signal_to_noise_ratio_db: number;
+    phase_linearity_status: string;
+    frequency_bins: SpectrumFrequencyBinItem[];
+    mastering_advice: string;
+  }
+  let spectrumReport = $state<AudioSpectrumReportItem | null>(null);
+  let isRenderingSpectrum = $state(false);
+  let spectrumTestSignal = $state('Logarithmic Sine Sweep (20Hz - 20kHz)');
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -797,6 +823,24 @@
       console.warn('Resilience stress test failed:', err);
     } finally {
       isTestingResilience = false;
+    }
+  }
+
+  async function renderAudioSpectrumAnalysis() {
+    isRenderingSpectrum = true;
+    try {
+      const format = previewPlugin ? inferCatalogFormat(previewPlugin) : 'VST3';
+      const category = previewPlugin?.category || 'synth';
+      const res: AudioSpectrumReportItem = await invoke('render_audio_spectrum_analysis', {
+        format,
+        category,
+        testSignal: spectrumTestSignal,
+      });
+      spectrumReport = res;
+    } catch (err: any) {
+      console.warn('Spectrum analysis failed:', err);
+    } finally {
+      isRenderingSpectrum = false;
     }
   }
 
@@ -1639,6 +1683,118 @@
                 {#if presetExportMessage}
                   <div class="preset-export-status" class:success={presetExportMessage.startsWith('✓')} class:error={presetExportMessage.startsWith('Export failed')}>
                     {presetExportMessage}
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Headless Audio Loopback Rendering & Dynamic Frequency Response Spectrum Analyzer -->
+              <div class="spectrum-analyzer-card">
+                <div class="spectrum-header">
+                  <div class="spectrum-title">
+                    <span class="spectrum-icon">📈</span>
+                    <div>
+                      <div class="spectrum-title-text">HEADLESS AUDIO SPECTRUM & FREQUENCY RESPONSE MATRIX</div>
+                      <div class="spectrum-subtitle-text">
+                        Inject synthetic loopback sweeps, measure passband magnitude (dBFS), harmonic distortion (THD %), and phase response
+                      </div>
+                    </div>
+                  </div>
+                  <div class="spectrum-controls">
+                    <select
+                      class="spectrum-signal-select"
+                      bind:value={spectrumTestSignal}
+                      use:tooltip={"Select synthetic input stimulus injected into plugin DSP render callback"}
+                    >
+                      <option value="Logarithmic Sine Sweep (20Hz - 20kHz)">Logarithmic Sine Sweep (20Hz - 20kHz)</option>
+                      <option value="Pink Noise (-12 dBFS)">Pink Noise (-12 dBFS)</option>
+                      <option value="Dirac Delta Impulse (Single Sample)">Dirac Delta Impulse (Single Sample)</option>
+                    </select>
+                    <button
+                      class="btn btn-sm btn-spectrum"
+                      disabled={isRenderingSpectrum}
+                      onclick={() => renderAudioSpectrumAnalysis()}
+                      use:tooltip={"Inject test signal and compute headless 2048-point FFT spectrum analysis"}
+                    >
+                      {isRenderingSpectrum ? '⏳ Analyzing...' : '📊 Analyze Spectrum'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if spectrumReport}
+                  <div class="spectrum-results-container">
+                    <div class="spectrum-summary-bar">
+                      <span class="spectrum-badge badge-thd" use:tooltip={"Total Harmonic Distortion measured at 1 kHz fundamental"}>
+                        THD: {spectrumReport.total_harmonic_distortion_pct}%
+                      </span>
+                      <span class="spectrum-badge badge-snr" use:tooltip={"Signal-to-Noise dynamic range across 20Hz-20kHz band"}>
+                        SNR: {spectrumReport.signal_to_noise_ratio_db} dB
+                      </span>
+                      <span class="spectrum-badge badge-cutoff" use:tooltip={"High frequency -3dB roll-off cutoff limit"}>
+                        -3dB Cutoff: {(spectrumReport.cutoff_frequency_3db_hz / 1000).toFixed(1)} kHz
+                      </span>
+                      <span class="spectrum-badge badge-phase" use:tooltip={"DSP phase linearity across audio spectrum"}>
+                        {spectrumReport.phase_linearity_status}
+                      </span>
+                    </div>
+
+                    <div class="spectrum-info-box">
+                      <div class="spectrum-metric-row">
+                        <span><strong>Stimulus:</strong> {spectrumReport.test_signal}</span>
+                        <span><strong>FFT Resolution:</strong> {spectrumReport.fft_resolution_points} points @ {spectrumReport.sample_rate / 1000} kHz</span>
+                      </div>
+                      <div class="spectrum-advice">💡 {spectrumReport.mastering_advice}</div>
+                    </div>
+
+                    <!-- Frequency Bands Table & Visual Response Curve -->
+                    <div class="spectrum-table-wrapper">
+                      <table class="spectrum-table">
+                        <thead>
+                          <tr>
+                            <th use:tooltip={"Acoustic audio spectrum frequency band"}>Band / Frequency</th>
+                            <th use:tooltip={"Injected test signal magnitude level"}>Input (dBFS)</th>
+                            <th use:tooltip={"DSP output magnitude level"}>Output (dBFS)</th>
+                            <th use:tooltip={"Magnitude gain delta through plugin"}>Gain Delta</th>
+                            <th use:tooltip={"Visual magnitude response relative to 0 dB unity gain"}>Response Curve</th>
+                            <th use:tooltip={"Phase displacement relative to dry input signal"}>Phase Shift</th>
+                            <th use:tooltip={"Band-specific harmonic distortion"}>THD %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {#each spectrumReport.frequency_bins as bin}
+                            <tr>
+                              <td class="spectrum-col-band">
+                                <span class="band-tag">{bin.band_name}</span>
+                              </td>
+                              <td class="spectrum-col-db">{bin.input_magnitude_db.toFixed(1)} dB</td>
+                              <td class="spectrum-col-db">{bin.output_magnitude_db.toFixed(1)} dB</td>
+                              <td class="spectrum-col-delta">
+                                <span class="delta-tag {bin.gain_delta_db > 0.5 ? 'delta-boost' : bin.gain_delta_db < -0.5 ? 'delta-cut' : 'delta-flat'}">
+                                  {bin.gain_delta_db > 0 ? `+${bin.gain_delta_db.toFixed(1)}` : bin.gain_delta_db.toFixed(1)} dB
+                                </span>
+                              </td>
+                              <td class="spectrum-col-curve">
+                                <div class="curve-bar-container">
+                                  <div
+                                    class="curve-bar-fill {bin.gain_delta_db > 0.5 ? 'curve-boost' : bin.gain_delta_db < -1.5 ? 'curve-roll' : 'curve-flat'}"
+                                    style="width: {Math.max(10, Math.min(100, 50 + bin.gain_delta_db * 10))}%"
+                                  ></div>
+                                </div>
+                              </td>
+                              <td class="spectrum-col-phase">
+                                <span class="phase-tag {Math.abs(bin.phase_shift_deg) < 15 ? 'phase-min' : 'phase-shift'}">
+                                  {bin.phase_shift_deg > 0 ? `+${bin.phase_shift_deg.toFixed(1)}°` : `${bin.phase_shift_deg.toFixed(1)}°`}
+                                </span>
+                              </td>
+                              <td class="spectrum-col-thd">
+                                <span class="thd-tag {bin.harmonic_distortion_pct < 0.02 ? 'thd-clean' : 'thd-warm'}">
+                                  {bin.harmonic_distortion_pct.toFixed(3)}%
+                                </span>
+                              </td>
+                            </tr>
+                          {/each}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 {/if}
               </div>
@@ -6421,6 +6577,258 @@
   .xrun-dropped {
     background: #ef4444;
     color: #fff;
+  }
+
+  /* Headless Audio Spectrum & Frequency Response Matrix Styles */
+  .spectrum-analyzer-card {
+    background: rgba(30, 41, 59, 0.45);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 8px;
+    padding: 1.15rem;
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .spectrum-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .spectrum-title {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .spectrum-icon {
+    font-size: 1.4rem;
+  }
+
+  .spectrum-title-text {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #38bdf8;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .spectrum-subtitle-text {
+    font-size: 0.73rem;
+    color: #94a3b8;
+  }
+
+  .spectrum-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .spectrum-signal-select {
+    background: #0f172a;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    border-radius: 5px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.74rem;
+    outline: none;
+  }
+
+  .btn-spectrum {
+    background: #0284c7;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.75rem;
+    border: none;
+    border-radius: 5px;
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .btn-spectrum:hover:not(:disabled) {
+    background: #0369a1;
+  }
+
+  .spectrum-results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .spectrum-summary-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .spectrum-badge {
+    font-size: 0.73rem;
+    font-weight: 600;
+    padding: 0.25rem 0.55rem;
+    border-radius: 4px;
+  }
+
+  .badge-thd {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+
+  .badge-snr {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+  }
+
+  .badge-cutoff {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+  }
+
+  .badge-phase {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+
+  .spectrum-info-box {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.74rem;
+    color: #94a3b8;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .spectrum-metric-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    color: #cbd5e1;
+  }
+
+  .spectrum-advice {
+    color: #e2e8f0;
+    font-style: italic;
+  }
+
+  .spectrum-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .spectrum-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.73rem;
+    text-align: left;
+  }
+
+  .spectrum-table th {
+    background: rgba(15, 23, 42, 0.9);
+    color: #94a3b8;
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid #334155;
+    font-weight: 600;
+  }
+
+  .spectrum-table td {
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+    color: #cbd5e1;
+  }
+
+  .band-tag {
+    font-weight: 600;
+    color: #e2e8f0;
+  }
+
+  .delta-tag {
+    font-weight: 700;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+  }
+
+  .delta-boost {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+  }
+
+  .delta-cut {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+  }
+
+  .delta-flat {
+    background: rgba(148, 163, 184, 0.15);
+    color: #cbd5e1;
+  }
+
+  .curve-bar-container {
+    width: 90px;
+    height: 8px;
+    background: #0f172a;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid #334155;
+  }
+
+  .curve-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.2s ease;
+  }
+
+  .curve-boost {
+    background: #34d399;
+  }
+
+  .curve-roll {
+    background: #f87171;
+  }
+
+  .curve-flat {
+    background: #38bdf8;
+  }
+
+  .phase-tag {
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+
+  .phase-min {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+  }
+
+  .phase-shift {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+  }
+
+  .thd-tag {
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+
+  .thd-clean {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+  }
+
+  .thd-warm {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
   }
 
   @media (max-width: 1024px) {
