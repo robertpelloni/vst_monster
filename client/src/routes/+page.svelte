@@ -3411,7 +3411,7 @@
         <p class="card-desc">Execute distributed crawlers to scrape fresh releases, compute SHA-256 binary digests, and populate registry.</p>
         <div class="crawler-sources-row">
           <span class="crawler-source-pill" use:tooltip={"Scrapes GitHub topics: vst-plugin, vst3, clap-plugin, audio-plugins, lv2, lv2-plugin"}>🐙 GitHub Topics (6)</span>
-          <span class="crawler-source-pill" use:tooltip={"Scrapes KVR Audio newest free instruments and effects catalog"}>🎛️ KVR Audio (Newest)</span>
+          <span class="crawler-source-pill" use:tooltip={"Scrapes KVR Audio newest free instruments and effects catalog with category heuristics"}>🎛️ KVR Instruments & Effects</span>
           <span class="crawler-source-pill" use:tooltip={"Scrapes Bedroom Producers Blog for curated freeware plugins"}>📰 BPB Freeware</span>
         </div>
         <div class="crawler-action-bar">

@@ -1,5 +1,18 @@
 # CHANGELOG: VST Monster
 
+## [0.7.4] - KVR Audio Categorization Heuristics & Enhanced Metadata Pipeline
+- Enhanced KVR Audio scraper in `crawler/scraper/kvr.go`:
+  - Added acoustic category heuristics classifying scraped plugins (`synth`, `dynamics`, `effect`) from plugin titles, description summaries, and raw format tags.
+  - Added source tagging (`kvr_audio`) and structured category metadata injection into `parser.StandardPlugin`.
+- Added unit tests in `crawler/scraper/kvr_test.go`:
+  - Implemented `TestBuildKVRScraper_Extraction` verifying that HTML mock payloads for synth and dynamics processors are parsed accurately.
+- Enhanced PostgreSQL database upsert pipeline in `crawler/db.go`:
+  - Enriched `UpsertPlugin` to guarantee `source`, `license`, and `formats` metadata are merged and persisted into the `metadata` JSONB column.
+- Updated Crawler Operations Hub in `client/src/routes/+page.svelte`:
+  - Updated source pill to "🎛️ KVR Instruments & Effects" with descriptive category heuristic tooltips.
+- Verified test suites across Go (`go test ./...` in `crawler/`) and Rust (`cargo test` in `client/src-tauri/`), Svelte diagnostics (`npm run check` with 0 errors/0 warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_crawler_kvr_updated.png`).
+- Bumped ecosystem version to `v0.7.4`.
+
 ## [0.7.3] - Expanded Target Source Crawler Engine & Multi-Source Operations Hub
 - Enhanced `crawler/scraper/github.go`:
   - Expanded release asset discovery to inspect Windows `.msi` and `.exe` installer distributions alongside `.zip`, `.tar.gz`, `.deb`, and `.dmg`.

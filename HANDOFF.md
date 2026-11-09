@@ -1,9 +1,24 @@
-# HANDOFF: VST Monster v0.7.3 Session Summary
+# HANDOFF: VST Monster v0.7.4 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.7.3`
+- **Global Ecosystem Version:** `v0.7.4`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.7.3:** Expanded Multi-Target Crawler Engine & Operations Hub.
+- **Primary Feature Shipped in v0.7.4:** KVR Audio Categorization Heuristics & Enhanced Metadata Pipeline.
+
+## Key Changes in v0.7.4
+1. **Go Crawler Pipeline (`crawler/scraper/kvr.go` & `crawler/scraper/kvr_test.go`)**:
+   - Implemented acoustic category inference heuristics (`synth`, `dynamics`, `effect`) based on plugin names, formats, and category descriptions.
+   - Added unit test `TestBuildKVRScraper_Extraction` verifying that HTML mock payloads accurately extract and map synths and dynamics processors.
+2. **Database Ingestion Pipeline (`crawler/db.go`)**:
+   - Enriched `UpsertPlugin` ensuring that `source`, `license`, and `formats` metadata are merged into the `metadata` JSONB column.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub with the "🎛️ KVR Instruments & Effects" pill with descriptive category heuristic tooltips.
+4. **Testing & Verification**:
+   - All Go unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 24 Rust cargo unit tests pass (`cargo test`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_kvr_updated.png`).
 
 ## Key Changes in v0.7.3
 1. **Go Crawler Pipeline (`crawler/scraper/github.go` & `crawler/main.go`)**:
