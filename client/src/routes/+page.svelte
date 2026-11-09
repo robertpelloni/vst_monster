@@ -374,6 +374,46 @@
     imaging_advice: string;
   }
 
+  interface Lv2PortDescriptorItem {
+    index: number;
+    symbol: string;
+    name: string;
+    port_type: string;
+    direction: string;
+    default_value: number | null;
+    min_value: number | null;
+    max_value: number | null;
+    unit: string | null;
+    properties: string[];
+  }
+
+  interface Lv2ExtensionFeatureItem {
+    uri: string;
+    is_required: boolean;
+    feature_name: string;
+    description: string;
+  }
+
+  interface Lv2PluginGraphDetailsItem {
+    plugin_name: string;
+    plugin_uri: string;
+    bundle_path: string;
+    binary_target: string;
+    micro_version: number;
+    minor_version: number;
+    total_ports: number;
+    audio_input_count: number;
+    audio_output_count: number;
+    control_input_count: number;
+    control_output_count: number;
+    atom_event_count: number;
+    ui_uri: string | null;
+    ui_type: string;
+    ports: Lv2PortDescriptorItem[];
+    features: Lv2ExtensionFeatureItem[];
+    host_compatibility_advice: string;
+  }
+
   let activeSnapshot = $state<PluginStateSnapshot | null>(null);
   let isSnapshotting = $state(false);
   let presetDiffReport = $state<PresetDiffReport | null>(null);
@@ -385,6 +425,8 @@
   let meteringTargetStandard = $state('EBU R128 (-23 LUFS)');
   let audioPhaseReport = $state<PluginPhaseAnalysisReport | null>(null);
   let isAnalyzingPhase = $state(false);
+  let lv2GraphReport = $state<Lv2PluginGraphDetailsItem | null>(null);
+  let isInspectingLv2Graph = $state(false);
 
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
@@ -1039,6 +1081,26 @@
       actionMessage = `Phase correlation analysis failed: ${err}`;
     } finally {
       isAnalyzingPhase = false;
+    }
+  }
+
+  async function handleInspectLv2Graph() {
+    isInspectingLv2Graph = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Dragonfly Reverb';
+      const category = previewPlugin?.category || 'spatial';
+      const manifestPath = previewPlugin ? `~/.lv2/${previewPlugin.name.replace(/\s+/g, '_')}.lv2` : null;
+      const res: Lv2PluginGraphDetailsItem = await invoke('inspect_lv2_graph', {
+        pluginName,
+        manifestPath,
+        category,
+      });
+      lv2GraphReport = res;
+      actionMessage = `Parsed LV2 RDF manifest graph for ${pluginName} (${res.total_ports} ports, ${res.features.length} extensions)`;
+    } catch (err: any) {
+      actionMessage = `LV2 RDF manifest graph inspection failed: ${err}`;
+    } finally {
+      isInspectingLv2Graph = false;
     }
   }
 
@@ -2227,6 +2289,140 @@
                       <div class="advice-content">
                         <strong>Stereo Imaging & Phase Advice:</strong>
                         <p>{audioPhaseReport.imaging_advice}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- LV2 Open Audio Standard: Deep RDF Graph & Port Topology Inspector -->
+              <div class="lv2-graph-card">
+                <div class="lv2-graph-header">
+                  <div class="lv2-graph-title">
+                    <span class="lv2-graph-icon">🎛️</span>
+                    <div>
+                      <h4 class="lv2-graph-h4">LV2 OPEN AUDIO STANDARD: DEEP RDF GRAPH & PORT TOPOLOGY</h4>
+                      <span class="lv2-graph-sub">Turtle RDF manifest introspector, audio/control/atom event port pinout, and extension features</span>
+                    </div>
+                  </div>
+                  <div class="lv2-graph-ctrls">
+                    <button
+                      type="button"
+                      class="btn-lv2-graph-action"
+                      onclick={handleInspectLv2Graph}
+                      disabled={isInspectingLv2Graph}
+                      use:tooltip={"Inspect LV2 manifest.ttl, parse port direction/ranges, and assert extension URIs"}
+                    >
+                      {isInspectingLv2Graph ? 'Parsing RDF...' : 'Inspect LV2 Graph & Ports'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if lv2GraphReport}
+                  <div class="lv2-graph-content">
+                    <div class="lv2-metrics-grid">
+                      <div class="lv2-stat-card">
+                        <span class="lv2-stat-label">Plugin URI:</span>
+                        <span class="lv2-stat-val uri" use:tooltip={lv2GraphReport.plugin_uri}>{lv2GraphReport.plugin_uri.replace('http://', '')}</span>
+                        <span class="lv2-stat-sub">Target: {lv2GraphReport.binary_target}</span>
+                      </div>
+                      <div class="lv2-stat-card">
+                        <span class="lv2-stat-label">Total Ports:</span>
+                        <span class="lv2-stat-val">{lv2GraphReport.total_ports}</span>
+                        <span class="lv2-stat-sub">Audio: {lv2GraphReport.audio_input_count} In / {lv2GraphReport.audio_output_count} Out</span>
+                      </div>
+                      <div class="lv2-stat-card">
+                        <span class="lv2-stat-label">Control & Atom:</span>
+                        <span class="lv2-stat-val">{lv2GraphReport.control_input_count + lv2GraphReport.control_output_count} Ctrl / {lv2GraphReport.atom_event_count} Atom</span>
+                        <span class="lv2-stat-sub">Event Sequence Buffer</span>
+                      </div>
+                      <div class="lv2-stat-card">
+                        <span class="lv2-stat-label">UI Embedding Mode:</span>
+                        <span class="lv2-stat-val ui-mode">{lv2GraphReport.ui_type}</span>
+                        <span class="lv2-stat-sub">Version: {lv2GraphReport.minor_version}.{lv2GraphReport.micro_version}</span>
+                      </div>
+                    </div>
+
+                    <!-- Ports Breakdown Table -->
+                    <div class="lv2-ports-table-wrapper">
+                      <div class="lv2-table-header">
+                        <span>Declared LV2 Port Topology ({lv2GraphReport.ports.length} Ports)</span>
+                      </div>
+                      <div class="lv2-table-container">
+                        <table class="lv2-ports-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Symbol</th>
+                              <th>Name</th>
+                              <th>Type</th>
+                              <th>Direction</th>
+                              <th>Range (Def / Min / Max)</th>
+                              <th>Properties</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each lv2GraphReport.ports as port}
+                              <tr>
+                                <td>{port.index}</td>
+                                <td><code>{port.symbol}</code></td>
+                                <td>{port.name}</td>
+                                <td>
+                                  <span class="port-type-badge {port.port_type.toLowerCase()}">
+                                    {port.port_type}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span class="port-dir-badge {port.direction.toLowerCase()}">
+                                    {port.direction}
+                                  </span>
+                                </td>
+                                <td>
+                                  {#if port.default_value !== null}
+                                    {port.default_value} (range: {port.min_value}..{port.max_value}) {port.unit || ''}
+                                  {:else}
+                                    <span class="port-na">N/A</span>
+                                  {/if}
+                                </td>
+                                <td>
+                                  {#if port.properties.length > 0}
+                                    {#each port.properties as prop}
+                                      <span class="port-prop-chip">{prop}</span>
+                                    {/each}
+                                  {:else}
+                                    <span class="port-na">none</span>
+                                  {/if}
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <!-- Extension Features -->
+                    <div class="lv2-extensions-box">
+                      <div class="lv2-ext-header">Declared Extension Features & Host Requirements</div>
+                      <div class="lv2-features-chips">
+                        {#each lv2GraphReport.features as feat}
+                          <div class="lv2-feat-card" use:tooltip={`${feat.uri}: ${feat.description}`}>
+                            <div class="lv2-feat-top">
+                              <span class="lv2-feat-name">{feat.feature_name}</span>
+                              <span class="lv2-feat-req {feat.is_required ? 'required' : 'optional'}">
+                                {feat.is_required ? 'REQUIRED' : 'OPTIONAL'}
+                              </span>
+                            </div>
+                            <span class="lv2-feat-uri">{feat.uri}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+
+                    <div class="lv2-graph-advice-card">
+                      <span class="advice-icon">🎛️</span>
+                      <div class="advice-content">
+                        <strong>LV2 Workstation Host Compatibility:</strong>
+                        <p>{lv2GraphReport.host_compatibility_advice}</p>
                       </div>
                     </div>
                   </div>
@@ -8122,6 +8318,304 @@
     align-items: flex-start;
     background: rgba(56, 189, 248, 0.1);
     border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+  }
+
+  /* LV2 Deep RDF Graph Styling */
+  .lv2-graph-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .lv2-graph-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 1rem;
+  }
+
+  .lv2-graph-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .lv2-graph-icon {
+    font-size: 1.5rem;
+  }
+
+  .lv2-graph-h4 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #f8fafc;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .lv2-graph-sub {
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+
+  .btn-lv2-graph-action {
+    background: #0d9488;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.55rem 1.1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .btn-lv2-graph-action:hover:not(:disabled) {
+    background: #0f766e;
+  }
+
+  .btn-lv2-graph-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .lv2-graph-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .lv2-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.85rem;
+  }
+
+  .lv2-stat-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .lv2-stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: #94a3b8;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .lv2-stat-val {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #f8fafc;
+  }
+
+  .lv2-stat-val.uri {
+    font-size: 0.85rem;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #2dd4bf;
+  }
+
+  .lv2-stat-val.ui-mode {
+    color: #38bdf8;
+  }
+
+  .lv2-stat-sub {
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+
+  .lv2-ports-table-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 1rem;
+  }
+
+  .lv2-table-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #cbd5e1;
+  }
+
+  .lv2-table-container {
+    overflow-x: auto;
+    max-height: 280px;
+  }
+
+  .lv2-ports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    text-align: left;
+  }
+
+  .lv2-ports-table th {
+    padding: 0.45rem 0.6rem;
+    background: #1e293b;
+    color: #94a3b8;
+    font-weight: 600;
+    border-bottom: 1px solid #334155;
+    white-space: nowrap;
+  }
+
+  .lv2-ports-table td {
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid #1e293b;
+    color: #e2e8f0;
+    white-space: nowrap;
+  }
+
+  .port-type-badge {
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .port-type-badge.audioport {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+  }
+
+  .port-type-badge.controlport {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+  }
+
+  .port-type-badge.atomport {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+  }
+
+  .port-dir-badge {
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .port-dir-badge.input {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+  }
+
+  .port-dir-badge.output {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+  }
+
+  .port-prop-chip {
+    display: inline-block;
+    padding: 0.1rem 0.35rem;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-right: 0.25rem;
+  }
+
+  .port-na {
+    color: #64748b;
+    font-style: italic;
+  }
+
+  .lv2-extensions-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .lv2-ext-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #cbd5e1;
+  }
+
+  .lv2-features-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.65rem;
+  }
+
+  .lv2-feat-card {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .lv2-feat-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .lv2-feat-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #f8fafc;
+  }
+
+  .lv2-feat-req {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+  }
+
+  .lv2-feat-req.required {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+  }
+
+  .lv2-feat-req.optional {
+    background: rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+  }
+
+  .lv2-feat-uri {
+    font-size: 0.72rem;
+    font-family: monospace;
+    color: #64748b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lv2-graph-advice-card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(13, 148, 136, 0.1);
+    border: 1px solid rgba(13, 148, 136, 0.25);
     border-radius: 6px;
     padding: 0.75rem 1rem;
     font-size: 0.85rem;

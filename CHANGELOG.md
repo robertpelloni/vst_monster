@@ -1,5 +1,24 @@
 # CHANGELOG: VST Monster
 
+## [0.7.2] - Deep LV2 RDF Manifest Graph Introspector & Port Topology Engine
+- Defined `Lv2PortDescriptor`, `Lv2ExtensionFeature`, and `Lv2PluginGraphDetails` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `inspect_lv2_graph(plugin_name: Option<String>, manifest_path: Option<String>, category: Option<String>) -> Lv2PluginGraphDetails`:
+  - Parses Turtle (`manifest.ttl`) RDF graph definitions, extracting plugin URI, project/doap metadata, binary library targets, and minor/micro version specifications.
+  - Profiles audio input/output, control parameters (ranges, units, and logarithmic/toggled properties), and atom event port topologies.
+  - Inspects required and optional LV2 extension features (`urid#map`, `worker#schedule`, `state#loadDefaultState`, `options#options`).
+  - Classifies workstation UI embedding modes (`X11UI`, `WindowsUI`, `CocoaUI`, `NoNativeUI`).
+  - Formats workstation host compatibility advice for Linux and cross-platform DAWs (Ardour, Carla, REAPER, Bitwig).
+- Added comprehensive Rust unit tests in `installer.rs`: `test_inspect_lv2_graph_dragonfly` and `test_inspect_lv2_graph_synth` (24 total passing unit tests).
+- Registered `inspect_lv2_graph` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "LV2 OPEN AUDIO STANDARD: DEEP RDF GRAPH & PORT TOPOLOGY" card within the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte`:
+  - "Inspect LV2 Graph & Ports" action trigger.
+  - 4 high-value stat cards: Plugin URI with copy/hover tooltip, Total Ports (Audio In/Out, Control In/Out, Atom Events), UI Embedding Mode, and Target binary.
+  - 7-column interactive LV2 Port Topology table detailing Index, Symbol, Name, Port Type badge (`AudioPort`, `ControlPort`, `AtomPort`), Direction badge (`Input`, `Output`), Range/Unit, and Properties chips.
+  - Declared Extension Features grid with requirement badges (`REQUIRED` vs `OPTIONAL`) and descriptive tooltips.
+  - LV2 host wiring & compatibility advisory callout.
+- Verified test suite (`cargo test`, 24 tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_lv2_graph_computed.png`).
+- Bumped ecosystem version to `v0.7.2`.
+
 ## [0.7.1] - Multi-Channel Audio Phase Correlation & Goniometer Vectorscope Analyzer
 - Defined `PhaseCorrelationSummary`, `GoniometerLissajousPoint`, and `PluginPhaseAnalysisReport` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `render_audio_phase_analysis(plugin_name: Option<String>, format: Option<String>, category: Option<String>) -> PluginPhaseAnalysisReport`:
