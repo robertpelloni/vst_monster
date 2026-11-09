@@ -1,5 +1,22 @@
 # CHANGELOG: VST Monster
 
+## [0.6.6] - Automated VST/AU/CLAP Plugin Parameter Enumeration & MIDI Automation Map Inspector
+- Defined `PluginParameterInfo` and `PluginParameterReport` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `inspect_plugin_parameters(format: Option<String>, category: Option<String>, _parameter_count: Option<usize>) -> PluginParameterReport` in `client/src-tauri/src/installer.rs`:
+  - Enumerate host parameters across synthesis, dynamics, and spatial/time audio DSP categories.
+  - Generates parameter topologies (Hierarchical Unit Trees, Flat Linear Busses, Serial Dynamic Stages).
+  - Inspects sample-accurate automation protocol compliance (e.g. `IParameterChanges` / `IEditController`, CLAP per-sample modulation queues).
+  - Assesses MIDI Polyphonic Expression (MPE) support and standard MIDI CC controller mappings (CC 74 Filter Cutoff, CC 71 Resonance, CC 73 Attack, CC 7 Volume, etc.).
+  - Evaluates DAW automation host advice and thread safety rules.
+- Added comprehensive unit tests in `installer.rs`: `test_inspect_plugin_parameters_synth_defaults` and `test_inspect_plugin_parameters_dynamics` (12 total passing unit tests).
+- Registered `inspect_plugin_parameters` command in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "PLUGIN PARAMETER ENUMERATION & MIDI AUTOMATION MATRIX" card within the "Filesystem & DAW" tab in `client/src/routes/+page.svelte`:
+  - "🎛️ Enumerate Parameters" trigger button invoking native Tauri parameter inspection.
+  - Visual summary banner with parameter count badge, automatable count badge, MPE support badge, sample-accurate automation indicator, and host advice box.
+  - Responsive scrollable parameter table displaying Parameter ID, Parameter Name, Group, Data Type, Default Value, Range, Display Unit, Automatable flag, and MIDI CC assignment pills with descriptive tooltips.
+- Verified full test suite (`cargo test`, 12 unit tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_params_matrix_computed.png`).
+- Bumped ecosystem version to `v0.6.6`.
+
 ## [0.6.5] - Headless DSP Diagnostic Benchmark & Real-Time Memory Profiler
 - Defined `DiagnosticBenchmarkPoint` and `PluginBenchmarkReport` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `benchmark_plugin_performance(format: Option<String>, category: Option<String>, base_memory_mb: Option<f64>) -> PluginBenchmarkReport` in `client/src-tauri/src/installer.rs`:

@@ -191,6 +191,32 @@
   let benchmarkReport = $state<PluginBenchmarkReportItem | null>(null);
   let isBenchmarking = $state(false);
 
+  interface PluginParameterInfoItem {
+    id: number;
+    name: String;
+    parameter_type: string;
+    default_value: number;
+    min_value: number;
+    max_value: number;
+    display_unit: string;
+    is_automatable: boolean;
+    assigned_midi_cc: number | null;
+    parameter_group: string;
+  }
+  interface PluginParameterReportItem {
+    format: string;
+    category: string;
+    total_parameters: number;
+    automatable_parameters: number;
+    supports_mpe: boolean;
+    supports_sample_accurate_automation: boolean;
+    parameter_tree_structure: string;
+    parameters: PluginParameterInfoItem[];
+    automation_host_advice: string;
+  }
+  let parameterReport = $state<PluginParameterReportItem | null>(null);
+  let isInspectingParameters = $state(false);
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -708,6 +734,24 @@
       console.warn('DSP benchmark execution failed:', err);
     } finally {
       isBenchmarking = false;
+    }
+  }
+
+  async function inspectPluginParameters() {
+    isInspectingParameters = true;
+    try {
+      const format = previewPlugin ? inferCatalogFormat(previewPlugin) : 'VST3';
+      const category = previewPlugin?.category || 'synth';
+      const res: PluginParameterReportItem = await invoke('inspect_plugin_parameters', {
+        format,
+        category,
+        parameterCount: null,
+      });
+      parameterReport = res;
+    } catch (err: any) {
+      console.warn('Parameter inspection failed:', err);
+    } finally {
+      isInspectingParameters = false;
     }
   }
 
@@ -1926,6 +1970,96 @@
                     <div class="arch-os-box">
                       <span class="arch-os-label">Minimum Host OS Environment:</span>
                       <span class="arch-os-val">{binaryArchDetails.min_os_version}</span>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <!-- Plugin Parameter Enumeration & MIDI Automation Inspector -->
+            <div class="preview-section">
+              <div class="param-matrix-card">
+                <div class="param-matrix-header">
+                  <div class="param-matrix-title">
+                    <span class="param-matrix-icon">🎛️</span>
+                    <div>
+                      <strong>PLUGIN PARAMETER ENUMERATION & MIDI AUTOMATION MATRIX</strong>
+                      <span class="param-matrix-subtitle">Enumerate host parameters, control ranges, units, sample-accurate automation flags, and MIDI CC assignments</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn-latency-calc"
+                    onclick={() => inspectPluginParameters()}
+                    disabled={isInspectingParameters}
+                    use:tooltip={"Inspect plugin parameter hierarchy, automatable controls, and MIDI CC bindings"}
+                  >
+                    {isInspectingParameters ? '⏳ Enumerating...' : '🎛️ Enumerate Parameters'}
+                  </button>
+                </div>
+
+                {#if parameterReport}
+                  <div class="param-results-container">
+                    <div class="param-summary-banner">
+                      <div class="param-banner-top">
+                        <span class="param-total-badge">{parameterReport.total_parameters} Total Parameters</span>
+                        <span class="param-auto-badge">✓ {parameterReport.automatable_parameters} Automatable</span>
+                        {#if parameterReport.supports_mpe}
+                          <span class="param-mpe-badge">⚡ MPE Polyphonic Expression</span>
+                        {/if}
+                        {#if parameterReport.supports_sample_accurate_automation}
+                          <span class="param-sample-badge">⏱️ Sample-Accurate Automation</span>
+                        {/if}
+                        <span class="param-tree-type">{parameterReport.parameter_tree_structure}</span>
+                      </div>
+                      <div class="param-host-notes">
+                        💡 {parameterReport.automation_host_advice}
+                      </div>
+                    </div>
+
+                    <div class="param-table-wrapper">
+                      <table class="param-table">
+                        <thead>
+                          <tr>
+                            <th use:tooltip={"Unique zero-based host parameter identifier index"}>ID</th>
+                            <th use:tooltip={"Host automation parameter display title"}>Parameter Name</th>
+                            <th use:tooltip={"Functional parameter group / DSP module"}>Group</th>
+                            <th use:tooltip={"Data type (Float, Boolean, Enumeration, Integer)"}>Type</th>
+                            <th use:tooltip={"Factory default value"}>Default</th>
+                            <th use:tooltip={"Min and Max modulation range"}>Range</th>
+                            <th use:tooltip={"Engineering display unit"}>Unit</th>
+                            <th use:tooltip={"Whether this parameter can be automated by DAW envelope lanes"}>Auto</th>
+                            <th use:tooltip={"Standard MIDI Continuous Controller assignment"}>MIDI CC</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {#each parameterReport.parameters as param}
+                            <tr>
+                              <td class="param-col-id">#{param.id}</td>
+                              <td class="param-col-name"><strong>{param.name}</strong></td>
+                              <td class="param-col-group"><span class="param-group-tag">{param.parameter_group}</span></td>
+                              <td class="param-col-type">
+                                <span class="param-type-pill type-{param.parameter_type.toLowerCase()}">{param.parameter_type}</span>
+                              </td>
+                              <td class="param-col-val">{param.default_value}</td>
+                              <td class="param-col-range">{param.min_value} .. {param.max_value}</td>
+                              <td class="param-col-unit">{param.display_unit}</td>
+                              <td class="param-col-auto">
+                                <span class="param-auto-tag {param.is_automatable ? 'is-auto' : 'no-auto'}">
+                                  {param.is_automatable ? '✓ YES' : '✗ NO'}
+                                </span>
+                              </td>
+                              <td class="param-col-midi">
+                                {#if param.assigned_midi_cc !== null}
+                                  <span class="param-midi-pill" use:tooltip={"Assigned MIDI CC trigger"}>CC {param.assigned_midi_cc}</span>
+                                {:else}
+                                  <span class="param-no-midi">—</span>
+                                {/if}
+                              </td>
+                            </tr>
+                          {/each}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 {/if}
@@ -5661,6 +5795,224 @@
     background: rgba(239, 68, 68, 0.2);
     color: #fca5a5;
     border: 1px solid #dc2626;
+  }
+
+  /* Plugin Parameter Matrix Styles */
+  .param-matrix-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .param-matrix-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .param-matrix-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .param-matrix-icon {
+    font-size: 1.5rem;
+  }
+
+  .param-matrix-subtitle {
+    display: block;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 0.2rem;
+  }
+
+  .param-results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .param-summary-banner {
+    background: #0d1527;
+    border: 1px solid #1e3a8a;
+    border-radius: 6px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .param-banner-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .param-total-badge {
+    background: #1e3a8a;
+    color: #93c5fd;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .param-auto-badge {
+    background: #065f46;
+    color: #6ee7b7;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .param-mpe-badge {
+    background: #5b21b6;
+    color: #c4b5fd;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .param-sample-badge {
+    background: #854d0e;
+    color: #fef08a;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .param-tree-type {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-left: auto;
+  }
+
+  .param-host-notes {
+    font-size: 0.72rem;
+    color: #93c5fd;
+    font-style: italic;
+  }
+
+  .param-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .param-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.73rem;
+    text-align: left;
+  }
+
+  .param-table th {
+    background: #1e293b;
+    color: #cbd5e1;
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid #334155;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .param-table td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid #1e293b;
+    color: #f1f5f9;
+  }
+
+  .param-col-id {
+    color: #64748b;
+    font-family: monospace;
+    width: 35px;
+  }
+
+  .param-col-name {
+    color: #f8fafc;
+  }
+
+  .param-group-tag {
+    background: #1e293b;
+    color: #94a3b8;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.68rem;
+  }
+
+  .param-type-pill {
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.68rem;
+    font-weight: 600;
+  }
+
+  .type-float {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+  }
+
+  .type-boolean {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+  }
+
+  .type-enumeration {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+  }
+
+  .type-integer {
+    background: rgba(52, 211, 153, 0.15);
+    color: #34d399;
+  }
+
+  .param-col-val, .param-col-range {
+    font-family: monospace;
+    color: #cbd5e1;
+  }
+
+  .param-col-unit {
+    color: #94a3b8;
+    font-size: 0.7rem;
+  }
+
+  .param-auto-tag {
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .is-auto {
+    color: #34d399;
+  }
+
+  .no-auto {
+    color: #f87171;
+  }
+
+  .param-midi-pill {
+    background: #312e81;
+    color: #a5b4fc;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.68rem;
+    font-weight: 600;
+  }
+
+  .param-no-midi {
+    color: #64748b;
   }
 
   @media (max-width: 1024px) {

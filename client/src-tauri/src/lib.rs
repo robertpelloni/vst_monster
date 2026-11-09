@@ -98,6 +98,7 @@ pub fn run() {
             installer::diagnose_plugin_audio_buses,
             installer::inspect_plugin_binary_architecture,
             installer::benchmark_plugin_performance,
+            installer::inspect_plugin_parameters,
             stop_servers,
             quit_app
         ])

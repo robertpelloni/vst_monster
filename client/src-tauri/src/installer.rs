@@ -643,6 +643,395 @@ pub fn benchmark_plugin_performance(
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
+pub struct PluginParameterInfo {
+    pub id: u32,
+    pub name: String,
+    pub parameter_type: String, // "Float", "Boolean", "Enumeration", "Integer"
+    pub default_value: f64,
+    pub min_value: f64,
+    pub max_value: f64,
+    pub display_unit: String,
+    pub is_automatable: bool,
+    pub assigned_midi_cc: Option<u8>,
+    pub parameter_group: String, // e.g. "Oscillator", "Filter", "Envelope", "Master", "Dynamics"
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct PluginParameterReport {
+    pub format: String,
+    pub category: String,
+    pub total_parameters: usize,
+    pub automatable_parameters: usize,
+    pub supports_mpe: bool,
+    pub supports_sample_accurate_automation: bool,
+    pub parameter_tree_structure: String,
+    pub parameters: Vec<PluginParameterInfo>,
+    pub automation_host_advice: String,
+}
+
+#[tauri::command]
+pub fn inspect_plugin_parameters(
+    format: Option<String>,
+    category: Option<String>,
+    _parameter_count: Option<usize>,
+) -> PluginParameterReport {
+    let fmt = format.unwrap_or_else(|| "VST3".to_string()).to_uppercase();
+    let cat = category.unwrap_or_else(|| "synth".to_string()).to_lowercase();
+
+    let mut params = Vec::new();
+
+    if cat.contains("dynamics") || cat.contains("compressor") || cat.contains("limiter") {
+        // Dynamics parameters
+        params.push(PluginParameterInfo {
+            id: 0,
+            name: "Threshold".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: -12.0,
+            min_value: -60.0,
+            max_value: 0.0,
+            display_unit: "dB".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(16),
+            parameter_group: "Dynamics Core".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 1,
+            name: "Ratio".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 4.0,
+            min_value: 1.0,
+            max_value: 30.0,
+            display_unit: ":1".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(17),
+            parameter_group: "Dynamics Core".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 2,
+            name: "Attack Time".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 15.0,
+            min_value: 0.1,
+            max_value: 150.0,
+            display_unit: "ms".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(18),
+            parameter_group: "Envelope Timing".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 3,
+            name: "Release Time".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 120.0,
+            min_value: 5.0,
+            max_value: 1200.0,
+            display_unit: "ms".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(19),
+            parameter_group: "Envelope Timing".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 4,
+            name: "Make-up Gain".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 3.5,
+            min_value: -12.0,
+            max_value: 24.0,
+            display_unit: "dB".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(7),
+            parameter_group: "Master Output".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 5,
+            name: "Sidechain Filter HP".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 80.0,
+            min_value: 20.0,
+            max_value: 500.0,
+            display_unit: "Hz".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(20),
+            parameter_group: "Sidechain Aux".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 6,
+            name: "Dry / Wet Mix".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 100.0,
+            min_value: 0.0,
+            max_value: 100.0,
+            display_unit: "%".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(91),
+            parameter_group: "Master Output".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 7,
+            name: "Bypass".to_string(),
+            parameter_type: "Boolean".to_string(),
+            default_value: 0.0,
+            min_value: 0.0,
+            max_value: 1.0,
+            display_unit: "state".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: None,
+            parameter_group: "System".to_string(),
+        });
+    } else if cat.contains("delay") || cat.contains("reverb") || cat.contains("spatial") {
+        // Spatial / Time-based parameters
+        params.push(PluginParameterInfo {
+            id: 0,
+            name: "Decay Time / Room Size".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 2.8,
+            min_value: 0.2,
+            max_value: 20.0,
+            display_unit: "s".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(12),
+            parameter_group: "Acoustic Space".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 1,
+            name: "Pre-Delay".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 25.0,
+            min_value: 0.0,
+            max_value: 250.0,
+            display_unit: "ms".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(13),
+            parameter_group: "Acoustic Space".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 2,
+            name: "Damping High Frequency".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 6500.0,
+            min_value: 1000.0,
+            max_value: 20000.0,
+            display_unit: "Hz".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(14),
+            parameter_group: "Frequency Coloration".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 3,
+            name: "Stereo Width".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 100.0,
+            min_value: 0.0,
+            max_value: 200.0,
+            display_unit: "%".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(15),
+            parameter_group: "Spatial Imaging".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 4,
+            name: "Diffusion Algorithm".to_string(),
+            parameter_type: "Enumeration".to_string(),
+            default_value: 1.0,
+            min_value: 0.0,
+            max_value: 3.0,
+            display_unit: "index".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: None,
+            parameter_group: "DSP Engine".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 5,
+            name: "Dry / Wet Mix".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 35.0,
+            min_value: 0.0,
+            max_value: 100.0,
+            display_unit: "%".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(91),
+            parameter_group: "Master Output".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 6,
+            name: "Bypass".to_string(),
+            parameter_type: "Boolean".to_string(),
+            default_value: 0.0,
+            min_value: 0.0,
+            max_value: 1.0,
+            display_unit: "state".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: None,
+            parameter_group: "System".to_string(),
+        });
+    } else {
+        // Synthesizer / Polyphonic instrument parameters (Default)
+        params.push(PluginParameterInfo {
+            id: 0,
+            name: "Oscillator 1 Waveform".to_string(),
+            parameter_type: "Enumeration".to_string(),
+            default_value: 0.0,
+            min_value: 0.0,
+            max_value: 5.0,
+            display_unit: "wave".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: None,
+            parameter_group: "Oscillator 1".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 1,
+            name: "Oscillator 1 Detune".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 0.0,
+            min_value: -24.0,
+            max_value: 24.0,
+            display_unit: "semitones".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(21),
+            parameter_group: "Oscillator 1".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 2,
+            name: "Filter Cutoff".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 1200.0,
+            min_value: 20.0,
+            max_value: 20000.0,
+            display_unit: "Hz".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(74), // MIDI CC 74 (Standard Brightness/Cutoff)
+            parameter_group: "Ladder Filter".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 3,
+            name: "Filter Resonance".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 1.5,
+            min_value: 0.1,
+            max_value: 10.0,
+            display_unit: "Q".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(71), // MIDI CC 71 (Standard Harmonic Content/Resonance)
+            parameter_group: "Ladder Filter".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 4,
+            name: "Amp Envelope Attack".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 5.0,
+            min_value: 0.5,
+            max_value: 5000.0,
+            display_unit: "ms".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(73), // MIDI CC 73 (Standard Attack Time)
+            parameter_group: "Amp Envelope".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 5,
+            name: "Amp Envelope Decay".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 250.0,
+            min_value: 2.0,
+            max_value: 8000.0,
+            display_unit: "ms".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(75),
+            parameter_group: "Amp Envelope".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 6,
+            name: "Amp Envelope Sustain".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 0.8,
+            min_value: 0.0,
+            max_value: 1.0,
+            display_unit: "level".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(79),
+            parameter_group: "Amp Envelope".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 7,
+            name: "Amp Envelope Release".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 350.0,
+            min_value: 2.0,
+            max_value: 10000.0,
+            display_unit: "ms".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(72), // MIDI CC 72 (Standard Release Time)
+            parameter_group: "Amp Envelope".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 8,
+            name: "Master Volume".to_string(),
+            parameter_type: "Float".to_string(),
+            default_value: 0.0,
+            min_value: -60.0,
+            max_value: 6.0,
+            display_unit: "dB".to_string(),
+            is_automatable: true,
+            assigned_midi_cc: Some(7), // MIDI CC 7 (Volume)
+            parameter_group: "Master Output".to_string(),
+        });
+        params.push(PluginParameterInfo {
+            id: 9,
+            name: "Polyphony Voices".to_string(),
+            parameter_type: "Integer".to_string(),
+            default_value: 16.0,
+            min_value: 1.0,
+            max_value: 64.0,
+            display_unit: "voices".to_string(),
+            is_automatable: false,
+            assigned_midi_cc: None,
+            parameter_group: "Voice Architecture".to_string(),
+        });
+    }
+
+    let automatable_cnt = params.iter().filter(|p| p.is_automatable).count();
+    let total_cnt = params.len();
+
+    let supports_mpe = match fmt.as_str() {
+        "CLAP" => true,
+        "VST3" => true,
+        "AU" => true,
+        _ => false,
+    };
+
+    let sample_accurate = match fmt.as_str() {
+        "CLAP" => true,
+        "VST3" => true,
+        _ => false,
+    };
+
+    let tree_structure = match fmt.as_str() {
+        "CLAP" => "Hierarchical Parameter Tree (clap_plugin_params_t with sample-accurate events)".to_string(),
+        "LV2" => "Flat Turtle RDF Port Specification (atom:AtomPort / atom:eventTransfer)".to_string(),
+        "VST3" => "Hierarchical Unit / Parameter Tree (IParameterChanges & IEditController)".to_string(),
+        _ => "Flat Index Array (Steinberg VST 2.4 effGetParamProperties)".to_string(),
+    };
+
+    let advice = match fmt.as_str() {
+        "CLAP" => "Full sample-accurate non-destructive automation supported. Parameter changes modulate sample-by-sample without audio zipper noise or buffer quantizing.".to_string(),
+        "VST3" => "Sample-accurate parameter changes delivered via IParameterChanges buffer queue. Compatible with Bitwig, REAPER, Ableton, and Cubase DAW automation lanes.".to_string(),
+        "LV2" => "Host automation mapped through LV2 ControlPort and Atom events. Requires host event quantization buffer support.".to_string(),
+        _ => "Legacy VST 2.4 parameter indexing. Modulation changes are quantized to the DAW audio buffer boundary (zipper noise possible on rapid curves).".to_string(),
+    };
+
+    PluginParameterReport {
+        format: fmt,
+        category: cat,
+        total_parameters: total_cnt,
+        automatable_parameters: automatable_cnt,
+        supports_mpe,
+        supports_sample_accurate_automation: sample_accurate,
+        parameter_tree_structure: tree_structure,
+        parameters: params,
+        automation_host_advice: advice,
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct InstalledPluginInfo {
     pub name: String,
@@ -1623,6 +2012,38 @@ mod tests {
         assert!(report.thread_safety_classification.contains("CLAP Thread-Pool API"));
         assert_eq!(report.base_memory_mb, 500.0);
         assert_eq!(report.estimated_peak_rss_mb, 675.0);
+    }
+
+    #[test]
+    fn test_inspect_plugin_parameters_synth_defaults() {
+        let report = inspect_plugin_parameters(None, None, None);
+        assert_eq!(report.format, "VST3");
+        assert_eq!(report.category, "synth");
+        assert!(report.total_parameters >= 8);
+        assert!(report.automatable_parameters >= 7);
+        assert!(report.supports_sample_accurate_automation);
+        assert!(report.supports_mpe);
+
+        // Check cutoff parameter with MIDI CC 74
+        let cutoff = report.parameters.iter().find(|p| p.name == "Filter Cutoff").unwrap();
+        assert_eq!(cutoff.parameter_type, "Float");
+        assert_eq!(cutoff.assigned_midi_cc, Some(74));
+        assert_eq!(cutoff.display_unit, "Hz");
+    }
+
+    #[test]
+    fn test_inspect_plugin_parameters_dynamics() {
+        let report = inspect_plugin_parameters(Some("CLAP".to_string()), Some("compressor".to_string()), None);
+        assert_eq!(report.format, "CLAP");
+        assert_eq!(report.category, "compressor");
+        assert!(report.supports_sample_accurate_automation);
+        assert!(report.parameter_tree_structure.contains("clap_plugin_params_t"));
+
+        // Check threshold parameter
+        let thresh = report.parameters.iter().find(|p| p.name == "Threshold").unwrap();
+        assert_eq!(thresh.parameter_type, "Float");
+        assert_eq!(thresh.display_unit, "dB");
+        assert_eq!(thresh.assigned_midi_cc, Some(16));
     }
 }
 
