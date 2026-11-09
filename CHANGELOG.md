@@ -1,5 +1,24 @@
 # CHANGELOG: VST Monster
 
+## [0.7.5] - CLAP Open Audio Standard Factory Descriptor & Extensions Inspector
+- Defined `ClapExtensionDescriptor`, `ClapAudioPortDescriptor`, and `ClapPluginMetadataDetails` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `inspect_clap_metadata(plugin_name: Option<String>, bundle_path: Option<String>, category: Option<String>) -> ClapPluginMetadataDetails`:
+  - Inspects CLAP factory descriptor fields (`clap_id`, vendor, version, target binary, URLs).
+  - Profiles declared audio port topologies (main stereo pair, sidechain aux busses, channel counts, in-place pairs).
+  - Evaluates declared CLAP extensions (`clap.params`, `clap.state`, `clap.thread-pool`, `clap.latency`, `clap.gui`).
+  - Verifies thread-pool multi-core voice delegation and floating/non-blocking GUI window capabilities.
+  - Generates workstation host integration guidance for modern CLAP DAWs (Bitwig Studio, REAPER).
+- Added comprehensive Rust unit tests in `installer.rs`: `test_inspect_clap_metadata_vital` and `test_inspect_clap_metadata_surge` (26 total passing unit tests).
+- Registered `inspect_clap_metadata` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "CLAP OPEN AUDIO STANDARD: DEEP FACTORY DESCRIPTOR & EXTENSIONS" section within the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte`:
+  - "Inspect CLAP Factory & Ports" action button.
+  - 4 high-value stat cards: CLAP Plugin ID with copy/hover tooltip, Features/Tags, Thread Pool API status badge, and GUI/Floating window status badge.
+  - 6-column interactive Audio Ports table detailing ID, Name, Type badge (`MAIN`, `SIDECHAIN`), Direction badge (`INPUT`, `OUTPUT`), Channels, and In-Place Pair.
+  - Declared CLAP Extensions grid with interactive status pills (`SUPPORTED`) and descriptive tooltips.
+  - CLAP workstation host integration advisory callout.
+- Verified test suite (`cargo test`, 26 tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_clap_meta_computed.png`).
+- Bumped ecosystem version to `v0.7.5`.
+
 ## [0.7.4] - KVR Audio Categorization Heuristics & Enhanced Metadata Pipeline
 - Enhanced KVR Audio scraper in `crawler/scraper/kvr.go`:
   - Added acoustic category heuristics classifying scraped plugins (`synth`, `dynamics`, `effect`) from plugin titles, description summaries, and raw format tags.

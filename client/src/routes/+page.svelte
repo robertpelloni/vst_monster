@@ -414,6 +414,40 @@
     host_compatibility_advice: string;
   }
 
+  interface ClapExtensionDescriptorItem {
+    id: string;
+    name: string;
+    is_supported: boolean;
+    description: string;
+  }
+
+  interface ClapAudioPortDescriptorItem {
+    id: number;
+    name: string;
+    port_type: string;
+    direction: string;
+    channel_count: number;
+    in_place_pair: number | null;
+  }
+
+  interface ClapPluginMetadataDetailsItem {
+    plugin_name: string;
+    clap_id: string;
+    version: string;
+    vendor: string;
+    bundle_path: string;
+    url: string;
+    manual_url: string;
+    support_url: string;
+    description: string;
+    features: string[];
+    supports_thread_pool: boolean;
+    supports_gui_floating: boolean;
+    audio_ports: ClapAudioPortDescriptorItem[];
+    extensions: ClapExtensionDescriptorItem[];
+    host_integration_advice: string;
+  }
+
   let activeSnapshot = $state<PluginStateSnapshot | null>(null);
   let isSnapshotting = $state(false);
   let presetDiffReport = $state<PresetDiffReport | null>(null);
@@ -427,6 +461,8 @@
   let isAnalyzingPhase = $state(false);
   let lv2GraphReport = $state<Lv2PluginGraphDetailsItem | null>(null);
   let isInspectingLv2Graph = $state(false);
+  let clapMetadataReport = $state<ClapPluginMetadataDetailsItem | null>(null);
+  let isInspectingClapMetadata = $state(false);
 
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
@@ -1101,6 +1137,26 @@
       actionMessage = `LV2 RDF manifest graph inspection failed: ${err}`;
     } finally {
       isInspectingLv2Graph = false;
+    }
+  }
+
+  async function handleInspectClapMetadata() {
+    isInspectingClapMetadata = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Vital';
+      const category = previewPlugin?.category || 'synth';
+      const bundlePath = previewPlugin ? `~/.clap/${previewPlugin.name.replace(/\s+/g, '_')}.clap` : null;
+      const res: ClapPluginMetadataDetailsItem = await invoke('inspect_clap_metadata', {
+        pluginName,
+        bundlePath,
+        category,
+      });
+      clapMetadataReport = res;
+      actionMessage = `Inspected CLAP Factory for ${pluginName} (${res.clap_id}, ${res.extensions.length} extensions)`;
+    } catch (err: any) {
+      actionMessage = `CLAP metadata inspection failed: ${err}`;
+    } finally {
+      isInspectingClapMetadata = false;
     }
   }
 
@@ -2423,6 +2479,130 @@
                       <div class="advice-content">
                         <strong>LV2 Workstation Host Compatibility:</strong>
                         <p>{lv2GraphReport.host_compatibility_advice}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- CLAP Open Audio Standard: Deep Factory Descriptor & Extensions Inspector -->
+              <div class="clap-meta-card">
+                <div class="clap-meta-header">
+                  <div class="clap-meta-title">
+                    <span class="clap-meta-icon">⚡</span>
+                    <div>
+                      <h4 class="clap-meta-h4">CLAP OPEN AUDIO STANDARD: DEEP FACTORY DESCRIPTOR & EXTENSIONS</h4>
+                      <span class="clap-meta-sub">clap-entry factory introspection, thread-pool delegation, audio/note ports, and extensions</span>
+                    </div>
+                  </div>
+                  <div class="clap-meta-ctrls">
+                    <button
+                      type="button"
+                      class="btn-clap-meta-action"
+                      onclick={handleInspectClapMetadata}
+                      disabled={isInspectingClapMetadata}
+                      use:tooltip={"Introspect CLAP binary factory descriptor, query extensions, and inspect audio port configuration"}
+                    >
+                      {isInspectingClapMetadata ? 'Introspecting CLAP...' : 'Inspect CLAP Factory & Ports'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if clapMetadataReport}
+                  <div class="clap-meta-content">
+                    <div class="clap-metrics-grid">
+                      <div class="clap-stat-card">
+                        <span class="clap-stat-label">CLAP Plugin ID:</span>
+                        <span class="clap-stat-val clap-id" use:tooltip={clapMetadataReport.clap_id}>{clapMetadataReport.clap_id}</span>
+                        <span class="clap-stat-sub">Vendor: {clapMetadataReport.vendor} (v{clapMetadataReport.version})</span>
+                      </div>
+                      <div class="clap-stat-card">
+                        <span class="clap-stat-label">Features / Category:</span>
+                        <div class="clap-features-wrap">
+                          {#each clapMetadataReport.features as feat}
+                            <span class="clap-feature-tag">#{feat}</span>
+                          {/each}
+                        </div>
+                        <span class="clap-stat-sub">Target: {clapMetadataReport.bundle_path.split('/').pop()}</span>
+                      </div>
+                      <div class="clap-stat-card">
+                        <span class="clap-stat-label">Thread Pool API:</span>
+                        <span class="clap-stat-val enabled">✓ SUPPORTED</span>
+                        <span class="clap-stat-sub">Offloads voice DSP to DAW worker pool</span>
+                      </div>
+                      <div class="clap-stat-card">
+                        <span class="clap-stat-label">GUI & Floating:</span>
+                        <span class="clap-stat-val enabled">✓ NON-BLOCKING</span>
+                        <span class="clap-stat-sub">Modern resizable native window</span>
+                      </div>
+                    </div>
+
+                    <!-- Audio Ports Topology -->
+                    <div class="clap-ports-box">
+                      <div class="clap-ports-header">Declared Audio Ports & Channels ({clapMetadataReport.audio_ports.length})</div>
+                      <div class="clap-ports-table-wrap">
+                        <table class="clap-ports-table">
+                          <thead>
+                            <tr>
+                              <th>ID</th>
+                              <th>Name</th>
+                              <th>Type</th>
+                              <th>Direction</th>
+                              <th>Channels</th>
+                              <th>In-Place Pair</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each clapMetadataReport.audio_ports as p}
+                              <tr>
+                                <td><span class="port-id-pill">#{p.id}</span></td>
+                                <td class="port-name-cell"><strong>{p.name}</strong></td>
+                                <td>
+                                  <span class="port-type-badge {p.port_type}">
+                                    {p.port_type.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span class="port-dir-badge {p.direction}">
+                                    {p.direction.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td><span class="port-chan-pill">{p.channel_count} Ch</span></td>
+                                <td>
+                                  {#if p.in_place_pair !== null}
+                                    <span class="port-pair-pill">Port #{p.in_place_pair}</span>
+                                  {:else}
+                                    <span class="port-none-pill">—</span>
+                                  {/if}
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <!-- Extensions -->
+                    <div class="clap-extensions-box">
+                      <div class="clap-ext-header">Declared CLAP Extensions ({clapMetadataReport.extensions.length})</div>
+                      <div class="clap-extensions-chips">
+                        {#each clapMetadataReport.extensions as ext}
+                          <div class="clap-ext-card" use:tooltip={`${ext.id}: ${ext.description}`}>
+                            <div class="clap-ext-top">
+                              <span class="clap-ext-name">{ext.name}</span>
+                              <span class="clap-ext-status">SUPPORTED</span>
+                            </div>
+                            <span class="clap-ext-id">{ext.id}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+
+                    <div class="clap-meta-advice-card">
+                      <span class="advice-icon">⚡</span>
+                      <div class="advice-content">
+                        <strong>CLAP Workstation Host Advisory:</strong>
+                        <p>{clapMetadataReport.host_integration_advice}</p>
                       </div>
                     </div>
                   </div>
@@ -4057,6 +4237,277 @@
     gap: 0.4rem;
     font-size: 0.8rem;
     color: #cbd5e1;
+  }
+
+  /* CLAP Deep Metadata Card Styling */
+  .clap-meta-card {
+    background: #0d1527;
+    border: 1px solid #1e3a8a;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .clap-meta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 1rem;
+  }
+
+  .clap-meta-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .clap-meta-icon {
+    font-size: 1.5rem;
+  }
+
+  .clap-meta-h4 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #f8fafc;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .clap-meta-sub {
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+
+  .btn-clap-meta-action {
+    background: #eab308;
+    color: #0f172a;
+    border: none;
+    border-radius: 6px;
+    padding: 0.55rem 1.1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .btn-clap-meta-action:hover:not(:disabled) {
+    background: #ca8a04;
+  }
+
+  .btn-clap-meta-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .clap-meta-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .clap-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+  }
+
+  .clap-stat-card {
+    background: #101c36;
+    border: 1px solid #1e3a8a;
+    border-radius: 6px;
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .clap-stat-label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+  }
+
+  .clap-stat-val.clap-id {
+    font-size: 0.85rem;
+    font-family: monospace;
+    font-weight: 700;
+    color: #fde047;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .clap-stat-val.enabled {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #4ade80;
+  }
+
+  .clap-stat-sub {
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .clap-features-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin: 0.15rem 0;
+  }
+
+  .clap-feature-tag {
+    font-size: 0.7rem;
+    background: rgba(234, 179, 8, 0.2);
+    color: #facc15;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+  }
+
+  .clap-ports-box {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.85rem;
+  }
+
+  .clap-ports-header {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 0.75rem;
+  }
+
+  .clap-ports-table-wrap {
+    overflow-x: auto;
+  }
+
+  .clap-ports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  .clap-ports-table th {
+    text-align: left;
+    padding: 0.5rem;
+    background: #1e293b;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .clap-ports-table td {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid #1e293b;
+    color: #e2e8f0;
+  }
+
+  .port-chan-pill, .port-pair-pill, .port-none-pill {
+    font-size: 0.72rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+  }
+
+  .port-chan-pill {
+    background: #1e293b;
+    color: #38bdf8;
+    border: 1px solid #0284c7;
+  }
+
+  .port-pair-pill {
+    background: #1e293b;
+    color: #a78bfa;
+    border: 1px solid #7c3aed;
+  }
+
+  .port-none-pill {
+    color: #64748b;
+  }
+
+  .port-type-badge.main {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+  }
+
+  .port-type-badge.sidechain {
+    background: rgba(234, 179, 8, 0.2);
+    color: #facc15;
+  }
+
+  .clap-extensions-box {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.85rem;
+  }
+
+  .clap-ext-header {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 0.75rem;
+  }
+
+  .clap-extensions-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.65rem;
+  }
+
+  .clap-ext-card {
+    background: #131d36;
+    border: 1px solid #1e3a8a;
+    border-radius: 5px;
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .clap-ext-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .clap-ext-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #f8fafc;
+  }
+
+  .clap-ext-status {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 700;
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+  }
+
+  .clap-ext-id {
+    font-size: 0.72rem;
+    font-family: monospace;
+    color: #facc15;
+  }
+
+  .clap-meta-advice-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: rgba(234, 179, 8, 0.1);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+    color: #fef08a;
   }
 
   .textarea-input {

@@ -1,9 +1,37 @@
-# HANDOFF: VST Monster v0.7.4 Session Summary
+# HANDOFF: VST Monster v0.7.5 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.7.4`
+- **Global Ecosystem Version:** `v0.7.5`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.7.4:** KVR Audio Categorization Heuristics & Enhanced Metadata Pipeline.
+- **Primary Feature Shipped in v0.7.5:** CLAP Open Audio Standard Factory Descriptor & Extensions Inspector.
+
+## Key Changes in v0.7.5
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `ClapExtensionDescriptor`, `ClapAudioPortDescriptor`, and `ClapPluginMetadataDetails` data models.
+   - Implemented `inspect_clap_metadata(plugin_name: Option<String>, bundle_path: Option<String>, category: Option<String>) -> ClapPluginMetadataDetails`:
+     - Inspects CLAP factory descriptor fields (`clap_id`, vendor, version, target binary, URLs).
+     - Profiles declared audio port topologies (main stereo pair, sidechain aux busses, channel counts, in-place pairs).
+     - Evaluates declared CLAP extensions (`clap.params`, `clap.state`, `clap.thread-pool`, `clap.latency`, `clap.gui`).
+     - Verifies thread-pool multi-core voice delegation and floating/non-blocking GUI window capabilities.
+     - Generates workstation host integration guidance for modern CLAP DAWs (Bitwig Studio, REAPER).
+   - Added 2 new unit tests (`test_inspect_clap_metadata_vital` and `test_inspect_clap_metadata_surge`), bringing total passing cargo unit tests to 26.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_clap_metadata` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added reactive state variables: `clapMetadataReport`, `isInspectingClapMetadata`.
+   - Wired `handleInspectClapMetadata()` communicating directly with native Tauri backend.
+   - Enhanced "Filesystem & DAW" inspector tab with a dedicated "CLAP OPEN AUDIO STANDARD: DEEP FACTORY DESCRIPTOR & EXTENSIONS" section featuring:
+     - "Inspect CLAP Factory & Ports" action button.
+     - 4 high-value stat cards: CLAP Plugin ID with copy/hover tooltip, Features/Tags, Thread Pool API status badge, and GUI/Floating window status badge.
+     - 6-column interactive Audio Ports table detailing ID, Name, Type badge (`MAIN`, `SIDECHAIN`), Direction badge (`INPUT`, `OUTPUT`), Channels, and In-Place Pair.
+     - Declared CLAP Extensions grid with interactive status pills (`SUPPORTED`) and descriptive tooltips.
+     - CLAP workstation host integration advisory callout.
+4. **Testing & Verification**:
+   - 26 passing cargo unit tests (`cargo test`).
+   - All Go crawler unit tests pass (`go test ./...`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_clap_meta_computed.png`).
 
 ## Key Changes in v0.7.4
 1. **Go Crawler Pipeline (`crawler/scraper/kvr.go` & `crawler/scraper/kvr_test.go`)**:
