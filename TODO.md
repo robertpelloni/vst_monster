@@ -72,4 +72,6 @@
 - [x] Automated VST/AU/CLAP plugin parameter enumeration & MIDI automation map inspector (v0.6.6).
 - [x] Real-time audio thread stress test & headless crash recovery inspector (v0.6.7).
 - [x] Headless audio loopback rendering & dynamic frequency response spectrum analyzer (v0.6.8).
+- [x] Automated preset bank diffing & state snapshot manager (v0.6.9).
+- [ ] Real-time audio loopback metering & true peak (dBTP) LUFS EBU R128 analyzer.
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

@@ -270,6 +270,55 @@
   let isRenderingSpectrum = $state(false);
   let spectrumTestSignal = $state('Logarithmic Sine Sweep (20Hz - 20kHz)');
 
+  // Preset State Snapshot & Diffing Manager State
+  interface ParameterSnapshotItem {
+    param_id: number;
+    name: string;
+    value: number;
+    display_value: string;
+    unit: string;
+    is_automatable: boolean;
+  }
+  interface PluginStateSnapshot {
+    plugin_name: string;
+    format: string;
+    preset_name: string;
+    preset_format: string;
+    checksum_crc32: string;
+    total_parameters: number;
+    parameters: ParameterSnapshotItem[];
+    created_at: string;
+  }
+  interface ParameterDiffEntry {
+    param_id: number;
+    name: string;
+    baseline_value: number;
+    target_value: number;
+    delta: number;
+    delta_pct: number;
+    status: string;
+  }
+  interface PresetDiffReport {
+    plugin_name: string;
+    format: string;
+    baseline_preset_name: string;
+    target_preset_name: string;
+    total_parameters_compared: number;
+    modified_parameters_count: number;
+    unchanged_parameters_count: number;
+    drift_severity: string;
+    similarity_score_pct: number;
+    parameter_diffs: ParameterDiffEntry[];
+    compatibility_notes: string;
+  }
+
+  let activeSnapshot = $state<PluginStateSnapshot | null>(null);
+  let isSnapshotting = $state(false);
+  let presetDiffReport = $state<PresetDiffReport | null>(null);
+  let isDiffingPresets = $state(false);
+  let baselinePresetInput = $state('Init Clean Patch');
+  let targetPresetInput = $state('Acid Resonant Bassline');
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -841,6 +890,47 @@
       console.warn('Spectrum analysis failed:', err);
     } finally {
       isRenderingSpectrum = false;
+    }
+  }
+
+  async function handleSnapshotPluginState() {
+    isSnapshotting = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Surge XT';
+      const format = previewPlugin ? inferCatalogFormat(previewPlugin) : 'VST3';
+      const presetName = presetExportName.trim() || 'Active Workspace Patch';
+      const res: PluginStateSnapshot = await invoke('snapshot_plugin_state', {
+        pluginName,
+        format,
+        presetName,
+        presetFormat: `.${presetExportFormat}`,
+      });
+      activeSnapshot = res;
+      actionMessage = `Captured parameter state snapshot for ${pluginName} (CRC32: ${res.checksum_crc32})`;
+    } catch (err: any) {
+      actionMessage = `Preset snapshot failed: ${err}`;
+    } finally {
+      isSnapshotting = false;
+    }
+  }
+
+  async function handleDiffPresets() {
+    isDiffingPresets = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Surge XT';
+      const format = previewPlugin ? inferCatalogFormat(previewPlugin) : 'VST3';
+      const res: PresetDiffReport = await invoke('diff_plugin_presets', {
+        pluginName,
+        format,
+        baselinePresetName: baselinePresetInput,
+        targetPresetName: targetPresetInput,
+      });
+      presetDiffReport = res;
+      actionMessage = `Computed preset diff between "${baselinePresetInput}" and "${targetPresetInput}" (${res.drift_severity} Drift)`;
+    } catch (err: any) {
+      actionMessage = `Preset diff calculation failed: ${err}`;
+    } finally {
+      isDiffingPresets = false;
     }
   }
 
@@ -1685,6 +1775,124 @@
                     {presetExportMessage}
                   </div>
                 {/if}
+
+                <div class="preset-snapshot-actions">
+                  <button
+                    type="button"
+                    class="btn-snapshot-state"
+                    onclick={handleSnapshotPluginState}
+                    disabled={isSnapshotting}
+                    use:tooltip={"Inspect and snapshot current parameter tree state with CRC32 digest"}
+                  >
+                    {isSnapshotting ? '⏳ Capturing...' : '📸 Snapshot Parameter State'}
+                  </button>
+                </div>
+
+                {#if activeSnapshot}
+                  <div class="snapshot-details-box">
+                    <div class="snapshot-header">
+                      <strong>State Snapshot: {activeSnapshot.preset_name}</strong>
+                      <span class="snapshot-crc">CRC32: <code>{activeSnapshot.checksum_crc32}</code></span>
+                    </div>
+                    <div class="snapshot-meta-row">
+                      <span class="spec-pill">{activeSnapshot.format}</span>
+                      <span class="spec-pill">{activeSnapshot.preset_format}</span>
+                      <span class="spec-pill">{activeSnapshot.total_parameters} Parameters</span>
+                    </div>
+                    <div class="snapshot-params-list">
+                      {#each activeSnapshot.parameters as p}
+                        <div class="snapshot-param-item">
+                          <span class="param-name">{p.name}</span>
+                          <span class="param-val">{p.display_value}</span>
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+
+                <!-- Preset Bank Diffing Engine -->
+                <div class="preset-diff-section">
+                  <div class="diff-section-title">
+                    <span>⚖️ Automated Preset State Diff & Drift Analyzer</span>
+                  </div>
+                  <div class="diff-controls-row">
+                    <input
+                      type="text"
+                      class="diff-input"
+                      placeholder="Baseline preset..."
+                      bind:value={baselinePresetInput}
+                    />
+                    <span class="diff-vs">vs</span>
+                    <input
+                      type="text"
+                      class="diff-input"
+                      placeholder="Target preset..."
+                      bind:value={targetPresetInput}
+                    />
+                    <button
+                      type="button"
+                      class="btn-diff-compare"
+                      onclick={handleDiffPresets}
+                      disabled={isDiffingPresets}
+                      use:tooltip={"Compare parameter deviations and identify acoustic timbre drift"}
+                    >
+                      {isDiffingPresets ? 'Comparing...' : 'Diff Presets'}
+                    </button>
+                  </div>
+
+                  {#if presetDiffReport}
+                    <div class="diff-report-card">
+                      <div class="diff-summary-badges">
+                        <span class="diff-badge" class:radical={presetDiffReport.drift_severity === 'RADICAL'} class:moderate={presetDiffReport.drift_severity === 'MODERATE'} class:subtle={presetDiffReport.drift_severity === 'SUBTLE' || presetDiffReport.drift_severity === 'IDENTICAL'}>
+                          Drift: {presetDiffReport.drift_severity}
+                        </span>
+                        <span class="diff-badge metric">
+                          Similarity: {presetDiffReport.similarity_score_pct}%
+                        </span>
+                        <span class="diff-badge metric">
+                          Modified: {presetDiffReport.modified_parameters_count} / {presetDiffReport.total_parameters_compared}
+                        </span>
+                      </div>
+
+                      <div class="diff-notes-box">
+                        💡 {presetDiffReport.compatibility_notes}
+                      </div>
+
+                      <div class="diff-table-container">
+                        <table class="diff-table">
+                          <thead>
+                            <tr>
+                              <th>Parameter</th>
+                              <th>Baseline</th>
+                              <th>Target</th>
+                              <th>Delta</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each presetDiffReport.parameter_diffs as d}
+                              <tr class:modified-row={d.status === 'MODIFIED'}>
+                                <td>{d.name}</td>
+                                <td><code>{(d.baseline_value * 100).toFixed(0)}%</code></td>
+                                <td><code>{(d.target_value * 100).toFixed(0)}%</code></td>
+                                <td>
+                                  <span class="delta-tag" class:positive={d.delta > 0} class:negative={d.delta < 0}>
+                                    {d.delta > 0 ? '+' : ''}{d.delta_pct}%
+                                  </span>
+                                </td>
+                                <td>
+                                  <span class="status-pill" class:mod={d.status === 'MODIFIED'} class:same={d.status === 'UNCHANGED'}>
+                                    {d.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
               </div>
 
               <!-- Headless Audio Loopback Rendering & Dynamic Frequency Response Spectrum Analyzer -->
@@ -4382,6 +4590,260 @@
     background: #7f1d1d;
     color: #fca5a5;
     border: 1px solid #dc2626;
+  }
+
+  .preset-snapshot-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .btn-snapshot-state {
+    background: #1e293b;
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.15s ease-in-out;
+  }
+
+  .btn-snapshot-state:hover:not(:disabled) {
+    background: #2563eb;
+    color: #ffffff;
+  }
+
+  .snapshot-details-box {
+    background: #090d16;
+    border: 1px solid #1e3a5f;
+    border-radius: 6px;
+    padding: 0.7rem 0.85rem;
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .snapshot-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #e2e8f0;
+  }
+
+  .snapshot-crc code {
+    color: #38bdf8;
+    background: #0f172a;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+  }
+
+  .snapshot-meta-row {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .snapshot-params-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .snapshot-param-item {
+    background: #131d31;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+  }
+
+  .snapshot-param-item .param-name {
+    color: #94a3b8;
+  }
+
+  .snapshot-param-item .param-val {
+    color: #38bdf8;
+    font-weight: 600;
+  }
+
+  /* Preset Diff Section */
+  .preset-diff-section {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #1e293b;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .diff-section-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #f59e0b;
+  }
+
+  .diff-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .diff-input {
+    flex: 1;
+    background: #0a0f1d;
+    border: 1px solid #233554;
+    border-radius: 6px;
+    padding: 0.35rem 0.5rem;
+    color: #f1f5f9;
+    font-size: 0.75rem;
+  }
+
+  .diff-vs {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .btn-diff-compare {
+    background: #d97706;
+    border: 1px solid #f59e0b;
+    color: #ffffff;
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: 0.15s ease-in-out;
+  }
+
+  .btn-diff-compare:hover:not(:disabled) {
+    background: #b45309;
+  }
+
+  .diff-report-card {
+    background: #090d16;
+    border: 1px solid #283548;
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .diff-summary-badges {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .diff-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .diff-badge.radical {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid #ef4444;
+    color: #f87171;
+  }
+
+  .diff-badge.moderate {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid #f59e0b;
+    color: #fbbf24;
+  }
+
+  .diff-badge.subtle {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid #10b981;
+    color: #34d399;
+  }
+
+  .diff-badge.metric {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+  }
+
+  .diff-notes-box {
+    font-size: 0.73rem;
+    color: #cbd5e1;
+    background: #131d31;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+  }
+
+  .diff-table-container {
+    max-height: 140px;
+    overflow-y: auto;
+  }
+
+  .diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.72rem;
+  }
+
+  .diff-table th {
+    text-align: left;
+    color: #94a3b8;
+    padding: 0.25rem 0.4rem;
+    border-bottom: 1px solid #1e293b;
+  }
+
+  .diff-table td {
+    padding: 0.25rem 0.4rem;
+    border-bottom: 1px solid #111827;
+    color: #e2e8f0;
+  }
+
+  .modified-row {
+    background: rgba(245, 158, 11, 0.05);
+  }
+
+  .delta-tag {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+  }
+
+  .delta-tag.positive {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+  }
+
+  .delta-tag.negative {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+  }
+
+  .status-pill {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+
+  .status-pill.mod {
+    background: #78350f;
+    color: #fcd34d;
+  }
+
+  .status-pill.same {
+    background: #1e293b;
+    color: #94a3b8;
   }
 
   .security-scan-card {

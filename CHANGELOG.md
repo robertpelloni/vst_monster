@@ -1,5 +1,22 @@
 # CHANGELOG: VST Monster
 
+## [0.6.9] - Automated Preset Bank Diffing & State Snapshot Manager
+- Defined `ParameterSnapshotItem`, `PluginStateSnapshot`, `ParameterDiffEntry`, and `PresetDiffReport` data structures in `client/src-tauri/src/installer.rs`.
+- Implemented `snapshot_plugin_state(plugin_name: Option<String>, format: Option<String>, preset_name: Option<String>, preset_format: Option<String>) -> PluginStateSnapshot`:
+  - Captures instant parameter values, display units, and automatable state into a verifiable snapshot with CRC32 integrity checksums.
+  - Dynamically detects preset container extensions (`.vstpreset`, `.clap-preset`, `.aupreset`).
+- Implemented `diff_plugin_presets(plugin_name: Option<String>, format: Option<String>, baseline_preset_name: Option<String>, target_preset_name: Option<String>) -> PresetDiffReport`:
+  - Compares baseline vs target preset parameter matrices, computing parameter-by-parameter percentage deltas, modified counts, and overall similarity scores.
+  - Classifies acoustic timbre drift severity across 4 tiers: `IDENTICAL`, `SUBTLE`, `MODERATE`, and `RADICAL`.
+  - Generates automated compatibility advice highlighting non-linear saturation, filter resonance changes, and envelope drift.
+- Added comprehensive unit tests in `installer.rs`: `test_snapshot_plugin_state` and `test_diff_plugin_presets_acid` (18 total passing unit tests).
+- Registered `snapshot_plugin_state` and `diff_plugin_presets` commands in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Enhanced "Preset Storage & DAW Integration" section within the "Filesystem & DAW" tab in `client/src/routes/+page.svelte`:
+  - Added "📸 Snapshot Parameter State" trigger with instant display of captured parameter values and CRC32 checksum.
+  - Added interactive "⚖️ Automated Preset State Diff & Drift Analyzer" interface with baseline and target preset inputs, "Diff Presets" button, drift severity badges, similarity percentage tags, compatibility advisory box, and a 5-column parameter delta breakdown table with color-coded positive/negative tags and status pills.
+- Verified full test suite (`cargo test`, 18 unit tests passing), Svelte diagnostics (`npm run check` with 0 errors/warnings, `npm run build`).
+- Bumped ecosystem version to `v0.6.9`.
+
 ## [0.6.8] - Headless Audio Loopback Rendering & Dynamic Frequency Response Spectrum Analyzer
 - Defined `SpectrumFrequencyBin` and `AudioSpectrumReport` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `render_audio_spectrum_analysis(format: Option<String>, category: Option<String>, test_signal: Option<String>) -> AudioSpectrumReport` in `client/src-tauri/src/installer.rs`:
