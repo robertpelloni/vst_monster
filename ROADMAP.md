@@ -73,6 +73,7 @@
 - [x] Multi-Topic Crawler Expansion & Prioritized Release Asset Extraction (v0.7.7).
 - [x] LV2 Manifest Graph Ingestion & Dashboard TTL Validation Display (v0.7.8).
 - [x] Linux Audio Infrastructure & PipeWire/JACK Graph Routing Diagnostic Engine (v0.7.9).
+- [x] Avid AAX Architecture & Pro Tools HDX DSP Introspector (v0.8.0).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

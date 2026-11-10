@@ -519,9 +519,39 @@
   let isInspectingClapMetadata = $state(false);
   let audioUnitMetadataReport = $state<AudioUnitMetadataDetailsItem | null>(null);
   let isInspectingAudioUnitMetadata = $state(false);
+  interface AaxStemFormatDescriptorItem {
+    stem_name: string;
+    channel_count: number;
+    speaker_arrangement: string;
+    is_supported: boolean;
+  }
+
+  interface AaxMeterDescriptorItem {
+    meter_id: string;
+    name: string;
+    meter_type: string;
+    orientation: string;
+  }
+
+  interface AaxPluginMetadataDetailsItem {
+    plugin_name: string;
+    aax_category: string;
+    format_type: string;
+    dsp_chip_allocation: string;
+    bundle_identifier: string;
+    version: string;
+    eucon_page_tables_supported: boolean;
+    sidechain_supported: boolean;
+    stem_formats: AaxStemFormatDescriptorItem[];
+    meters: AaxMeterDescriptorItem[];
+    pro_tools_compatibility_advice: string;
+  }
+
   let linuxAudioReport = $state<LinuxAudioDiagnosticReportItem | null>(null);
   let isInspectingLinuxAudio = $state(false);
   let selectedLinuxServer = $state('pipewire');
+  let aaxMetadataReport = $state<AaxPluginMetadataDetailsItem | null>(null);
+  let isInspectingAaxMetadata = $state(false);
 
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
@@ -1258,6 +1288,26 @@
     }
   }
 
+  async function handleInspectAaxMetadata() {
+    isInspectingAaxMetadata = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Surge XT';
+      const category = previewPlugin?.category || 'synth';
+      const bundlePath = previewPlugin ? `/Library/Application Support/Avid/Audio/Plug-Ins/${previewPlugin.name.replace(/\s+/g, '_')}.aaxplugin` : null;
+      const res: AaxPluginMetadataDetailsItem = await invoke('inspect_aax_metadata', {
+        pluginName,
+        bundlePath,
+        category,
+      });
+      aaxMetadataReport = res;
+      actionMessage = `Inspected Avid AAX Component for ${pluginName} (${res.format_type}, EUCON: ${res.eucon_page_tables_supported ? 'Active' : 'N/A'})`;
+    } catch (err: any) {
+      actionMessage = `Avid AAX inspection failed: ${err}`;
+    } finally {
+      isInspectingAaxMetadata = false;
+    }
+  }
+
   async function handleExportPreset(pluginName: string) {
     if (!presetExportName.trim()) {
       presetExportMessage = 'Please enter a preset name';
@@ -1890,6 +1940,15 @@
                   </div>
                 </div>
               {/if}
+
+              <!-- Avid AAX Open Architecture Banner -->
+              <div class="aax-spec-banner" use:tooltip={"Avid Audio eXtension (AAX) Pro Tools 64-bit Native and HDX DSP Architecture"}>
+                <span class="aax-icon">🎛️</span>
+                <div class="aax-content">
+                  <strong>Avid Audio eXtension (AAX Native / HDX DSP) Architecture</strong>
+                  <p>Avid Pro Tools plugin architecture. Features sample-accurate automation, Avid S6/S4/EUCON control surface page tables, multi-channel surround & Dolby Atmos stems, and TI C6748 HDX hardware DSP offloading.</p>
+                </div>
+              </div>
             </div>
 
           {:else if activeInspectorTab === 'filesystem'}
@@ -2935,6 +2994,96 @@
                       <div class="advice-content">
                         <strong>Linux Audio Host Advisory:</strong>
                         <p>{linuxAudioReport.routing_advice}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Avid AAX (Avid Audio eXtension): Pro Tools DSP Introspector -->
+              <div class="aax-meta-card">
+                <div class="aax-meta-header">
+                  <div class="aax-meta-title">
+                    <span class="aax-meta-icon">🎚️</span>
+                    <div>
+                      <h4 class="aax-meta-h4">AVID AAX (AVID AUDIO EXTENSION): PRO TOOLS DSP INTROSPECTOR</h4>
+                      <span class="aax-meta-sub">Pro Tools AAX Native/DSP architectures, TI HDX chip allocation, stem formats & EUCON page tables</span>
+                    </div>
+                  </div>
+                  <div class="aax-meta-ctrls">
+                    <button
+                      type="button"
+                      class="btn-aax-meta-action"
+                      onclick={handleInspectAaxMetadata}
+                      disabled={isInspectingAaxMetadata}
+                      use:tooltip={"Inspect Avid AAX plugin descriptors, DSP chip allocation, stem matrices, and Pro Tools compatibility"}
+                    >
+                      {isInspectingAaxMetadata ? 'Introspecting AAX...' : 'Inspect Avid AAX & DSP'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if aaxMetadataReport}
+                  <div class="aax-meta-content">
+                    <div class="aax-metrics-grid">
+                      <div class="aax-stat-card">
+                        <span class="aax-stat-label">AAX Category:</span>
+                        <span class="aax-stat-val aax-cat">{aaxMetadataReport.aax_category}</span>
+                        <span class="aax-stat-sub">Bundle ID: {aaxMetadataReport.bundle_identifier}</span>
+                      </div>
+                      <div class="aax-stat-card">
+                        <span class="aax-stat-label">Format Type:</span>
+                        <span class="aax-stat-val aax-fmt" use:tooltip={aaxMetadataReport.format_type}>{aaxMetadataReport.format_type.split(' ')[0]} {aaxMetadataReport.format_type.split(' ')[1] || ''}</span>
+                        <span class="aax-stat-sub">{aaxMetadataReport.format_type}</span>
+                      </div>
+                      <div class="aax-stat-card">
+                        <span class="aax-stat-label">DSP Allocation:</span>
+                        <span class="aax-stat-val aax-dsp" use:tooltip={aaxMetadataReport.dsp_chip_allocation}>{aaxMetadataReport.dsp_chip_allocation.split(' ')[0]}</span>
+                        <span class="aax-stat-sub">{aaxMetadataReport.dsp_chip_allocation}</span>
+                      </div>
+                      <div class="aax-stat-card">
+                        <span class="aax-stat-label">Avid Control Surfaces:</span>
+                        <span class="aax-stat-val eucon-val">
+                          {aaxMetadataReport.eucon_page_tables_supported ? '✓ EUCON Ready' : 'Standard'}
+                        </span>
+                        <span class="aax-stat-sub">S6 / S4 page tables & gain reduction metering</span>
+                      </div>
+                    </div>
+
+                    <!-- Stem Formats Matrix -->
+                    <div class="aax-stems-box">
+                      <div class="aax-stems-header">Declared Multi-Channel Stem Configurations ({aaxMetadataReport.stem_formats.length})</div>
+                      <div class="aax-stems-grid">
+                        {#each aaxMetadataReport.stem_formats as stem}
+                          <div class="aax-stem-card {stem.is_supported ? 'supported' : 'unsupported'}" use:tooltip={`Speaker layout: ${stem.speaker_arrangement}`}>
+                            <div class="aax-stem-top">
+                              <span class="aax-stem-name">{stem.stem_name}</span>
+                              <span class="aax-stem-status">{stem.is_supported ? 'SUPPORTED' : 'N/A'}</span>
+                            </div>
+                            <span class="aax-stem-channels">{stem.channel_count} Channels ({stem.speaker_arrangement})</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+
+                    <!-- Meters Matrix -->
+                    <div class="aax-meters-box">
+                      <div class="aax-meters-header">Avid Pro Tools Metering Endpoints ({aaxMetadataReport.meters.length})</div>
+                      <div class="aax-meters-chips">
+                        {#each aaxMetadataReport.meters as m}
+                          <div class="aax-meter-chip" use:tooltip={`Type: ${m.meter_type}, Orientation: ${m.orientation}`}>
+                            <span class="meter-name">{m.name}</span>
+                            <span class="meter-type-badge">{m.meter_type}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+
+                    <div class="aax-meta-advice-card">
+                      <span class="advice-icon">🎚️</span>
+                      <div class="advice-content">
+                        <strong>Avid Pro Tools Workstation Advisory:</strong>
+                        <p>{aaxMetadataReport.pro_tools_compatibility_advice}</p>
                       </div>
                     </div>
                   </div>
@@ -9989,6 +10138,285 @@
     padding: 0.85rem 1rem;
     font-size: 0.85rem;
     color: #e0f2fe;
+  }
+
+  /* Avid AAX Spec Banner & Inspector Card Styles */
+  .aax-spec-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    background: rgba(180, 83, 9, 0.12);
+    border: 1px solid rgba(217, 119, 6, 0.4);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    margin-top: 1rem;
+  }
+
+  .aax-icon {
+    font-size: 1.5rem;
+  }
+
+  .aax-content strong {
+    color: #f59e0b;
+    font-size: 0.9rem;
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  .aax-content p {
+    color: #fde68a;
+    font-size: 0.82rem;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .aax-meta-card {
+    background: #1c1813;
+    border: 1px solid #78350f;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .aax-meta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .aax-meta-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .aax-meta-icon {
+    font-size: 1.6rem;
+  }
+
+  .aax-meta-h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f59e0b;
+    letter-spacing: 0.05em;
+  }
+
+  .aax-meta-sub {
+    font-size: 0.8rem;
+    color: #d97706;
+  }
+
+  .aax-meta-ctrls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .btn-aax-meta-action {
+    background: #b45309;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.45rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-aax-meta-action:hover:not(:disabled) {
+    background: #d97706;
+  }
+
+  .btn-aax-meta-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .aax-meta-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .aax-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+  }
+
+  .aax-stat-card {
+    background: #251d14;
+    border: 1px solid #92400e;
+    border-radius: 6px;
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .aax-stat-label {
+    font-size: 0.75rem;
+    color: #fcd34d;
+    text-transform: uppercase;
+  }
+
+  .aax-stat-val.aax-cat {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #fbbf24;
+    font-family: monospace;
+  }
+
+  .aax-stat-val.aax-fmt {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #f59e0b;
+  }
+
+  .aax-stat-val.aax-dsp {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #38bdf8;
+  }
+
+  .aax-stat-val.eucon-val {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #4ade80;
+  }
+
+  .aax-stat-sub {
+    font-size: 0.75rem;
+    color: #fde68a;
+  }
+
+  .aax-stems-box {
+    background: #1e1710;
+    border: 1px solid #78350f;
+    border-radius: 6px;
+    padding: 1rem;
+  }
+
+  .aax-stems-header {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #fcd34d;
+    margin-bottom: 0.75rem;
+  }
+
+  .aax-stems-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .aax-stem-card {
+    border-radius: 5px;
+    padding: 0.65rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .aax-stem-card.supported {
+    background: rgba(180, 83, 9, 0.2);
+    border: 1px solid #b45309;
+  }
+
+  .aax-stem-card.unsupported {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid #334155;
+    opacity: 0.6;
+  }
+
+  .aax-stem-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .aax-stem-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fef3c7;
+  }
+
+  .aax-stem-status {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+  }
+
+  .aax-stem-channels {
+    font-size: 0.75rem;
+    color: #d1d5db;
+  }
+
+  .aax-meters-box {
+    background: #1e1710;
+    border: 1px solid #78350f;
+    border-radius: 6px;
+    padding: 1rem;
+  }
+
+  .aax-meters-header {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #fcd34d;
+    margin-bottom: 0.75rem;
+  }
+
+  .aax-meters-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .aax-meter-chip {
+    background: #2b1f13;
+    border: 1px solid #92400e;
+    border-radius: 5px;
+    padding: 0.35rem 0.65rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .meter-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fef3c7;
+  }
+
+  .meter-type-badge {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 700;
+    background: rgba(14, 165, 233, 0.2);
+    color: #38bdf8;
+  }
+
+  .aax-meta-advice-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: rgba(180, 83, 9, 0.1);
+    border: 1px solid rgba(180, 83, 9, 0.3);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+    color: #fef3c7;
   }
 
   @media (max-width: 1024px) {

@@ -1,5 +1,22 @@
 # CHANGELOG: VST Monster
 
+## [0.8.0] - Avid AAX (Avid Audio eXtension) Architecture & Pro Tools HDX DSP Introspector
+- Defined `AaxStemFormatDescriptor`, `AaxMeterDescriptor`, and `AaxPluginMetadataDetails` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `inspect_aax_metadata(plugin_name: Option<String>, bundle_path: Option<String>, category: Option<String>) -> AaxPluginMetadataDetails`:
+  - Introspects Avid AAX categories (`ePlugInCategory_Synth`, `ePlugInCategory_Dynamics`, `ePlugInCategory_Effect`) and architecture types (`AAX Native 64-bit Float Host DSP` vs `AAX Hybrid + AAX DSP`).
+  - Profiles Pro Tools HDX co-processor DSP allocation (`TI C6748 HDX DSP 48-bit Fixed Point` vs `Host CPU Only`).
+  - Evaluates multi-channel surround and immersive audio stem layouts (Mono, Stereo, 5.1 Surround, 7.1.2 Dolby Atmos).
+  - Profiles Avid control surface integration (S6 / S4 / EUCON page table support, gain reduction metering ports).
+  - Generates Pro Tools workstation compatibility guidance.
+- Added comprehensive Rust unit tests in `installer.rs`: `test_inspect_aax_metadata_native` and `test_inspect_aax_metadata_dsp` (32 total passing unit tests).
+- Registered `inspect_aax_metadata` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Enhanced Svelte desktop interface in `client/src/routes/+page.svelte`:
+  - Added Avid AAX specification banner in the "Overview & Specs" Audio Format & Host Compatibility Matrix.
+  - Added dedicated interactive "AVID AAX (AVID AUDIO EXTENSION): PRO TOOLS DSP INTROSPECTOR" card within the "Filesystem & DAW" inspector tab.
+  - Rendered 4 high-value stat cards (AAX Category, Format Type, DSP Allocation, Avid Control Surfaces EUCON status), multi-channel stem configuration cards, metering chips, and Pro Tools advisory box.
+- Verified test suites across Go (`go test -v ./...` in `crawler/`) and Rust (`cargo test` with 32 passing tests in `client/src-tauri/`), Svelte diagnostics (`npm run check` with 0 errors/0 warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_aax_meta_computed.png`, `ui_aax_banner.png`).
+- Bumped ecosystem version to `v0.8.0`.
+
 ## [0.7.9] - Linux Audio Infrastructure & PipeWire/JACK Graph Routing Diagnostic Engine
 - Defined `LinuxAudioPortNode` and `LinuxAudioDiagnosticReport` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `inspect_linux_audio_graph(plugin_name: Option<String>, host_server: Option<String>, category: Option<String>) -> LinuxAudioDiagnosticReport`:

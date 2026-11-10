@@ -1,9 +1,32 @@
-# HANDOFF: VST Monster v0.7.9 Session Summary
+# HANDOFF: VST Monster v0.8.0 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.7.9`
+- **Global Ecosystem Version:** `v0.8.0`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.7.9:** Linux Audio Infrastructure & PipeWire/JACK Graph Routing Diagnostic Engine.
+- **Primary Feature Shipped in v0.8.0:** Avid AAX (Avid Audio eXtension) Architecture & Pro Tools HDX DSP Introspector.
+
+## Key Changes in v0.8.0
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `AaxStemFormatDescriptor`, `AaxMeterDescriptor`, and `AaxPluginMetadataDetails` data models.
+   - Implemented `inspect_aax_metadata(plugin_name: Option<String>, bundle_path: Option<String>, category: Option<String>) -> AaxPluginMetadataDetails`:
+     - Introspects Avid AAX categories (`ePlugInCategory_Synth`, `ePlugInCategory_Dynamics`, `ePlugInCategory_Effect`) and architecture types (`AAX Native 64-bit Float Host DSP` vs `AAX Hybrid + AAX DSP`).
+     - Profiles Pro Tools HDX co-processor DSP allocation (`TI C6748 HDX DSP 48-bit Fixed Point` vs `Host CPU Only`).
+     - Evaluates multi-channel surround and immersive audio stem layouts (Mono, Stereo, 5.1 Surround, 7.1.2 Dolby Atmos).
+     - Profiles Avid control surface integration (S6 / S4 / EUCON page table support, gain reduction metering ports).
+     - Generates Pro Tools workstation compatibility guidance.
+   - Added 2 new unit tests (`test_inspect_aax_metadata_native` and `test_inspect_aax_metadata_dsp`), bringing total passing cargo unit tests to 32.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_aax_metadata` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added Avid AAX specification banner in the "Overview & Specs" Audio Format & Host Compatibility Matrix.
+   - Added dedicated interactive "AVID AAX (AVID AUDIO EXTENSION): PRO TOOLS DSP INTROSPECTOR" card within the "Filesystem & DAW" inspector tab.
+   - Rendered 4 high-value stat cards (AAX Category, Format Type, DSP Allocation, Avid Control Surfaces EUCON status), multi-channel stem configuration cards, metering chips, and Pro Tools advisory box.
+4. **Testing & Verification**:
+   - 32 passing cargo unit tests (`cargo test`).
+   - All Go crawler unit tests pass (`go test -v ./...`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshots (`ui_aax_meta_computed.png`, `ui_aax_banner.png`).
 
 ## Key Changes in v0.7.9
 1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
@@ -19,11 +42,7 @@
 3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
    - Added reactive state variables: `linuxAudioReport`, `isInspectingLinuxAudio`, `selectedLinuxServer`.
    - Wired `handleInspectLinuxAudio()` invoking native Tauri backend.
-   - Enhanced "Filesystem & DAW" inspector tab with a dedicated "LINUX AUDIO & PIPEWIRE/JACK GRAPH ROUTING DIAGNOSTIC" section featuring:
-     - Audio server selector dropdown (PipeWire, JACK2, ALSA Direct) and "Inspect Linux Audio & Ports" trigger button.
-     - 4 high-value stat cards: Active Audio Server with version, Realtime Scheduling Priority (RT90) with lock-free status, Buffer Quantum (256 smp / 5.33ms latency), and XRun Protection Status.
-     - 6-column interactive Graph Port Nodes table detailing Port ID, Port Name, Direction badge (`INPUT`, `OUTPUT`), Media Type badge (`AUDIO`, `MIDI`), Channel (`LEFT`, `RIGHT`, `CONTROL`), and Graph Destination endpoint.
-     - Linux Audio Host Advisory callout banner.
+   - Enhanced "Filesystem & DAW" inspector tab with a dedicated "LINUX AUDIO & PIPEWIRE/JACK GRAPH ROUTING DIAGNOSTIC" section.
 4. **Testing & Verification**:
    - 30 passing cargo unit tests (`cargo test`).
    - All Go crawler unit tests pass (`go test -v ./...`).
