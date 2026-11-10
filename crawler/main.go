@@ -112,6 +112,10 @@ func main() {
 	githubCollector.Visit("https://github.com/topics/audio-effect")
 	githubCollector.Visit("https://github.com/topics/lv2-synthesizer")
 
+	log.Println("Crawling GitHub Audio Unit & JUCE Framework topics...")
+	githubCollector.Visit("https://github.com/topics/audio-unit")
+	githubCollector.Visit("https://github.com/topics/juce")
+
 	var wg sync.WaitGroup
 
 	// Run Bedroom Producers Blog scraper with WaitGroup tracking

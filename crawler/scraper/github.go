@@ -122,6 +122,21 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 				}
 			}
 
+			// If URL or repo description implies Audio Unit format, ensure AU is registered
+			isAU := strings.Contains(lowerDesc, "audio unit") || strings.Contains(lowerDesc, "audiounit") || strings.Contains(lowerDesc, "auv3") || strings.Contains(lowerURL, ".component")
+			if isAU {
+				hasAU := false
+				for _, f := range formats {
+					if strings.EqualFold(f, "AU") {
+						hasAU = true
+						break
+					}
+				}
+				if !hasAU {
+					formats = append(formats, "AU")
+				}
+			}
+
 			category := "effect"
 			if strings.Contains(lowerDesc, "synth") || strings.Contains(lowerDesc, "instrument") || strings.Contains(lowerDesc, "generator") || strings.Contains(lowerDesc, "modular") {
 				category = "synth"

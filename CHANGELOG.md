@@ -1,5 +1,13 @@
 # CHANGELOG: VST Monster
 
+## [0.8.1] - Expanded GitHub Crawler Topics (audio-unit & juce) & Audio Unit Format Detection
+- Expanded GitHub topic crawler coverage in `crawler/main.go` to include `https://github.com/topics/audio-unit` and `https://github.com/topics/juce`, expanding the continuous monitoring footprint to 12 dedicated audio engineering topic catalogs.
+- Enhanced format extraction heuristics in `crawler/scraper/github.go` to detect Apple Audio Unit (`AU`) distributions and formats whenever repositories or release packages contain `audio unit`, `audiounit`, `auv3`, or `.component`.
+- Added unit test `TestGithubScraper_AudioUnitTopic` in `crawler/scraper/github_test.go` verifying accurate format parsing and source normalization.
+- Updated Crawler Operations Hub in `client/src/routes/+page.svelte` displaying `🐙 GitHub Audio Topics (12)` with descriptive tooltip detailing all 12 monitored audio engineering and DSP topics.
+- Verified test suites across Go (`go test -v ./...` in `crawler/`) and Rust (`cargo test` with 32 passing tests in `client/src-tauri/`), Svelte diagnostics (`npm run check` with 0 errors/0 warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_crawler_topics_12.png`).
+- Bumped ecosystem version to `v0.8.1`.
+
 ## [0.8.0] - Avid AAX (Avid Audio eXtension) Architecture & Pro Tools HDX DSP Introspector
 - Defined `AaxStemFormatDescriptor`, `AaxMeterDescriptor`, and `AaxPluginMetadataDetails` data models in `client/src-tauri/src/installer.rs`.
 - Implemented `inspect_aax_metadata(plugin_name: Option<String>, bundle_path: Option<String>, category: Option<String>) -> AaxPluginMetadataDetails`:

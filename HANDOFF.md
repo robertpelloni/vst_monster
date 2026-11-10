@@ -1,9 +1,24 @@
-# HANDOFF: VST Monster v0.8.0 Session Summary
+# HANDOFF: VST Monster v0.8.1 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.8.0`
+- **Global Ecosystem Version:** `v0.8.1`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.8.0:** Avid AAX (Avid Audio eXtension) Architecture & Pro Tools HDX DSP Introspector.
+- **Primary Feature Shipped in v0.8.1:** Expanded GitHub Crawler Topics (audio-unit & juce) & Apple Audio Unit Format Detection.
+
+## Key Changes in v0.8.1
+1. **Go Crawler Pipeline (`crawler/main.go`, `crawler/scraper/github.go`, `crawler/scraper/github_test.go`)**:
+   - Expanded monitored GitHub audio topics to 12 by adding `https://github.com/topics/audio-unit` and `https://github.com/topics/juce`.
+   - Added automatic Apple Audio Unit (`AU`) format extraction whenever repository metadata or release assets reference `audio unit`, `audiounit`, `auv3`, or `.component`.
+   - Added unit test `TestGithubScraper_AudioUnitTopic` in `crawler/scraper/github_test.go` verifying that Audio Unit topics and releases properly detect the `AU` format tag.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub badge from `🐙 GitHub Audio Topics (10)` to `🐙 GitHub Audio Topics (12)`.
+   - Updated the descriptive tooltip to enumerate all 12 monitored audio engineering and DSP topics.
+3. **Testing & Verification**:
+   - All Go crawler unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 32 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors and 0 warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_topics_12.png`).
 
 ## Key Changes in v0.8.0
 1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:

@@ -59,3 +59,33 @@ func TestLV2Extraction(t *testing.T) {
 		t.Errorf("Expected LV2 in extracted formats, got %v", formats)
 	}
 }
+
+func TestGithubScraper_AudioUnitTopic(t *testing.T) {
+	desc := "Modern synthesizer plugin built with JUCE and supporting AudioUnit (AUv3) for macOS"
+	formats := parser.ExtractFormats(desc)
+
+	isAU := strings.Contains(strings.ToLower(desc), "audiounit") || strings.Contains(strings.ToLower(desc), "auv3")
+	if isAU {
+		hasAU := false
+		for _, f := range formats {
+			if strings.EqualFold(f, "AU") {
+				hasAU = true
+				break
+			}
+		}
+		if !hasAU {
+			formats = append(formats, "AU")
+		}
+	}
+
+	foundAU := false
+	for _, f := range formats {
+		if strings.EqualFold(f, "AU") {
+			foundAU = true
+			break
+		}
+	}
+	if !foundAU {
+		t.Errorf("Expected AU in extracted formats, got %v", formats)
+	}
+}

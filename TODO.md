@@ -84,4 +84,5 @@
 - [x] LV2 manifest graph ingestion & dashboard TTL validation display (v0.7.8).
 - [x] Linux audio infrastructure & PipeWire/JACK graph routing diagnostic engine (v0.7.9).
 - [x] Avid AAX architecture & Pro Tools HDX DSP introspector (v0.8.0).
+- [x] Expanded GitHub crawler topics (audio-unit & juce) & Apple Audio Unit format detection (v0.8.1).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.
