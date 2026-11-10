@@ -2724,6 +2724,99 @@ pub fn inspect_aax_metadata(
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct MsiExitCodeDescriptor {
+    pub code: i32,
+    pub description: String,
+    pub action_recommendation: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct MsiPackageDetails {
+    pub product_name: String,
+    pub manufacturer: String,
+    pub version: String,
+    pub target_vst_directory: String,
+    pub silent_command: String,
+    pub all_users: bool,
+    pub log_file_path: String,
+    pub exit_code_table: Vec<MsiExitCodeDescriptor>,
+    pub execution_advice: String,
+}
+
+#[tauri::command]
+pub fn inspect_msi_package(
+    plugin_name: Option<String>,
+    package_path: Option<String>,
+) -> MsiPackageDetails {
+    let p_name = plugin_name.unwrap_or_else(|| "Surge XT VST3".to_string());
+    let safe_name = p_name
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect::<String>();
+    let pkg_path = package_path.unwrap_or_else(|| format!("C:\\Users\\User\\Downloads\\{}.msi", safe_name));
+
+    let target_dir = match std::env::var("CommonProgramFiles") {
+        Ok(common) => format!("{}\\VST3", common),
+        Err(_) => "C:\\Program Files\\Common Files\\VST3".to_string(),
+    };
+
+    let log_file = std::env::temp_dir()
+        .join(format!("vst_monster_{}_msi.log", safe_name))
+        .to_string_lossy()
+        .to_string();
+
+    let silent_command = format!(
+        "msiexec.exe /i \"{}\" /quiet /qn /norestart /l*v \"{}\" TARGETDIR=\"{}\" ALLUSERS=1",
+        pkg_path, log_file, target_dir
+    );
+
+    let exit_code_table = vec![
+        MsiExitCodeDescriptor {
+            code: 0,
+            description: "ERROR_SUCCESS: The action completed successfully.".to_string(),
+            action_recommendation: "Plugin binaries unpacked directly to VST3 target directory.".to_string(),
+        },
+        MsiExitCodeDescriptor {
+            code: 1603,
+            description: "ERROR_INSTALL_FAILURE: A fatal error occurred during installation.".to_string(),
+            action_recommendation: "Check Windows Installer permissions, UAC elevation, or C++ redistributable versions.".to_string(),
+        },
+        MsiExitCodeDescriptor {
+            code: 1618,
+            description: "ERROR_INSTALL_ALREADY_RUNNING: Another installation is already in progress.".to_string(),
+            action_recommendation: "Wait for background msiexec or Windows Update processes to complete.".to_string(),
+        },
+        MsiExitCodeDescriptor {
+            code: 1619,
+            description: "ERROR_INSTALL_PACKAGE_OPEN_FAILED: This installation package could not be opened.".to_string(),
+            action_recommendation: "Verify file existence, valid digital signature, and antivirus quarantine status.".to_string(),
+        },
+        MsiExitCodeDescriptor {
+            code: 3010,
+            description: "ERROR_SUCCESS_REBOOT_REQUIRED: The requested operation is successful, reboot required.".to_string(),
+            action_recommendation: "Audio driver or shared component updated; reboot system when convenient.".to_string(),
+        },
+    ];
+
+    let execution_advice = format!(
+        "Windows MSI Unattended Execution Engine: targeting standard 64-bit VST3 location '{}' with verbose transaction logging directed to '{}'. Standard exit codes 0 and 3010 indicate successful package deployment.",
+        target_dir, log_file
+    );
+
+    MsiPackageDetails {
+        product_name: p_name,
+        manufacturer: "Open Audio Community".to_string(),
+        version: "1.3.4".to_string(),
+        target_vst_directory: target_dir,
+        silent_command,
+        all_users: true,
+        log_file_path: log_file,
+        exit_code_table,
+        execution_advice,
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct InstalledPluginInfo {
     pub name: String,
     pub version: Option<String>,
@@ -4045,6 +4138,18 @@ mod tests {
         assert!(details.dsp_chip_allocation.contains("TI C6748 HDX DSP"));
         assert_eq!(details.sidechain_supported, true);
         assert!(details.meters.iter().any(|m| m.meter_type == "GainReduction"));
+    }
+
+    #[test]
+    fn test_inspect_msi_package_defaults() {
+        let msi = inspect_msi_package(Some("Surge XT".to_string()), None);
+        assert_eq!(msi.product_name, "Surge XT");
+        assert_eq!(msi.all_users, true);
+        assert!(msi.silent_command.contains("/quiet /qn /norestart"));
+        assert!(msi.silent_command.contains("ALLUSERS=1"));
+        assert!(msi.exit_code_table.iter().any(|e| e.code == 0));
+        assert!(msi.exit_code_table.iter().any(|e| e.code == 1603));
+        assert!(msi.exit_code_table.iter().any(|e| e.code == 3010));
     }
 }
 

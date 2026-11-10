@@ -108,6 +108,7 @@ pub fn run() {
             installer::inspect_audiounit_metadata,
             installer::inspect_linux_audio_graph,
             installer::inspect_aax_metadata,
+            installer::inspect_msi_package,
             installer::snapshot_plugin_state,
             installer::diff_plugin_presets,
             stop_servers,

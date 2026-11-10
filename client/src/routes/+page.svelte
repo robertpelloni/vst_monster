@@ -553,6 +553,27 @@
   let aaxMetadataReport = $state<AaxPluginMetadataDetailsItem | null>(null);
   let isInspectingAaxMetadata = $state(false);
 
+  interface MsiExitCodeDescriptorItem {
+    code: number;
+    description: string;
+    action_recommendation: string;
+  }
+
+  interface MsiPackageDetailsItem {
+    product_name: string;
+    manufacturer: string;
+    version: string;
+    target_vst_directory: string;
+    silent_command: string;
+    all_users: boolean;
+    log_file_path: string;
+    exit_code_table: MsiExitCodeDescriptorItem[];
+    execution_advice: string;
+  }
+
+  let msiPackageReport = $state<MsiPackageDetailsItem | null>(null);
+  let isInspectingMsiPackage = $state(false);
+
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
     try {
@@ -1305,6 +1326,24 @@
       actionMessage = `Avid AAX inspection failed: ${err}`;
     } finally {
       isInspectingAaxMetadata = false;
+    }
+  }
+
+  async function handleInspectMsiPackage() {
+    isInspectingMsiPackage = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Surge XT';
+      const packagePath = previewPlugin?.download_url || null;
+      const res: MsiPackageDetailsItem = await invoke('inspect_msi_package', {
+        pluginName,
+        packagePath,
+      });
+      msiPackageReport = res;
+      actionMessage = `Inspected Windows MSI package parameters for ${pluginName} (Target: ${res.target_vst_directory})`;
+    } catch (err: any) {
+      actionMessage = `MSI inspection failed: ${err}`;
+    } finally {
+      isInspectingMsiPackage = false;
     }
   }
 
@@ -3084,6 +3123,100 @@
                       <div class="advice-content">
                         <strong>Avid Pro Tools Workstation Advisory:</strong>
                         <p>{aaxMetadataReport.pro_tools_compatibility_advice}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Windows MSI Package: Unattended Silent Installation Engine Inspector -->
+              <div class="msi-meta-card">
+                <div class="msi-meta-header">
+                  <div class="msi-meta-title">
+                    <span class="msi-meta-icon">🪟</span>
+                    <div>
+                      <h4 class="msi-meta-h4">WINDOWS MSI PACKAGE: UNATTENDED SILENT INSTALLATION ENGINE</h4>
+                      <span class="msi-meta-sub">msiexec silent deployment flags, transaction logging, target directory overrides, and exit code decoders</span>
+                    </div>
+                  </div>
+                  <div class="msi-meta-ctrls">
+                    <button
+                      type="button"
+                      class="btn-msi-meta-action"
+                      onclick={handleInspectMsiPackage}
+                      disabled={isInspectingMsiPackage}
+                      use:tooltip={"Inspect Windows MSI deployment parameters, TARGETDIR targeting, and exit code decoders"}
+                    >
+                      {isInspectingMsiPackage ? 'Inspecting MSI...' : 'Inspect MSI Unattended Flags'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if msiPackageReport}
+                  <div class="msi-meta-content">
+                    <div class="msi-metrics-grid">
+                      <div class="msi-stat-card">
+                        <span class="msi-stat-label">Execution Mode:</span>
+                        <span class="msi-stat-val msi-mode">SILENT (/quiet /qn)</span>
+                        <span class="msi-stat-sub">No UI interaction or reboot prompts</span>
+                      </div>
+                      <div class="msi-stat-card">
+                        <span class="msi-stat-label">Target Directory:</span>
+                        <span class="msi-stat-val msi-dir" use:tooltip={msiPackageReport.target_vst_directory}>%CommonProgramFiles%\VST3</span>
+                        <span class="msi-stat-sub">{msiPackageReport.target_vst_directory}</span>
+                      </div>
+                      <div class="msi-stat-card">
+                        <span class="msi-stat-label">Verbose Logging:</span>
+                        <span class="msi-stat-val msi-log">ENABLED (/l*v)</span>
+                        <span class="msi-stat-sub">{msiPackageReport.log_file_path.split('\\').pop() || msiPackageReport.log_file_path.split('/').pop()}</span>
+                      </div>
+                      <div class="msi-stat-card">
+                        <span class="msi-stat-label">Scope & Privileges:</span>
+                        <span class="msi-stat-val msi-scope">ALLUSERS=1</span>
+                        <span class="msi-stat-sub">System-wide multi-user DAW installation</span>
+                      </div>
+                    </div>
+
+                    <!-- Silent Execution Command Line -->
+                    <div class="msi-command-box">
+                      <div class="msi-cmd-header">Synthesized Unattended Execution Command:</div>
+                      <code class="msi-cmd-code">{msiPackageReport.silent_command}</code>
+                    </div>
+
+                    <!-- Exit Codes Table -->
+                    <div class="msi-codes-box">
+                      <div class="msi-codes-header">Windows Installer Exit Code Diagnostics & Remediation ({msiPackageReport.exit_code_table.length})</div>
+                      <div class="msi-codes-table-wrap">
+                        <table class="msi-codes-table">
+                          <thead>
+                            <tr>
+                              <th>Exit Code</th>
+                              <th>Status Description</th>
+                              <th>Automated Action & Resolution Recommendation</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each msiPackageReport.exit_code_table as ec}
+                              <tr>
+                                <td>
+                                  <span class="msi-code-pill {ec.code === 0 || ec.code === 3010 ? 'success' : 'failure'}">
+                                    {ec.code}
+                                  </span>
+                                </td>
+                                <td class="msi-desc-cell"><strong>{ec.description}</strong></td>
+                                <td class="msi-action-cell">{ec.action_recommendation}</td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div class="msi-meta-advice-card">
+                      <span class="advice-icon">🪟</span>
+                      <div class="advice-content">
+                        <strong>Windows MSI Engine Advisory:</strong>
+                        <p>{msiPackageReport.execution_advice}</p>
                       </div>
                     </div>
                   </div>
@@ -10417,6 +10550,235 @@
     padding: 0.85rem 1rem;
     font-size: 0.85rem;
     color: #fef3c7;
+  }
+
+  /* Windows MSI Meta Card Styles */
+  .msi-meta-card {
+    background: #0f1926;
+    border: 1px solid #1e3a5f;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .msi-meta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .msi-meta-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .msi-meta-icon {
+    font-size: 1.6rem;
+  }
+
+  .msi-meta-h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #38bdf8;
+    letter-spacing: 0.05em;
+  }
+
+  .msi-meta-sub {
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+
+  .msi-meta-ctrls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .btn-msi-meta-action {
+    background: #0284c7;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.45rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-msi-meta-action:hover:not(:disabled) {
+    background: #0369a1;
+  }
+
+  .btn-msi-meta-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .msi-meta-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .msi-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+  }
+
+  .msi-stat-card {
+    background: #0a111a;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .msi-stat-label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+  }
+
+  .msi-stat-val.msi-mode {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #38bdf8;
+  }
+
+  .msi-stat-val.msi-dir {
+    font-size: 0.92rem;
+    font-family: monospace;
+    font-weight: 700;
+    color: #4ade80;
+  }
+
+  .msi-stat-val.msi-log {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #facc15;
+  }
+
+  .msi-stat-val.msi-scope {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #c084fc;
+  }
+
+  .msi-stat-sub {
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+
+  .msi-command-box {
+    background: #0a111a;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .msi-cmd-header {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+
+  .msi-cmd-code {
+    font-family: monospace;
+    font-size: 0.82rem;
+    color: #38bdf8;
+    word-break: break-all;
+  }
+
+  .msi-codes-box {
+    background: #0a111a;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 1rem;
+  }
+
+  .msi-codes-header {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 0.75rem;
+  }
+
+  .msi-codes-table-wrap {
+    overflow-x: auto;
+  }
+
+  .msi-codes-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  .msi-codes-table th {
+    text-align: left;
+    padding: 0.5rem;
+    color: #94a3b8;
+    border-bottom: 1px solid #1e293b;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+  }
+
+  .msi-codes-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid #1e293b;
+    color: #e2e8f0;
+  }
+
+  .msi-code-pill {
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .msi-code-pill.success {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+  }
+
+  .msi-code-pill.failure {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+  }
+
+  .msi-desc-cell {
+    color: #f8fafc;
+  }
+
+  .msi-action-cell {
+    color: #94a3b8;
+    font-size: 0.78rem;
+  }
+
+  .msi-meta-advice-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: rgba(2, 132, 199, 0.1);
+    border: 1px solid rgba(2, 132, 199, 0.3);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+    color: #e0f2fe;
   }
 
   @media (max-width: 1024px) {

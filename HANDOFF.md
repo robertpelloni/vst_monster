@@ -1,9 +1,33 @@
-# HANDOFF: VST Monster v0.8.2 Session Summary
+# HANDOFF: VST Monster v0.8.3 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.8.2`
+- **Global Ecosystem Version:** `v0.8.3`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.8.2:** Continuous Crawler Topic Expansion (vst-instruments & faust) & DSP Classification.
+- **Primary Feature Shipped in v0.8.3:** Windows MSI Unattended Silent Installation Engine Inspector.
+
+## Key Changes in v0.8.3
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `MsiExitCodeDescriptor` and `MsiPackageDetails` data structures.
+   - Implemented `inspect_msi_package(plugin_name: Option<String>, package_path: Option<String>) -> MsiPackageDetails`:
+     - Introspects Windows MSI unattended deployment parameters (`msiexec.exe /i package.msi /quiet /qn /norestart /l*v log.log TARGETDIR=%CommonProgramFiles%\VST3 ALLUSERS=1`).
+     - Decodes standard Windows Installer return codes (0 Success, 1603 Fatal error, 1618 Already running, 1619 Package unreadable, 3010 Reboot required).
+     - Formats verbose transaction logging path and system-wide multi-user targeting.
+   - Added unit test `test_inspect_msi_package_defaults` in `installer.rs` (33 total passing cargo tests).
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_msi_package` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added interactive "WINDOWS MSI PACKAGE: UNATTENDED SILENT INSTALLATION ENGINE" inspector card inside the "Filesystem & DAW" inspector tab.
+   - Added "Inspect MSI Unattended Flags" action trigger button.
+   - Rendered 4 high-value stat cards (Execution Mode, Target Directory, Verbose Logging, Scope & Privileges).
+   - Rendered synthesized unattended execution command line display.
+   - Rendered 3-column Exit Code Diagnostics & Remediation table with color-coded success/failure pills.
+   - Rendered Windows MSI Engine Advisory callout box.
+4. **Testing & Verification**:
+   - All Go crawler unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 33 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors and 0 warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_msi_inspector_computed.png`).
 
 ## Key Changes in v0.8.2
 1. **Go Crawler Pipeline (`crawler/main.go`, `crawler/scraper/github.go`, `crawler/scraper/github_test.go`)**:

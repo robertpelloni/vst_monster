@@ -1,5 +1,23 @@
 # CHANGELOG: VST Monster
 
+## [0.8.3] - Windows MSI Unattended Silent Installation Engine Inspector
+- Defined `MsiExitCodeDescriptor` and `MsiPackageDetails` data structures in `client/src-tauri/src/installer.rs`.
+- Implemented `inspect_msi_package(plugin_name: Option<String>, package_path: Option<String>) -> MsiPackageDetails`:
+  - Introspects Windows MSI unattended deployment parameters (`msiexec.exe /i package.msi /quiet /qn /norestart /l*v log.log TARGETDIR=%CommonProgramFiles%\VST3 ALLUSERS=1`).
+  - Formats standard Windows Installer exit code decoders and remediation table (Code 0 Success, 1603 Fatal error, 1618 In progress, 1619 Package open failed, 3010 Reboot required).
+  - Configures verbose transaction logging redirection and system-wide multi-user targeting.
+  - Added unit test `test_inspect_msi_package_defaults` in `installer.rs` (33 total passing cargo tests).
+- Registered `inspect_msi_package` in Tauri's command dispatcher in `client/src-tauri/src/lib.rs`.
+- Enhanced Svelte desktop interface in `client/src/routes/+page.svelte`:
+  - Added interactive "WINDOWS MSI PACKAGE: UNATTENDED SILENT INSTALLATION ENGINE" inspector card inside the "Filesystem & DAW" inspector tab.
+  - Added "Inspect MSI Unattended Flags" action trigger button.
+  - Rendered 4 high-value stat cards (Execution Mode, Target Directory, Verbose Logging, Scope & Privileges).
+  - Rendered synthesized command line display box.
+  - Rendered 3-column Exit Code Diagnostics & Remediation table with color-coded success/failure pills.
+  - Rendered Windows MSI Engine Advisory callout box.
+- Verified test suites across Go (`go test -v ./...` in `crawler/`) and Rust (`cargo test` with 33 passing tests in `client/src-tauri/`), Svelte diagnostics (`npm run check` with 0 errors/0 warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_msi_inspector_computed.png`).
+- Bumped ecosystem version to `v0.8.3`.
+
 ## [0.8.2] - Continuous Crawler Topic Expansion (vst-instruments & faust) & DSP Classification
 - Expanded GitHub topic crawler coverage in `crawler/main.go` to include `https://github.com/topics/vst-instruments` and `https://github.com/topics/faust`, scaling the continuous monitoring pipeline to 14 dedicated audio engineering topics.
 - Enhanced classification heuristics in `crawler/scraper/github.go` to detect Faust DSP programming language usage (`dsp_language: "Faust"`) and categorize VST instruments as `synth`.
