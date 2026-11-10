@@ -1,39 +1,253 @@
-# HANDOFF: VST Monster Autonomous Session
+# HANDOFF: VST Monster v0.8.3 Session Summary
 
-## Summary of Session Learnings
-- **Registry API Bootstrapping:** Initialized an Express + PostgreSQL REST API inside the `registry` folder (`src/index.ts`).
-- **Frontend Wiring:** Rewrote the Tauri base template (`client/src/routes/+page.svelte`) to dynamically fetch plugin data from `http://localhost:3000/plugins` using an `onMount` hook.
-- **Git State Hygiene:** Discovered that large auto-generated dependency trees (`node_modules`) were crashing `git` diff logs and tracking caches. These have been meticulously purged from cache and appended globally to `.gitignore`.
-- **TypeScript Strictness:** Express bindings triggered strict `verbatimModuleSyntax` errors under `nodenext` configuration. Disabled the flag inside `registry/tsconfig.json` to allow standard ES imports.
+## Status & Overview
+- **Global Ecosystem Version:** `v0.8.3`
+- **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
+- **Primary Feature Shipped in v0.8.3:** Windows MSI Unattended Silent Installation Engine Inspector.
 
-## Summary of Additional Session Learnings
-- **PostgreSQL Database Crawler Integration**: Integrated `github.com/lib/pq` directly into the Golang crawler system to map out Scraped Plugins into standard relational records against the `plugins`, `plugin_releases`, and `plugin_distributions` schema mappings.
-- **SQL Logic Architecture**: Replaced the initial ID-based ON CONFLICT fallback with a structurally sound `UNIQUE(name, developer)` constraint inside the `schema.sql`. Crawler loop was rewritten to do an `ON CONFLICT DO UPDATE SET updated_at = NOW()`.
+## Key Changes in v0.8.3
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `MsiExitCodeDescriptor` and `MsiPackageDetails` data structures.
+   - Implemented `inspect_msi_package(plugin_name: Option<String>, package_path: Option<String>) -> MsiPackageDetails`:
+     - Introspects Windows MSI unattended deployment parameters (`msiexec.exe /i package.msi /quiet /qn /norestart /l*v log.log TARGETDIR=%CommonProgramFiles%\VST3 ALLUSERS=1`).
+     - Decodes standard Windows Installer return codes (0 Success, 1603 Fatal error, 1618 Already running, 1619 Package unreadable, 3010 Reboot required).
+     - Formats verbose transaction logging path and system-wide multi-user targeting.
+   - Added unit test `test_inspect_msi_package_defaults` in `installer.rs` (33 total passing cargo tests).
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_msi_package` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added interactive "WINDOWS MSI PACKAGE: UNATTENDED SILENT INSTALLATION ENGINE" inspector card inside the "Filesystem & DAW" inspector tab.
+   - Added "Inspect MSI Unattended Flags" action trigger button.
+   - Rendered 4 high-value stat cards (Execution Mode, Target Directory, Verbose Logging, Scope & Privileges).
+   - Rendered synthesized unattended execution command line display.
+   - Rendered 3-column Exit Code Diagnostics & Remediation table with color-coded success/failure pills.
+   - Rendered Windows MSI Engine Advisory callout box.
+4. **Testing & Verification**:
+   - All Go crawler unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 33 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors and 0 warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_msi_inspector_computed.png`).
 
-## Current State & Next Steps
-- The API is working locally and UI fetches dynamically.
-- The Go crawler effectively serializes structured VST distributions, hashes them via SHA-256 natively, and persists them via bulk `sql.DB` commands.
-- **Next Model Goals:**
-  1. Continue expanding crawler definitions and proxy logic in `TODO.md`.
-  2. Implement local Rust/Tauri installer strategies based on the binary distribution payload stored in Postgres.## Final Phase 1 & 2 Status
-- **Crawler Status (Phase 1 Complete):** Go crawler module is implemented with Colly in `crawler/main.go`, handling KVR, GitHub, and Plugin Boutique with concurrent scraping and PostgreSQL persistence.
-- **Client Status (Phase 2 Complete):** Tauri Rust native installation engine successfully built utilizing stream downloads to prevent OOM errors, and Svelte UI dynamically queries Registry API.
-- **UI Architecture:** Extensively refactored Svelte 5 frontend using standard state management. Integrated dynamic tooltips and comprehensive data retrieval joined across multiple tables, enabling seamless downloads sent straight to the Tauri Native Rust backend.
-# Autonomous Execution Handoff
+## Key Changes in v0.8.2
+1. **Go Crawler Pipeline (`crawler/main.go`, `crawler/scraper/github.go`, `crawler/scraper/github_test.go`)**:
+   - Expanded monitored GitHub audio engineering topics to 14 by adding `https://github.com/topics/vst-instruments` and `https://github.com/topics/faust`.
+   - Enhanced classification heuristics in `crawler/scraper/github.go` detecting Faust DSP programming language usage (`dsp_language: "Faust"`) and categorizing VST instruments as `synth`.
+   - Added unit test `TestGithubScraper_ExpandedAudioTopics` in `crawler/scraper/github_test.go` verifying Faust DSP detection and instrument categorization.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub badge from `🐙 GitHub Audio Topics (12)` to `🐙 GitHub Audio Topics (14)`.
+   - Updated the descriptive tooltip to enumerate all 14 monitored audio engineering and DSP topics.
+3. **Testing & Verification**:
+   - All Go crawler unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 32 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors and 0 warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_topics_14.png`).
 
-## Completed Work
-- Refactored `crawler/main.go` into modular components.
-- Extracted and generalized the `ScrapedPlugin` model and created a thread-safe `PluginCollection` using `sync.Mutex` in `models.go`.
-- Extracted the PostgreSQL database connection and setup logic into `db.go`.
-  - Added an upsert function supporting the `ON CONFLICT (name, developer) DO UPDATE` constraint.
-- Extracted downloading functionality to `downloader.go`, replacing in-memory file reading with writing to temporary disk files, allowing safe SHA-256 calculation and preventing OOM errors.
-- Structured scrapers via `colly` inside `crawler/scrapers/`:
-  - Retained and modularized the Bedroom Producers Blog scraper (`bpb.go`).
-  - Added a polite scraper targeting GitHub topics for "vst-plugin" (`github.go`).
-  - Added a polite scraper targeting KVR Audio's newest free plugins page (`kvr.go`).
-- Modified the main execution thread to initialize the PostgreSQL DB, orchestrate the scrapers concurrently utilizing goroutines and a WaitGroup, and safely collect plugins.
+## Key Changes in v0.8.1
+1. **Go Crawler Pipeline (`crawler/main.go`, `crawler/scraper/github.go`, `crawler/scraper/github_test.go`)**:
+   - Expanded monitored GitHub audio topics to 12 by adding `https://github.com/topics/audio-unit` and `https://github.com/topics/juce`.
+   - Added automatic Apple Audio Unit (`AU`) format extraction whenever repository metadata or release assets reference `audio unit`, `audiounit`, `auv3`, or `.component`.
+   - Added unit test `TestGithubScraper_AudioUnitTopic` in `crawler/scraper/github_test.go` verifying that Audio Unit topics and releases properly detect the `AU` format tag.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub badge from `🐙 GitHub Audio Topics (10)` to `🐙 GitHub Audio Topics (12)`.
+   - Updated the descriptive tooltip to enumerate all 12 monitored audio engineering and DSP topics.
+3. **Testing & Verification**:
+   - All Go crawler unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 32 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors and 0 warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_topics_12.png`).
 
-## Next Steps
-- Write tests for the crawler.
-- Complete implementation and integration of actual file downloads linking back to the models, executing the `CalculateSHA256` function as appropriate during the scraping phase.
-- Further refine KVR and GitHub scrapers logic depending on actual CSS selector success against target sites.
+## Key Changes in v0.8.0
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `AaxStemFormatDescriptor`, `AaxMeterDescriptor`, and `AaxPluginMetadataDetails` data models.
+   - Implemented `inspect_aax_metadata(plugin_name: Option<String>, bundle_path: Option<String>, category: Option<String>) -> AaxPluginMetadataDetails`:
+     - Introspects Avid AAX categories (`ePlugInCategory_Synth`, `ePlugInCategory_Dynamics`, `ePlugInCategory_Effect`) and architecture types (`AAX Native 64-bit Float Host DSP` vs `AAX Hybrid + AAX DSP`).
+     - Profiles Pro Tools HDX co-processor DSP allocation (`TI C6748 HDX DSP 48-bit Fixed Point` vs `Host CPU Only`).
+     - Evaluates multi-channel surround and immersive audio stem layouts (Mono, Stereo, 5.1 Surround, 7.1.2 Dolby Atmos).
+     - Profiles Avid control surface integration (S6 / S4 / EUCON page table support, gain reduction metering ports).
+     - Generates Pro Tools workstation compatibility guidance.
+   - Added 2 new unit tests (`test_inspect_aax_metadata_native` and `test_inspect_aax_metadata_dsp`), bringing total passing cargo unit tests to 32.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_aax_metadata` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added Avid AAX specification banner in the "Overview & Specs" Audio Format & Host Compatibility Matrix.
+   - Added dedicated interactive "AVID AAX (AVID AUDIO EXTENSION): PRO TOOLS DSP INTROSPECTOR" card within the "Filesystem & DAW" inspector tab.
+   - Rendered 4 high-value stat cards (AAX Category, Format Type, DSP Allocation, Avid Control Surfaces EUCON status), multi-channel stem configuration cards, metering chips, and Pro Tools advisory box.
+4. **Testing & Verification**:
+   - 32 passing cargo unit tests (`cargo test`).
+   - All Go crawler unit tests pass (`go test -v ./...`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshots (`ui_aax_meta_computed.png`, `ui_aax_banner.png`).
+
+## Key Changes in v0.7.9
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `LinuxAudioPortNode` and `LinuxAudioDiagnosticReport` data structures.
+   - Implemented `inspect_linux_audio_graph(plugin_name: Option<String>, host_server: Option<String>, category: Option<String>) -> LinuxAudioDiagnosticReport`:
+     - Introspects Linux audio server architectures: PipeWire (`pw-jack` bridge), JACK2 (`jackd2`), and ALSA Direct Hardware Driver.
+     - Profiles realtime scheduling priority (RT90 / RT85 / RT50), lock-free DSP graph execution, buffer quantum latency (samples and milliseconds), and XRun protection status (`ACTIVE_GUARDED`).
+     - Synthesizes dynamic graph port topologies for audio/MIDI endpoints (inputs, outputs, channels, and graph system routing endpoints).
+     - Formats workstation integration guidance for Linux DAWs (Bitwig Studio, Carla, Ardour, REAPER).
+   - Added 2 new unit tests (`test_inspect_linux_audio_graph_pipewire` and `test_inspect_linux_audio_graph_jack`), bringing total passing cargo unit tests to 30.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_linux_audio_graph` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added reactive state variables: `linuxAudioReport`, `isInspectingLinuxAudio`, `selectedLinuxServer`.
+   - Wired `handleInspectLinuxAudio()` invoking native Tauri backend.
+   - Enhanced "Filesystem & DAW" inspector tab with a dedicated "LINUX AUDIO & PIPEWIRE/JACK GRAPH ROUTING DIAGNOSTIC" section.
+4. **Testing & Verification**:
+   - 30 passing cargo unit tests (`cargo test`).
+   - All Go crawler unit tests pass (`go test -v ./...`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_linux_audio_graph_computed.png`).
+
+## Key Changes in v0.7.8
+1. **Go Crawler Normalization Pipeline (`crawler/scraper/github.go`, `crawler/parser/normalize.go`)**:
+   - Enhanced GitHub scraper asset evaluation to recognize LV2 bundle distributions (`.lv2.tar.gz`, `.lv2.zip`, `.lv2`) and inject `has_lv2_manifest: true` into metadata.
+   - Added unit test `TestLV2Extraction` in `crawler/scraper/github_test.go` verifying manifest tagging and format detection.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added visual `.lv2-ttl-validation-banner` with `TTL VALIDATED` and `GRAPH INDEXED` status chips in the LV2 Open Audio Standard section within the plugin detail inspector drawer.
+   - Linked LV2 manifest validation chips with informative audio engineering tooltips explaining RDF Turtle validation against LV2 Core/Atom/State/UI specifications.
+3. **Testing & Verification**:
+   - All Go unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 28 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshots (`ui_lv2_modal_validation_chip.png`, `ui_studio_lv2_banner.png`).
+
+## Key Changes in v0.7.7
+1. **Go Crawler Pipeline (`crawler/main.go`, `crawler/scraper/github.go`, `crawler/scraper/github_test.go`)**:
+   - Expanded GitHub topic crawling to 10 audio topics (`vst-plugin`, `vst3`, `clap-plugin`, `audio-plugins`, `lv2`, `lv2-plugin`, `audio-dsp`, `sound-synthesis`, `audio-effect`, `lv2-synthesizer`).
+   - Expanded KVR Audio freeware crawling to 3 catalogs (Newest, Free Instruments, Free Effects).
+   - Refactored `SelectBestReleaseAsset` prioritizing dedicated plugin archives (`.lv2`, `.vst3`, `.clap`) over generic distributions, with support for `.AppImage`, `.msi`, and `.dmg`.
+   - Added unit test `TestSelectBestReleaseAsset` in `crawler/scraper/github_test.go`.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub with `🐙 GitHub Audio Topics (10)` and `🎛️ KVR Freeware Catalog (3)` badges.
+3. **Testing & Verification**:
+   - All Go unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 28 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_topics_10.png`).
+
+## Key Changes in v0.7.6
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `AudioUnitPropertyDescriptor`, `AudioUnitScopeDescriptor`, and `AudioUnitMetadataDetails` data models.
+   - Implemented `inspect_audiounit_metadata(plugin_name: Option<String>, component_path: Option<String>, category: Option<String>) -> AudioUnitMetadataDetails`:
+     - Introspects CoreAudio component types (`'aumu'`, `'aufx'`), subtypes, manufacturer 4CC codes, and bundle identifiers.
+     - Profiles CoreAudio bus scopes (`GlobalScope`, `InputScope`, `OutputScope`), elements, channel layouts, and audio buffer list framing.
+     - Evaluates standard AudioUnit properties (`kAudioUnitProperty_ClassInfo`, `kAudioUnitProperty_SupportedNumChannels`, `kAudioUnitProperty_Latency`, `kAudioUnitProperty_FactoryPresets`).
+     - Classifies sandbox container isolation modes (`AUv3 App Extension (Out-of-Process)` vs `AUv2 In-Process Bundle`) and AUVAL validation readiness.
+     - Generates workstation host integration guidance for macOS DAWs (Logic Pro, GarageBand, Ableton Live, REAPER).
+   - Added 2 new unit tests (`test_inspect_audiounit_metadata_synth` and `test_inspect_audiounit_metadata_effect`), bringing total passing cargo unit tests to 28.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_audiounit_metadata` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added reactive state variables: `audioUnitMetadataReport`, `isInspectingAudioUnitMetadata`.
+   - Wired `handleInspectAudioUnitMetadata()` communicating directly with native Tauri backend.
+   - Enhanced "Filesystem & DAW" inspector tab with a dedicated "APPLE AUDIO UNIT (AUV2 / AUV3): COREAUDIO COMPONENT INTROSPECTOR" section featuring:
+     - "Inspect Audio Unit & Component" action button.
+     - 4 high-value stat cards: Component 4CC Code, Bundle Identifier, AUVAL Validation status badge, and Sandbox Isolation mode.
+     - 5-column interactive CoreAudio Scopes table detailing Scope Name, Scope ID, Elements, Channels, and Buffer Framing Format.
+     - Declared AudioUnit Properties grid with interactive badges and descriptive tooltips.
+     - Apple CoreAudio workstation integration advisory callout.
+4. **Testing & Verification**:
+   - 28 passing cargo unit tests (`cargo test`).
+   - All Go crawler unit tests pass (`go test ./...`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_au_meta_computed.png`).
+
+## Key Changes in v0.7.5
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `ClapExtensionDescriptor`, `ClapAudioPortDescriptor`, and `ClapPluginMetadataDetails` data models.
+   - Implemented `inspect_clap_metadata(plugin_name: Option<String>, bundle_path: Option<String>, category: Option<String>) -> ClapPluginMetadataDetails`:
+     - Inspects CLAP factory descriptor fields (`clap_id`, vendor, version, target binary, URLs).
+     - Profiles declared audio port topologies (main stereo pair, sidechain aux busses, channel counts, in-place pairs).
+     - Evaluates declared CLAP extensions (`clap.params`, `clap.state`, `clap.thread-pool`, `clap.latency`, `clap.gui`).
+     - Verifies thread-pool multi-core voice delegation and floating/non-blocking GUI window capabilities.
+     - Generates workstation host integration guidance for modern CLAP DAWs (Bitwig Studio, REAPER).
+   - Added 2 new unit tests (`test_inspect_clap_metadata_vital` and `test_inspect_clap_metadata_surge`), bringing total passing cargo unit tests to 26.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_clap_metadata` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added reactive state variables: `clapMetadataReport`, `isInspectingClapMetadata`.
+   - Wired `handleInspectClapMetadata()` communicating directly with native Tauri backend.
+   - Enhanced "Filesystem & DAW" inspector tab with a dedicated "CLAP OPEN AUDIO STANDARD: DEEP FACTORY DESCRIPTOR & EXTENSIONS" section featuring:
+     - "Inspect CLAP Factory & Ports" action button.
+     - 4 high-value stat cards: CLAP Plugin ID with copy/hover tooltip, Features/Tags, Thread Pool API status badge, and GUI/Floating window status badge.
+     - 6-column interactive Audio Ports table detailing ID, Name, Type badge (`MAIN`, `SIDECHAIN`), Direction badge (`INPUT`, `OUTPUT`), Channels, and In-Place Pair.
+     - Declared CLAP Extensions grid with interactive status pills (`SUPPORTED`) and descriptive tooltips.
+     - CLAP workstation host integration advisory callout.
+4. **Testing & Verification**:
+   - 26 passing cargo unit tests (`cargo test`).
+   - All Go crawler unit tests pass (`go test ./...`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_clap_meta_computed.png`).
+
+## Key Changes in v0.7.4
+1. **Go Crawler Pipeline (`crawler/scraper/kvr.go` & `crawler/scraper/kvr_test.go`)**:
+   - Implemented acoustic category inference heuristics (`synth`, `dynamics`, `effect`) based on plugin names, formats, and category descriptions.
+   - Added unit test `TestBuildKVRScraper_Extraction` verifying that HTML mock payloads accurately extract and map synths and dynamics processors.
+2. **Database Ingestion Pipeline (`crawler/db.go`)**:
+   - Enriched `UpsertPlugin` ensuring that `source`, `license`, and `formats` metadata are merged into the `metadata` JSONB column.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub with the "🎛️ KVR Instruments & Effects" pill with descriptive category heuristic tooltips.
+4. **Testing & Verification**:
+   - All Go unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 24 Rust cargo unit tests pass (`cargo test`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_kvr_updated.png`).
+
+## Key Changes in v0.7.3
+1. **Go Crawler Pipeline (`crawler/scraper/github.go` & `crawler/main.go`)**:
+   - Expanded GitHub release asset discovery to inspect Windows `.msi` and `.exe` releases alongside `.zip`, `.tar.gz`, `.deb`, and `.dmg`.
+   - Added automatic category heuristics inferring plugin category (`synth`, `dynamics`, `effect`) from repository descriptions and README metadata.
+   - Added scraping of GitHub topics: `vst-plugin`, `vst3`, `clap-plugin`, `audio-plugins`, `lv2`, and `lv2-plugin`.
+   - Added KVR Audio free effects directory scraping (`https://www.kvraudio.com/plugins/free/effects/newest`) alongside instrument catalogs.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub with multi-target source badges (`🐙 GitHub Topics (6)`, `🎛️ KVR Audio (Newest)`, `📰 BPB Freeware`).
+   - Added informative tooltips explaining the underlying scraping mechanisms and topic feeds.
+   - Styled source pills with responsive high-contrast dark theme tags.
+3. **Testing & Verification**:
+   - All Go crawler unit tests pass (`go test ./...`).
+   - All 24 Rust cargo unit tests pass (`cargo test`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_sources.png`).
+
+## Key Changes in v0.7.2
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `Lv2PortDescriptor`, `Lv2ExtensionFeature`, and `Lv2PluginGraphDetails` data models.
+   - Implemented `inspect_lv2_graph(plugin_name: Option<String>, manifest_path: Option<String>, category: Option<String>) -> Lv2PluginGraphDetails`:
+     - Parses Turtle (`manifest.ttl`) RDF graph definitions, extracting plugin URI, project/doap metadata, binary library targets, and minor/micro version specifications.
+     - Profiles audio input/output, control parameters (ranges, units, and logarithmic/toggled properties), and atom event port topologies.
+     - Inspects required and optional LV2 extension features (`urid#map`, `worker#schedule`, `state#loadDefaultState`, `options#options`).
+     - Classifies workstation UI embedding modes (`X11UI`, `WindowsUI`, `CocoaUI`, `NoNativeUI`).
+     - Formats workstation host compatibility advice for Linux and cross-platform DAWs (Ardour, Carla, REAPER, Bitwig).
+   - Added 2 new unit tests (`test_inspect_lv2_graph_dragonfly` and `test_inspect_lv2_graph_synth`), bringing total passing cargo unit tests to 24.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_lv2_graph` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added reactive state variables: `lv2GraphReport`, `isInspectingLv2Graph`.
+   - Wired `handleInspectLv2Graph()` communicating directly with native Tauri backend.
+   - Enhanced "Filesystem & DAW" inspector tab with a dedicated "LV2 OPEN AUDIO STANDARD: DEEP RDF GRAPH & PORT TOPOLOGY" panel featuring:
+     - "Inspect LV2 Graph & Ports" action trigger.
+     - 4 high-value stat cards: Plugin URI with copy/hover tooltip, Total Ports (Audio In/Out, Control In/Out, Atom Events), UI Embedding Mode, and Target binary.
+     - 7-column interactive LV2 Port Topology table detailing Index, Symbol, Name, Port Type badge (`AudioPort`, `ControlPort`, `AtomPort`), Direction badge (`Input`, `Output`), Range/Unit, and Properties chips.
+     - Declared Extension Features grid with requirement badges (`REQUIRED` vs `OPTIONAL`) and descriptive tooltips.
+     - LV2 host wiring & compatibility advisory callout.
+4. **Testing & Verification**:
+   - 24 passing cargo unit tests (`cargo test`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_lv2_graph_computed.png`).
+
+## Next Recommended Milestone Tasks
+- **Milestone 4 - Distributed Community Sync & P2P Cache**: BitTorrent / IPFS content-addressed distribution mirrors and community preset sharing.
+- **Crawler Expansion**: Implement targeted scrapers for additional repositories and open-source audio communities.

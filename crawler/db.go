@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	_ "github.com/lib/pq"
 	"github.com/joho/godotenv"
@@ -51,7 +52,23 @@ func UpsertPlugin(db *sql.DB, p parser.StandardPlugin, hash string) error {
 		return nil // Graceful degradation if DB is not connected
 	}
 
-	metadataBytes, _ := json.Marshal(p.Metadata)
+	metaMap := make(map[string]interface{})
+	if p.Metadata != nil {
+		for k, v := range p.Metadata {
+			metaMap[k] = v
+		}
+	}
+	if _, ok := metaMap["source"]; !ok && p.Source != "" {
+		metaMap["source"] = p.Source
+	}
+	if _, ok := metaMap["license"]; !ok && p.License != "" {
+		metaMap["license"] = p.License
+	}
+	if len(p.Formats) > 0 {
+		metaMap["formats"] = p.Formats
+	}
+
+	metadataBytes, _ := json.Marshal(metaMap)
 	if metadataBytes == nil || string(metadataBytes) == "null" {
 		metadataBytes = []byte("{}")
 	}
@@ -61,16 +78,24 @@ func UpsertPlugin(db *sql.DB, p parser.StandardPlugin, hash string) error {
 		licenseModel = "free"
 	}
 
+	category := "synth"
+	if p.Metadata != nil {
+		if cat, ok := p.Metadata["category"].(string); ok && cat != "" {
+			category = strings.ToLower(cat)
+		}
+	}
+
 	// 1. Upsert Plugin
 	var pluginID string
 	err := db.QueryRow(`
-		INSERT INTO plugins (name, developer, license_model, updated_at)
-		VALUES ($1, $2, $3, NOW())
+		INSERT INTO plugins (name, developer, license_model, category, updated_at)
+		VALUES ($1, $2, $3, $4, NOW())
 		ON CONFLICT (name, developer) DO UPDATE SET
 			license_model = EXCLUDED.license_model,
+			category = COALESCE(NULLIF(EXCLUDED.category, ''), plugins.category),
 			updated_at = NOW()
 		RETURNING id;
-	`, p.Name, p.Developer, licenseModel).Scan(&pluginID)
+	`, p.Name, p.Developer, licenseModel, category).Scan(&pluginID)
 
 	if err != nil {
 		err = db.QueryRow(`SELECT id FROM plugins WHERE name = $1 AND developer = $2`, p.Name, p.Developer).Scan(&pluginID)
@@ -101,11 +126,20 @@ func UpsertPlugin(db *sql.DB, p parser.StandardPlugin, hash string) error {
 		}
 	}
 
-	// Determine generic platform (mock for now, assume universal or windows)
+	// Determine platform from download URL or metadata
 	platform := "windows"
+	lowerURL := strings.ToLower(p.DownloadURL)
+	if strings.Contains(lowerURL, "linux") || strings.HasSuffix(lowerURL, ".deb") || strings.HasSuffix(lowerURL, ".rpm") || strings.HasSuffix(lowerURL, ".tar.gz") {
+		platform = "linux"
+	} else if strings.Contains(lowerURL, "mac") || strings.Contains(lowerURL, "darwin") || strings.HasSuffix(lowerURL, ".dmg") || strings.HasSuffix(lowerURL, ".pkg") {
+		platform = "macos"
+	}
 
 	// Determine strategy
 	strategy := "extract_binaries"
+	if strings.HasSuffix(lowerURL, ".msi") || strings.HasSuffix(lowerURL, ".exe") || strings.HasSuffix(lowerURL, ".pkg") {
+		strategy = "silent_install"
+	}
 
 	// 3. Upsert Distribution
 	// We lack a robust unique constraint on distributions, but checking manually prevents naive duplicates
@@ -126,5 +160,6 @@ func UpsertPlugin(db *sql.DB, p parser.StandardPlugin, hash string) error {
 		log.Printf("Distribution insertion note: %v", err)
 	}
 
+	log.Printf("Successfully ingested plugin '%s' by '%s' (ID: %s, Platform: %s, Category: %s)\n", p.Name, p.Developer, pluginID, platform, category)
 	return nil
 }
