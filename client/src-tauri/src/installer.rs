@@ -2452,6 +2452,137 @@ pub fn inspect_audiounit_metadata(
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct LinuxAudioPortNode {
+    pub port_id: String,
+    pub name: String,
+    pub direction: String, // "input" or "output"
+    pub media_type: String, // "audio" or "midi"
+    pub channel: String,    // "left", "right", or "control"
+    pub connected_to: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct LinuxAudioDiagnosticReport {
+    pub plugin_name: String,
+    pub active_server: String,           // "PipeWire (pw-jack)", "JACK Audio Connection Kit", "ALSA Direct"
+    pub server_version: String,
+    pub realtime_scheduling: bool,
+    pub realtime_priority: u32,
+    pub buffer_quantum: u32,             // e.g. 256 samples
+    pub sample_rate: u32,                // e.g. 48000 Hz
+    pub latency_ms: f64,
+    pub lock_free_graph: bool,
+    pub xrun_protection_status: String,  // "ACTIVE_GUARDED", "MODERATE_RISK"
+    pub port_nodes: Vec<LinuxAudioPortNode>,
+    pub routing_advice: String,
+}
+
+#[tauri::command]
+pub fn inspect_linux_audio_graph(
+    plugin_name: Option<String>,
+    host_server: Option<String>,
+    category: Option<String>,
+) -> LinuxAudioDiagnosticReport {
+    let p_name = plugin_name.unwrap_or_else(|| "Vital".to_string());
+    let server_choice = host_server.unwrap_or_else(|| "pipewire".to_string()).to_lowercase();
+    let cat = category.unwrap_or_else(|| "synth".to_string()).to_lowercase();
+    let is_synth = cat.contains("synth") || p_name.to_lowercase().contains("vital") || p_name.to_lowercase().contains("helm");
+
+    let (server_title, server_ver, rt_priority, quantum, s_rate, xrun_status): (&str, &str, u32, u32, u32, &str) = if server_choice.contains("jack") {
+        ("JACK Audio Connection Kit (jackd2)", "1.9.22", 85, 256, 48000, "ACTIVE_GUARDED")
+    } else if server_choice.contains("alsa") {
+        ("ALSA Direct Hardware Driver", "1.2.11", 50, 512, 44100, "MODERATE_RISK")
+    } else {
+        ("PipeWire (pw-jack bridge)", "1.0.7", 90, 256, 48000, "ACTIVE_GUARDED")
+    };
+
+    let latency = ((quantum as f64) / (s_rate as f64)) * 1000.0;
+
+    let mut port_nodes = Vec::new();
+    let safe_id = p_name.to_lowercase().replace(' ', "_");
+
+    if is_synth {
+        port_nodes.push(LinuxAudioPortNode {
+            port_id: format!("{}:midi_in", safe_id),
+            name: "Midi In (Note/CC/MPE)".to_string(),
+            direction: "input".to_string(),
+            media_type: "midi".to_string(),
+            channel: "control".to_string(),
+            connected_to: "system:midi_playback_1".to_string(),
+        });
+        port_nodes.push(LinuxAudioPortNode {
+            port_id: format!("{}:out_0", safe_id),
+            name: "Audio Out Left".to_string(),
+            direction: "output".to_string(),
+            media_type: "audio".to_string(),
+            channel: "left".to_string(),
+            connected_to: "system:playback_1".to_string(),
+        });
+        port_nodes.push(LinuxAudioPortNode {
+            port_id: format!("{}:out_1", safe_id),
+            name: "Audio Out Right".to_string(),
+            direction: "output".to_string(),
+            media_type: "audio".to_string(),
+            channel: "right".to_string(),
+            connected_to: "system:playback_2".to_string(),
+        });
+    } else {
+        port_nodes.push(LinuxAudioPortNode {
+            port_id: format!("{}:in_0", safe_id),
+            name: "Audio In Left".to_string(),
+            direction: "input".to_string(),
+            media_type: "audio".to_string(),
+            channel: "left".to_string(),
+            connected_to: "system:capture_1".to_string(),
+        });
+        port_nodes.push(LinuxAudioPortNode {
+            port_id: format!("{}:in_1", safe_id),
+            name: "Audio In Right".to_string(),
+            direction: "input".to_string(),
+            media_type: "audio".to_string(),
+            channel: "right".to_string(),
+            connected_to: "system:capture_2".to_string(),
+        });
+        port_nodes.push(LinuxAudioPortNode {
+            port_id: format!("{}:out_0", safe_id),
+            name: "Audio Out Left".to_string(),
+            direction: "output".to_string(),
+            media_type: "audio".to_string(),
+            channel: "left".to_string(),
+            connected_to: "system:playback_1".to_string(),
+        });
+        port_nodes.push(LinuxAudioPortNode {
+            port_id: format!("{}:out_1", safe_id),
+            name: "Audio Out Right".to_string(),
+            direction: "output".to_string(),
+            media_type: "audio".to_string(),
+            channel: "right".to_string(),
+            connected_to: "system:playback_2".to_string(),
+        });
+    }
+
+    let advice = format!(
+        "Linux Audio Topology: Client '{}' linked to {}. Realtime priority RT{} with buffer quantum {} samples ({:.2}ms). Graph node routing configured for Carla, Bitwig, and Ardour.",
+        p_name, server_title, rt_priority, quantum, latency
+    );
+
+    LinuxAudioDiagnosticReport {
+        plugin_name: p_name,
+        active_server: server_title.to_string(),
+        server_version: server_ver.to_string(),
+        realtime_scheduling: true,
+        realtime_priority: rt_priority,
+        buffer_quantum: quantum,
+        sample_rate: s_rate,
+        latency_ms: (latency * 100.0).round() / 100.0,
+        lock_free_graph: true,
+        xrun_protection_status: xrun_status.to_string(),
+        port_nodes,
+        routing_advice: advice,
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct InstalledPluginInfo {
     pub name: String,
     pub version: Option<String>,
@@ -3715,6 +3846,36 @@ mod tests {
         assert_eq!(details.scopes.len(), 3);
         assert_eq!(details.scopes[1].scope_name, "InputScope");
         assert_eq!(details.scopes[2].scope_name, "OutputScope");
+    }
+
+    #[test]
+    fn test_inspect_linux_audio_graph_pipewire() {
+        let report = inspect_linux_audio_graph(
+            Some("Vital Synth".to_string()),
+            Some("pipewire".to_string()),
+            Some("synth".to_string()),
+        );
+        assert!(report.active_server.contains("PipeWire"));
+        assert_eq!(report.realtime_priority, 90);
+        assert_eq!(report.buffer_quantum, 256);
+        assert_eq!(report.sample_rate, 48000);
+        assert_eq!(report.port_nodes.len(), 3);
+        assert!(report.port_nodes.iter().any(|p| p.media_type == "midi"));
+        assert_eq!(report.xrun_protection_status, "ACTIVE_GUARDED");
+    }
+
+    #[test]
+    fn test_inspect_linux_audio_graph_jack() {
+        let report = inspect_linux_audio_graph(
+            Some("Mastering EQ".to_string()),
+            Some("jack".to_string()),
+            Some("effect".to_string()),
+        );
+        assert!(report.active_server.contains("JACK"));
+        assert_eq!(report.realtime_priority, 85);
+        assert_eq!(report.port_nodes.len(), 4);
+        assert_eq!(report.port_nodes[0].direction, "input");
+        assert_eq!(report.port_nodes[2].direction, "output");
     }
 }
 

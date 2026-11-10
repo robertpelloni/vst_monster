@@ -72,6 +72,7 @@
 - [x] Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector (v0.7.6).
 - [x] Multi-Topic Crawler Expansion & Prioritized Release Asset Extraction (v0.7.7).
 - [x] LV2 Manifest Graph Ingestion & Dashboard TTL Validation Display (v0.7.8).
+- [x] Linux Audio Infrastructure & PipeWire/JACK Graph Routing Diagnostic Engine (v0.7.9).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

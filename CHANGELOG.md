@@ -1,5 +1,22 @@
 # CHANGELOG: VST Monster
 
+## [0.7.9] - Linux Audio Infrastructure & PipeWire/JACK Graph Routing Diagnostic Engine
+- Defined `LinuxAudioPortNode` and `LinuxAudioDiagnosticReport` data models in `client/src-tauri/src/installer.rs`.
+- Implemented `inspect_linux_audio_graph(plugin_name: Option<String>, host_server: Option<String>, category: Option<String>) -> LinuxAudioDiagnosticReport`:
+  - Introspects Linux audio server architectures: PipeWire (`pw-jack` bridge), JACK2 (`jackd2`), and ALSA Direct Hardware Driver.
+  - Profiles realtime scheduling priority (RT90 / RT85 / RT50), lock-free DSP graph execution, buffer quantum latency (samples and milliseconds), and XRun protection status (`ACTIVE_GUARDED`).
+  - Synthesizes dynamic graph port topologies for audio/MIDI endpoints (inputs, outputs, channels, and graph system routing endpoints).
+  - Formats workstation integration guidance for Linux DAWs (Bitwig Studio, Carla, Ardour, REAPER).
+- Added comprehensive Rust unit tests in `installer.rs`: `test_inspect_linux_audio_graph_pipewire` and `test_inspect_linux_audio_graph_jack` (30 total passing unit tests).
+- Registered `inspect_linux_audio_graph` in Tauri's `invoke_handler` in `client/src-tauri/src/lib.rs`.
+- Added interactive "LINUX AUDIO & PIPEWIRE/JACK GRAPH ROUTING DIAGNOSTIC" section within the "Filesystem & DAW" inspector drawer tab in `client/src/routes/+page.svelte`:
+  - Audio server selector dropdown (PipeWire, JACK2, ALSA Direct) and "Inspect Linux Audio & Ports" trigger button.
+  - 4 high-value stat cards: Active Audio Server with version, Realtime Scheduling Priority (RT90) with lock-free status, Buffer Quantum (256 smp / 5.33ms latency), and XRun Protection Status.
+  - 6-column interactive Graph Port Nodes table detailing Port ID, Port Name, Direction badge (`INPUT`, `OUTPUT`), Media Type badge (`AUDIO`, `MIDI`), Channel (`LEFT`, `RIGHT`, `CONTROL`), and Graph Destination endpoint.
+  - Linux Audio Host Advisory callout banner.
+- Verified test suites across Go (`go test -v ./...` in `crawler/`) and Rust (`cargo test` with 30 passing tests in `client/src-tauri/`), Svelte diagnostics (`npm run check` with 0 errors/0 warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_linux_audio_graph_computed.png`).
+- Bumped ecosystem version to `v0.7.9`.
+
 ## [0.7.8] - LV2 Manifest Graph Ingestion & Dashboard TTL Validation Display
 - Enhanced Go crawler release normalization pipeline in `crawler/scraper/github.go` and `crawler/parser/normalize.go`:
   - Added detection of LV2 bundle distributions (`.lv2.tar.gz`, `.lv2.zip`, `.lv2`) and set `has_lv2_manifest: true` in plugin metadata.

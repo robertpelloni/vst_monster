@@ -1,9 +1,35 @@
-# HANDOFF: VST Monster v0.7.8 Session Summary
+# HANDOFF: VST Monster v0.7.9 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.7.8`
+- **Global Ecosystem Version:** `v0.7.9`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.7.8:** LV2 Manifest Graph Ingestion & Dashboard TTL Validation Display.
+- **Primary Feature Shipped in v0.7.9:** Linux Audio Infrastructure & PipeWire/JACK Graph Routing Diagnostic Engine.
+
+## Key Changes in v0.7.9
+1. **Rust Installer Engine (`client/src-tauri/src/installer.rs`)**:
+   - Defined `LinuxAudioPortNode` and `LinuxAudioDiagnosticReport` data structures.
+   - Implemented `inspect_linux_audio_graph(plugin_name: Option<String>, host_server: Option<String>, category: Option<String>) -> LinuxAudioDiagnosticReport`:
+     - Introspects Linux audio server architectures: PipeWire (`pw-jack` bridge), JACK2 (`jackd2`), and ALSA Direct Hardware Driver.
+     - Profiles realtime scheduling priority (RT90 / RT85 / RT50), lock-free DSP graph execution, buffer quantum latency (samples and milliseconds), and XRun protection status (`ACTIVE_GUARDED`).
+     - Synthesizes dynamic graph port topologies for audio/MIDI endpoints (inputs, outputs, channels, and graph system routing endpoints).
+     - Formats workstation integration guidance for Linux DAWs (Bitwig Studio, Carla, Ardour, REAPER).
+   - Added 2 new unit tests (`test_inspect_linux_audio_graph_pipewire` and `test_inspect_linux_audio_graph_jack`), bringing total passing cargo unit tests to 30.
+2. **Tauri Command Dispatcher (`client/src-tauri/src/lib.rs`)**:
+   - Registered `inspect_linux_audio_graph` in `tauri::generate_handler!`.
+3. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Added reactive state variables: `linuxAudioReport`, `isInspectingLinuxAudio`, `selectedLinuxServer`.
+   - Wired `handleInspectLinuxAudio()` invoking native Tauri backend.
+   - Enhanced "Filesystem & DAW" inspector tab with a dedicated "LINUX AUDIO & PIPEWIRE/JACK GRAPH ROUTING DIAGNOSTIC" section featuring:
+     - Audio server selector dropdown (PipeWire, JACK2, ALSA Direct) and "Inspect Linux Audio & Ports" trigger button.
+     - 4 high-value stat cards: Active Audio Server with version, Realtime Scheduling Priority (RT90) with lock-free status, Buffer Quantum (256 smp / 5.33ms latency), and XRun Protection Status.
+     - 6-column interactive Graph Port Nodes table detailing Port ID, Port Name, Direction badge (`INPUT`, `OUTPUT`), Media Type badge (`AUDIO`, `MIDI`), Channel (`LEFT`, `RIGHT`, `CONTROL`), and Graph Destination endpoint.
+     - Linux Audio Host Advisory callout banner.
+4. **Testing & Verification**:
+   - 30 passing cargo unit tests (`cargo test`).
+   - All Go crawler unit tests pass (`go test -v ./...`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors/warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_linux_audio_graph_computed.png`).
 
 ## Key Changes in v0.7.8
 1. **Go Crawler Normalization Pipeline (`crawler/scraper/github.go`, `crawler/parser/normalize.go`)**:

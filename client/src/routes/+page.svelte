@@ -478,6 +478,30 @@
     macos_compatibility_advice: string;
   }
 
+  interface LinuxAudioPortNodeItem {
+    port_id: string;
+    name: string;
+    direction: string;
+    media_type: string;
+    channel: string;
+    connected_to: string;
+  }
+
+  interface LinuxAudioDiagnosticReportItem {
+    plugin_name: string;
+    active_server: string;
+    server_version: string;
+    realtime_scheduling: boolean;
+    realtime_priority: number;
+    buffer_quantum: number;
+    sample_rate: number;
+    latency_ms: number;
+    lock_free_graph: boolean;
+    xrun_protection_status: string;
+    port_nodes: LinuxAudioPortNodeItem[];
+    routing_advice: string;
+  }
+
   let activeSnapshot = $state<PluginStateSnapshot | null>(null);
   let isSnapshotting = $state(false);
   let presetDiffReport = $state<PresetDiffReport | null>(null);
@@ -495,6 +519,9 @@
   let isInspectingClapMetadata = $state(false);
   let audioUnitMetadataReport = $state<AudioUnitMetadataDetailsItem | null>(null);
   let isInspectingAudioUnitMetadata = $state(false);
+  let linuxAudioReport = $state<LinuxAudioDiagnosticReportItem | null>(null);
+  let isInspectingLinuxAudio = $state(false);
+  let selectedLinuxServer = $state('pipewire');
 
   function toggleTheme() {
     activeTheme = activeTheme === 'dark' ? 'contrast' : 'dark';
@@ -1209,6 +1236,25 @@
       actionMessage = `Audio Unit metadata inspection failed: ${err}`;
     } finally {
       isInspectingAudioUnitMetadata = false;
+    }
+  }
+
+  async function handleInspectLinuxAudio() {
+    isInspectingLinuxAudio = true;
+    try {
+      const pluginName = previewPlugin?.name || 'Vital';
+      const category = previewPlugin?.category || 'synth';
+      const res: LinuxAudioDiagnosticReportItem = await invoke('inspect_linux_audio_graph', {
+        pluginName,
+        hostServer: selectedLinuxServer,
+        category,
+      });
+      linuxAudioReport = res;
+      actionMessage = `Inspected Linux Audio Routing for ${pluginName} on ${res.active_server} (${res.buffer_quantum} samples @ ${res.sample_rate}Hz)`;
+    } catch (err: any) {
+      actionMessage = `Linux Audio inspection failed: ${err}`;
+    } finally {
+      isInspectingLinuxAudio = false;
     }
   }
 
@@ -2780,6 +2826,115 @@
                       <div class="advice-content">
                         <strong>Apple CoreAudio Workstation Advisory:</strong>
                         <p>{audioUnitMetadataReport.macos_compatibility_advice}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Linux Audio & PipeWire/JACK Graph Routing Diagnostic -->
+              <div class="linux-audio-card">
+                <div class="linux-audio-header">
+                  <div class="linux-audio-title">
+                    <span class="linux-audio-icon">🐧</span>
+                    <div>
+                      <h4 class="linux-audio-h4">LINUX AUDIO & PIPEWIRE/JACK GRAPH ROUTING DIAGNOSTIC</h4>
+                      <span class="linux-audio-sub">Realtime priority RT-scheduling, buffer quantum latency, PipeWire/JACK graph port wiring</span>
+                    </div>
+                  </div>
+                  <div class="linux-audio-ctrls">
+                    <select
+                      class="linux-server-select"
+                      bind:value={selectedLinuxServer}
+                      use:tooltip={"Select Linux audio server daemon architecture"}
+                    >
+                      <option value="pipewire">PipeWire (pw-jack bridge)</option>
+                      <option value="jack">JACK2 Audio Server (jackd2)</option>
+                      <option value="alsa">ALSA Direct Hardware Driver</option>
+                    </select>
+                    <button
+                      type="button"
+                      class="btn-linux-audio-action"
+                      onclick={handleInspectLinuxAudio}
+                      disabled={isInspectingLinuxAudio}
+                      use:tooltip={"Inspect Linux audio server status, RT scheduling, quantum buffer, and graph node wiring"}
+                    >
+                      {isInspectingLinuxAudio ? 'Introspecting Graph...' : 'Inspect Linux Audio & Ports'}
+                    </button>
+                  </div>
+                </div>
+
+                {#if linuxAudioReport}
+                  <div class="linux-audio-content">
+                    <div class="linux-metrics-grid">
+                      <div class="linux-stat-card">
+                        <span class="linux-stat-label">Active Audio Server:</span>
+                        <span class="linux-stat-val server-name" use:tooltip={linuxAudioReport.active_server}>{linuxAudioReport.active_server.split(' ')[0]}</span>
+                        <span class="linux-stat-sub">Version: {linuxAudioReport.server_version}</span>
+                      </div>
+                      <div class="linux-stat-card">
+                        <span class="linux-stat-label">Realtime Priority:</span>
+                        <span class="linux-stat-val rt-val">RT{linuxAudioReport.realtime_priority}</span>
+                        <span class="linux-stat-sub">Lock-Free DSP Graph: {linuxAudioReport.lock_free_graph ? 'ACTIVE' : 'OFF'}</span>
+                      </div>
+                      <div class="linux-stat-card">
+                        <span class="linux-stat-label">Buffer Quantum:</span>
+                        <span class="linux-stat-val quantum-val">{linuxAudioReport.buffer_quantum} smp</span>
+                        <span class="linux-stat-sub">{linuxAudioReport.latency_ms.toFixed(2)} ms latency @ {linuxAudioReport.sample_rate}Hz</span>
+                      </div>
+                      <div class="linux-stat-card">
+                        <span class="linux-stat-label">XRun Protection:</span>
+                        <span class="linux-stat-val xrun-status {linuxAudioReport.xrun_protection_status.toLowerCase()}">
+                          ✓ {linuxAudioReport.xrun_protection_status}
+                        </span>
+                        <span class="linux-stat-sub">Guarded audio thread buffer pipeline</span>
+                      </div>
+                    </div>
+
+                    <!-- Audio & MIDI Port Nodes Table -->
+                    <div class="linux-ports-box">
+                      <div class="linux-ports-header">Graph Port Nodes & Connections ({linuxAudioReport.port_nodes.length})</div>
+                      <div class="linux-ports-table-wrap">
+                        <table class="linux-ports-table">
+                          <thead>
+                            <tr>
+                              <th>Port ID</th>
+                              <th>Port Name</th>
+                              <th>Direction</th>
+                              <th>Type</th>
+                              <th>Channel</th>
+                              <th>Graph Destination</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each linuxAudioReport.port_nodes as node}
+                              <tr>
+                                <td class="node-id-cell"><code>{node.port_id}</code></td>
+                                <td><strong>{node.name}</strong></td>
+                                <td>
+                                  <span class="port-direction-pill {node.direction}">
+                                    {node.direction.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span class="media-type-pill {node.media_type}">
+                                    {node.media_type.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td><span class="channel-pill">{node.channel}</span></td>
+                                <td class="connected-dest-cell"><code>{node.connected_to}</code></td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div class="linux-audio-advice-card">
+                      <span class="advice-icon">🐧</span>
+                      <div class="advice-content">
+                        <strong>Linux Audio Host Advisory:</strong>
+                        <p>{linuxAudioReport.routing_advice}</p>
                       </div>
                     </div>
                   </div>
@@ -9591,6 +9746,249 @@
     padding: 0.85rem 1rem;
     font-size: 0.85rem;
     color: #f3e8ff;
+  }
+
+  /* Linux Audio & PipeWire/JACK Graph Styles */
+  .linux-audio-card {
+    background: #141f23;
+    border: 1px solid #0e7490;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .linux-audio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .linux-audio-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .linux-audio-icon {
+    font-size: 1.6rem;
+  }
+
+  .linux-audio-h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #38bdf8;
+    letter-spacing: 0.05em;
+  }
+
+  .linux-audio-sub {
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+
+  .linux-audio-ctrls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .linux-server-select {
+    background: #0f172a;
+    border: 1px solid #0284c7;
+    color: #f8fafc;
+    border-radius: 6px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .btn-linux-audio-action {
+    background: #0284c7;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.45rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-linux-audio-action:hover:not(:disabled) {
+    background: #0369a1;
+  }
+
+  .btn-linux-audio-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .linux-audio-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .linux-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+  }
+
+  .linux-stat-card {
+    background: #0b1920;
+    border: 1px solid #155e75;
+    border-radius: 6px;
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .linux-stat-label {
+    font-size: 0.75rem;
+    color: #7dd3fc;
+    text-transform: uppercase;
+  }
+
+  .linux-stat-val.server-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #38bdf8;
+  }
+
+  .linux-stat-val.rt-val {
+    font-size: 1rem;
+    font-family: monospace;
+    font-weight: 700;
+    color: #4ade80;
+  }
+
+  .linux-stat-val.quantum-val {
+    font-size: 0.95rem;
+    font-family: monospace;
+    font-weight: 700;
+    color: #facc15;
+  }
+
+  .linux-stat-val.xrun-status {
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .linux-stat-val.xrun-status.active_guarded {
+    color: #4ade80;
+  }
+
+  .linux-stat-val.xrun-status.moderate_risk {
+    color: #fbbf24;
+  }
+
+  .linux-stat-sub {
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+
+  .linux-ports-box {
+    background: #0b1920;
+    border: 1px solid #155e75;
+    border-radius: 6px;
+    padding: 1rem;
+  }
+
+  .linux-ports-header {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #7dd3fc;
+    margin-bottom: 0.75rem;
+  }
+
+  .linux-ports-table-wrap {
+    overflow-x: auto;
+  }
+
+  .linux-ports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  .linux-ports-table th {
+    text-align: left;
+    padding: 0.5rem;
+    color: #94a3b8;
+    border-bottom: 1px solid #1e293b;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+  }
+
+  .linux-ports-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid #1e293b;
+    color: #e2e8f0;
+  }
+
+  .node-id-cell code, .connected-dest-cell code {
+    font-family: monospace;
+    color: #38bdf8;
+    font-size: 0.78rem;
+  }
+
+  .port-direction-pill {
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+
+  .port-direction-pill.input {
+    background: rgba(14, 165, 233, 0.2);
+    color: #38bdf8;
+  }
+
+  .port-direction-pill.output {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+  }
+
+  .media-type-pill {
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+
+  .media-type-pill.audio {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+  }
+
+  .media-type-pill.midi {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+  }
+
+  .channel-pill {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+  }
+
+  .linux-audio-advice-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: rgba(14, 116, 144, 0.1);
+    border: 1px solid rgba(14, 116, 144, 0.3);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+    color: #e0f2fe;
   }
 
   @media (max-width: 1024px) {

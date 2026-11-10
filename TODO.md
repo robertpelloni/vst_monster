@@ -82,4 +82,5 @@
 - [x] Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector (v0.7.6).
 - [x] Multi-topic crawler expansion & prioritized release asset extraction (v0.7.7).
 - [x] LV2 manifest graph ingestion & dashboard TTL validation display (v0.7.8).
+- [x] Linux audio infrastructure & PipeWire/JACK graph routing diagnostic engine (v0.7.9).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.
