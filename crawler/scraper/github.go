@@ -138,11 +138,13 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 			}
 
 			category := "effect"
-			if strings.Contains(lowerDesc, "synth") || strings.Contains(lowerDesc, "instrument") || strings.Contains(lowerDesc, "generator") || strings.Contains(lowerDesc, "modular") {
+			if strings.Contains(lowerDesc, "synth") || strings.Contains(lowerDesc, "instrument") || strings.Contains(lowerDesc, "generator") || strings.Contains(lowerDesc, "modular") || strings.Contains(strings.ToLower(name), "instrument") {
 				category = "synth"
 			} else if strings.Contains(lowerDesc, "compressor") || strings.Contains(lowerDesc, "limiter") || strings.Contains(lowerDesc, "gate") || strings.Contains(lowerDesc, "tape") {
 				category = "dynamics"
 			}
+
+			isFaust := strings.Contains(lowerDesc, "faust") || strings.Contains(lowerURL, "faust")
 
 			meta := map[string]interface{}{
 				"source":      "github",
@@ -152,6 +154,9 @@ func BuildGithubScraper(c *colly.Collector, results chan<- parser.StandardPlugin
 			if isLV2 {
 				meta["has_lv2_manifest"] = true
 				meta["manifest_format"] = "Turtle (.ttl)"
+			}
+			if isFaust {
+				meta["dsp_language"] = "Faust"
 			}
 
 			results <- parser.StandardPlugin{

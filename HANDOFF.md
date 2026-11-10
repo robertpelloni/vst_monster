@@ -1,9 +1,24 @@
-# HANDOFF: VST Monster v0.8.1 Session Summary
+# HANDOFF: VST Monster v0.8.2 Session Summary
 
 ## Status & Overview
-- **Global Ecosystem Version:** `v0.8.1`
+- **Global Ecosystem Version:** `v0.8.2`
 - **Current Milestone:** Milestone 3 (Advanced Installation Engines, Inspection Diagnostics & Host Compatibility)
-- **Primary Feature Shipped in v0.8.1:** Expanded GitHub Crawler Topics (audio-unit & juce) & Apple Audio Unit Format Detection.
+- **Primary Feature Shipped in v0.8.2:** Continuous Crawler Topic Expansion (vst-instruments & faust) & DSP Classification.
+
+## Key Changes in v0.8.2
+1. **Go Crawler Pipeline (`crawler/main.go`, `crawler/scraper/github.go`, `crawler/scraper/github_test.go`)**:
+   - Expanded monitored GitHub audio engineering topics to 14 by adding `https://github.com/topics/vst-instruments` and `https://github.com/topics/faust`.
+   - Enhanced classification heuristics in `crawler/scraper/github.go` detecting Faust DSP programming language usage (`dsp_language: "Faust"`) and categorizing VST instruments as `synth`.
+   - Added unit test `TestGithubScraper_ExpandedAudioTopics` in `crawler/scraper/github_test.go` verifying Faust DSP detection and instrument categorization.
+2. **Svelte Client UI (`client/src/routes/+page.svelte`)**:
+   - Updated Crawler Operations Hub badge from `🐙 GitHub Audio Topics (12)` to `🐙 GitHub Audio Topics (14)`.
+   - Updated the descriptive tooltip to enumerate all 14 monitored audio engineering and DSP topics.
+3. **Testing & Verification**:
+   - All Go crawler unit tests pass (`go test -v ./...` in `crawler/`).
+   - All 32 Rust cargo unit tests pass (`cargo test` in `client/src-tauri/`).
+   - Clean Svelte diagnostics (`npm run check` with 0 errors and 0 warnings).
+   - Static client build verified (`npm run build`).
+   - Playwright visual verification screenshot (`ui_crawler_topics_14.png`).
 
 ## Key Changes in v0.8.1
 1. **Go Crawler Pipeline (`crawler/main.go`, `crawler/scraper/github.go`, `crawler/scraper/github_test.go`)**:

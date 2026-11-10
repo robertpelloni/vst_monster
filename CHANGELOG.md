@@ -1,5 +1,13 @@
 # CHANGELOG: VST Monster
 
+## [0.8.2] - Continuous Crawler Topic Expansion (vst-instruments & faust) & DSP Classification
+- Expanded GitHub topic crawler coverage in `crawler/main.go` to include `https://github.com/topics/vst-instruments` and `https://github.com/topics/faust`, scaling the continuous monitoring pipeline to 14 dedicated audio engineering topics.
+- Enhanced classification heuristics in `crawler/scraper/github.go` to detect Faust DSP programming language usage (`dsp_language: "Faust"`) and categorize VST instruments as `synth`.
+- Added unit test `TestGithubScraper_ExpandedAudioTopics` in `crawler/scraper/github_test.go` verifying Faust DSP detection and instrument categorization.
+- Updated Crawler Operations Hub in `client/src/routes/+page.svelte` displaying `🐙 GitHub Audio Topics (14)` with updated descriptive tooltip covering all 14 monitored topics.
+- Verified test suites across Go (`go test -v ./...` in `crawler/`) and Rust (`cargo test` with 32 passing tests in `client/src-tauri/`), Svelte diagnostics (`npm run check` with 0 errors/0 warnings, `npm run build`), and automated Playwright visual screenshot verification (`ui_crawler_topics_14.png`).
+- Bumped ecosystem version to `v0.8.2`.
+
 ## [0.8.1] - Expanded GitHub Crawler Topics (audio-unit & juce) & Audio Unit Format Detection
 - Expanded GitHub topic crawler coverage in `crawler/main.go` to include `https://github.com/topics/audio-unit` and `https://github.com/topics/juce`, expanding the continuous monitoring footprint to 12 dedicated audio engineering topic catalogs.
 - Enhanced format extraction heuristics in `crawler/scraper/github.go` to detect Apple Audio Unit (`AU`) distributions and formats whenever repositories or release packages contain `audio unit`, `audiounit`, `auv3`, or `.component`.

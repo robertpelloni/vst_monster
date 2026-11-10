@@ -116,6 +116,10 @@ func main() {
 	githubCollector.Visit("https://github.com/topics/audio-unit")
 	githubCollector.Visit("https://github.com/topics/juce")
 
+	log.Println("Crawling GitHub VST Instruments & Faust DSP topics...")
+	githubCollector.Visit("https://github.com/topics/vst-instruments")
+	githubCollector.Visit("https://github.com/topics/faust")
+
 	var wg sync.WaitGroup
 
 	// Run Bedroom Producers Blog scraper with WaitGroup tracking

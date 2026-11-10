@@ -75,6 +75,7 @@
 - [x] Linux Audio Infrastructure & PipeWire/JACK Graph Routing Diagnostic Engine (v0.7.9).
 - [x] Avid AAX Architecture & Pro Tools HDX DSP Introspector (v0.8.0).
 - [x] Expanded GitHub Crawler Topics (audio-unit & juce) & Apple Audio Unit Format Detection (v0.8.1).
+- [x] Expanded GitHub Crawler Topics (vst-instruments & faust) & Faust DSP Language Detection (v0.8.2).
 
 ## Milestone 4: Distributed Community Sync & P2P Cache
 - [ ] BitTorrent / IPFS content-addressed distribution mirrors for large open-source plugin collections.

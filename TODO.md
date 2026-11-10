@@ -85,4 +85,5 @@
 - [x] Linux audio infrastructure & PipeWire/JACK graph routing diagnostic engine (v0.7.9).
 - [x] Avid AAX architecture & Pro Tools HDX DSP introspector (v0.8.0).
 - [x] Expanded GitHub crawler topics (audio-unit & juce) & Apple Audio Unit format detection (v0.8.1).
+- [x] Expanded GitHub crawler topics (vst-instruments & faust) & Faust DSP detection (v0.8.2).
 - [ ] Community preset sharing repository and distributed IPFS/torrent cache.

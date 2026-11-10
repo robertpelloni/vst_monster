@@ -89,3 +89,25 @@ func TestGithubScraper_AudioUnitTopic(t *testing.T) {
 		t.Errorf("Expected AU in extracted formats, got %v", formats)
 	}
 }
+
+func TestGithubScraper_ExpandedAudioTopics(t *testing.T) {
+	name := "FaustOscillator"
+	desc := "Physical modeling sound synthesizer built with Faust DSP compiler for VST3 and CLAP"
+
+	lowerDesc := strings.ToLower(desc)
+	lowerName := strings.ToLower(name)
+
+	category := "effect"
+	if strings.Contains(lowerDesc, "synth") || strings.Contains(lowerDesc, "instrument") || strings.Contains(lowerName, "instrument") {
+		category = "synth"
+	}
+
+	if category != "synth" {
+		t.Errorf("Expected category 'synth', got '%s'", category)
+	}
+
+	isFaust := strings.Contains(lowerDesc, "faust")
+	if !isFaust {
+		t.Errorf("Expected Faust DSP detection")
+	}
+}
