@@ -42,6 +42,49 @@
 - [x] Add LV2 format discoverability chip with dynamic count badge and Windows VST2 path scan expansion (v0.4.1).
 - [x] Implement active installation path spec indicator in catalog card specs for locally installed plugins (v0.4.2).
 - [x] Add direct one-click SHA-256 hash copy button on cards and preview drawer with copied state animation (v0.4.2).
-- [ ] Implement sandboxed ClamAV / VirusTotal scanner before unpacking binaries.
-- [ ] Implement VST2 / legacy 32-bit warning banner when scanning older binary formats.
-- [ ] Provide DAW preset scan integration and preset folder quick launcher.
+- [x] Implement comprehensive macOS DMG extraction and automated plugin installation (.pkg execution, .vst support, resilient detach) (v0.4.3).
+- [x] Implement VST2 / legacy 32-bit warning banner when scanning older binary formats (v0.4.4).
+- [x] Provide DAW preset folder quick launcher and OS presets directory creation (v0.4.4).
+- [x] Auto-target `.lv2` and `.clap` plugin bundles during zip archive extraction (v0.4.5).
+- [x] Enrich preview inspection modal with Audio Format & Host Compatibility Matrix breakdown (v0.4.5).
+- [x] Implement configurable tabbed views inside plugin inspection drawer (Overview & Specs, Filesystem & DAW, Raw Manifest JSON) (v0.4.6).
+- [x] Implement local metadata scan caching and acceleration with cache flush UI controls (v0.4.7).
+- [x] Add Audio Unit (AU) discoverability chip, reactive count badges, and CoreAudio compatibility banner (v0.4.8).
+- [x] Implement pre-flight sandboxed ClamAV antivirus scanner before unpacking binaries (v0.4.9).
+- [x] Add Cryptographic Verification & Antivirus Scan Card in Inspector Drawer (v0.4.9).
+- [x] Implement dynamic DAW theme switching (Dark Studio vs High-Contrast DAW) in header (v0.5.0).
+- [x] Implement deep audio bundle structural inspection & audit diagnostics (v0.5.1).
+- [x] Implement CLAP open architecture specification callouts and inspector badging (v0.5.2).
+- [x] Headless automated DAW plugin bundle fuzzing and validation test suite (v0.5.3).
+- [x] Implement Windows zip archive decompression for standalone `.dll` and `.vst3` files (v0.5.4).
+- [x] Exported DAW host entry point symbol verification (`GetPluginFactory`, `clap_entry`, `lv2_descriptor`, `VSTPluginMain`) (v0.5.4).
+- [x] LV2 manifest Turtle (`.ttl`) version & URI extraction with expanded Windows VST2 discovery & legacy architecture callouts (v0.5.5).
+- [x] Native DAW preset export engine & preset storage inspector integration (v0.5.6).
+- [x] Multi-format audio capabilities detection & host feature matrix inspector (v0.5.7).
+- [x] Dedicated LV2 GitHub scraper topics, release asset prioritization, and manifest architecture badges (v0.5.8).
+- [x] Windows MSI silent unattended installer engine with log redirection and diagnostic decoders (v0.5.9).
+- [x] Advanced installation routing engine, custom destination overrides & strategy selection (v0.6.0).
+- [x] Wine & Yabridge host synchronization and Windows DLL/VST3 bridge compatibility engine (v0.6.1).
+- [x] Latency & buffer diagnostic simulation matrix with sample rate & DSP lookahead PDC analysis (v0.6.2).
+- [x] Channel audio bus configuration & I/O routing matrix inspection (v0.6.3).
+- [x] Binary architecture & SIMD instruction inspection engine with security protections (v0.6.4).
+- [x] Headless DSP diagnostic benchmark & real-time memory profiler (v0.6.5).
+- [x] Automated VST/AU/CLAP plugin parameter enumeration & MIDI automation map inspector (v0.6.6).
+- [x] Real-time audio thread stress test & headless crash recovery inspector (v0.6.7).
+- [x] Headless audio loopback rendering & dynamic frequency response spectrum analyzer (v0.6.8).
+- [x] Automated preset bank diffing & state snapshot manager (v0.6.9).
+- [x] Real-time audio loopback metering & true peak (dBTP) LUFS EBU R128 analyzer (v0.7.0).
+- [x] Multi-channel audio phase correlation & goniometer vectorscope analyzer (v0.7.1).
+- [x] Deep LV2 RDF manifest graph introspector & port topology engine (v0.7.2).
+- [x] Multi-target crawler expansion (6 GitHub topics, KVR Audio newest effects) & Operations Hub UI (v0.7.3).
+- [x] KVR Audio categorization heuristics & enhanced metadata pipeline (v0.7.4).
+- [x] CLAP Open Audio Standard Factory Descriptor & Extensions Inspector (v0.7.5).
+- [x] Apple Audio Unit (AUv2/AUv3) CoreAudio Component Introspector (v0.7.6).
+- [x] Multi-topic crawler expansion & prioritized release asset extraction (v0.7.7).
+- [x] LV2 manifest graph ingestion & dashboard TTL validation display (v0.7.8).
+- [x] Linux audio infrastructure & PipeWire/JACK graph routing diagnostic engine (v0.7.9).
+- [x] Avid AAX architecture & Pro Tools HDX DSP introspector (v0.8.0).
+- [x] Expanded GitHub crawler topics (audio-unit & juce) & Apple Audio Unit format detection (v0.8.1).
+- [x] Expanded GitHub crawler topics (vst-instruments & faust) & Faust DSP detection (v0.8.2).
+- [x] Windows MSI unattended silent installation engine inspector & diagnostic remediation (v0.8.3).
+- [ ] Community preset sharing repository and distributed IPFS/torrent cache.

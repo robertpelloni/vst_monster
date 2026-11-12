@@ -95,9 +95,32 @@ func main() {
 	// Start crawls
 	log.Println("Crawling KVR Audio...")
 	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/newest")
+	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/instruments/newest")
+	kvrCollector.Visit("https://www.kvraudio.com/plugins/free/effects/newest")
 
 	log.Println("Crawling GitHub VST topics...")
 	githubCollector.Visit("https://github.com/topics/vst-plugin")
+	githubCollector.Visit("https://github.com/topics/vst3")
+	githubCollector.Visit("https://github.com/topics/clap-plugin")
+	githubCollector.Visit("https://github.com/topics/audio-plugins")
+
+	log.Println("Crawling GitHub LV2 topics...")
+	githubCollector.Visit("https://github.com/topics/lv2")
+	githubCollector.Visit("https://github.com/topics/lv2-plugin")
+
+	log.Println("Crawling GitHub DSP & Audio Effect topics...")
+	githubCollector.Visit("https://github.com/topics/audio-dsp")
+	githubCollector.Visit("https://github.com/topics/sound-synthesis")
+	githubCollector.Visit("https://github.com/topics/audio-effect")
+	githubCollector.Visit("https://github.com/topics/lv2-synthesizer")
+
+	log.Println("Crawling GitHub Audio Unit & JUCE Framework topics...")
+	githubCollector.Visit("https://github.com/topics/audio-unit")
+	githubCollector.Visit("https://github.com/topics/juce")
+
+	log.Println("Crawling GitHub VST Instruments & Faust DSP topics...")
+	githubCollector.Visit("https://github.com/topics/vst-instruments")
+	githubCollector.Visit("https://github.com/topics/faust")
 
 	var wg sync.WaitGroup
 
@@ -197,6 +220,26 @@ func seedStaplePlugins(pipeline *queue.Pipeline) {
 			License:     "opensource",
 			Source:      "Seed Manifest",
 			Metadata:    map[string]interface{}{"description": "Physical modeling analog reel-to-reel tape machine saturation and hysteresis effect.", "source": "github", "category": "effect"},
+		},
+		{
+			Name:        "Dragonfly Early Reflections Reverb",
+			Developer:   "Michael Willis",
+			Version:     "3.2.10",
+			Formats:     []string{"LV2", "VST3"},
+			DownloadURL: "https://github.com/michaelwillis/dragonfly-reverb/releases/download/3.2.10/dragonfly-reverb-linux-x86_64-3.2.10.tar.gz",
+			License:     "opensource",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "Concert hall and studio room acoustic algorithmic reverb suite in native LV2 bundle format.", "source": "github", "category": "effect"},
+		},
+		{
+			Name:        "Helm Polyphonic Synthesizer",
+			Developer:   "Matt Tytel",
+			Version:     "0.9.0",
+			Formats:     []string{"LV2", "VST3", "AU"},
+			DownloadURL: "https://github.com/mtytel/helm/releases/download/v0.9.0/helm-0.9.0-x86_64.tar.gz",
+			License:     "opensource",
+			Source:      "Seed Manifest",
+			Metadata:    map[string]interface{}{"description": "Free polyphonic synthesizer running as standalone or LV2/VST3 plugin with visual modulation.", "source": "github", "category": "synth"},
 		},
 	}
 

@@ -31,6 +31,9 @@ func ExtractFormats(description string) []string {
 	if strings.Contains(descLower, "clap") {
 		formats = append(formats, "CLAP")
 	}
+	if strings.Contains(descLower, "lv2") {
+		formats = append(formats, "LV2")
+	}
 	return formats
 }
 
